@@ -1,25 +1,33 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-*.env
+/.phpunit.cache
+/bootstrap/ssr
+/node_modules
+/public/build/
+/public/assets/
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+# .github/workflows/AI_GUIDELINES.md
+# .github/workflows/copilot-instructions.md
+# .github/copilot-instructions.md
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/auth.json
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+index.html
+#.htaccess
+.user.ini
+.well-known/
+/.cursor

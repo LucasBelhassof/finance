@@ -622,6 +622,55 @@ async function getCategoryById(categoryId) {
   return result.rows[0] ?? null;
 }
 
+async function getDefaultExpenseCategory(client = pool) {
+  const result = await client.query(
+    `
+      SELECT id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color
+      FROM categories
+      WHERE transaction_type = 'expense'
+        AND slug = 'outros-despesas'
+      LIMIT 1
+    `,
+  );
+
+  return result.rows[0] ?? null;
+}
+
+async function resolveCategoryForTransactionInput(rawCategoryId, amount, client = pool) {
+  const transactionType = getTransactionTypeFromAmount(amount);
+  const categoryId = rawCategoryId === undefined || rawCategoryId === null || rawCategoryId === "" ? null : Number(rawCategoryId);
+
+  if (categoryId === null) {
+    if (transactionType === "income") {
+      throw new Error("categoryId is required for income transactions");
+    }
+
+    const defaultExpenseCategory = await getDefaultExpenseCategory(client);
+
+    if (!defaultExpenseCategory) {
+      throw new Error("default expense category not found");
+    }
+
+    return defaultExpenseCategory;
+  }
+
+  if (!Number.isInteger(categoryId)) {
+    throw new Error("category not found");
+  }
+
+  const category = await getCategoryById(categoryId);
+
+  if (!category) {
+    throw new Error("category not found");
+  }
+
+  if (category.transaction_type !== transactionType) {
+    throw new Error("category does not match transaction type");
+  }
+
+  return category;
+}
+
 async function getBankConnectionById(userId, bankConnectionId) {
   const result = await pool.query(
     `
@@ -967,22 +1016,13 @@ export async function createTransaction(input) {
   const description = String(input.description ?? "").trim();
   const amount = Number(input.amount);
   const occurredOn = normalizeDateValue(input.occurredOn);
-  const categoryId = Number(input.categoryId);
   const bankConnectionId = Number(input.bankConnectionId);
 
-  if (!description || !Number.isFinite(amount) || !occurredOn || !Number.isInteger(categoryId) || !Number.isInteger(bankConnectionId)) {
-    throw new Error("description, amount, occurredOn, categoryId and bankConnectionId are required");
+  if (!description || !Number.isFinite(amount) || !occurredOn || !Number.isInteger(bankConnectionId)) {
+    throw new Error("description, amount, occurredOn and bankConnectionId are required");
   }
 
-  const category = await getCategoryById(categoryId);
-
-  if (!category) {
-    throw new Error("category not found");
-  }
-
-  if (category.transaction_type !== getTransactionTypeFromAmount(amount)) {
-    throw new Error("category does not match transaction type");
-  }
+  const category = await resolveCategoryForTransactionInput(input.categoryId, amount);
 
   const bankConnection = await getBankConnectionById(user.id, bankConnectionId);
 
@@ -996,7 +1036,7 @@ export async function createTransaction(input) {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id
     `,
-    [user.id, bankConnectionId, categoryId, description, amount, occurredOn],
+    [user.id, bankConnectionId, category.id, description, amount, occurredOn],
   );
 
   const row = await getTransactionById(user.id, result.rows[0].id);
@@ -1008,22 +1048,13 @@ export async function updateTransaction(transactionId, input) {
   const description = String(input.description ?? "").trim();
   const amount = Number(input.amount);
   const occurredOn = normalizeDateValue(input.occurredOn);
-  const categoryId = Number(input.categoryId);
   const bankConnectionId = Number(input.bankConnectionId);
 
-  if (!description || !Number.isFinite(amount) || !occurredOn || !Number.isInteger(categoryId) || !Number.isInteger(bankConnectionId)) {
-    throw new Error("description, amount, occurredOn, categoryId and bankConnectionId are required");
+  if (!description || !Number.isFinite(amount) || !occurredOn || !Number.isInteger(bankConnectionId)) {
+    throw new Error("description, amount, occurredOn and bankConnectionId are required");
   }
 
-  const category = await getCategoryById(categoryId);
-
-  if (!category) {
-    throw new Error("category not found");
-  }
-
-  if (category.transaction_type !== getTransactionTypeFromAmount(amount)) {
-    throw new Error("category does not match transaction type");
-  }
+  const category = await resolveCategoryForTransactionInput(input.categoryId, amount);
 
   const bankConnection = await getBankConnectionById(user.id, bankConnectionId);
 
@@ -1043,7 +1074,7 @@ export async function updateTransaction(transactionId, input) {
         AND id = $2
       RETURNING id
     `,
-    [user.id, transactionId, bankConnectionId, categoryId, description, amount, occurredOn],
+    [user.id, transactionId, bankConnectionId, category.id, description, amount, occurredOn],
   );
 
   if (!result.rowCount) {

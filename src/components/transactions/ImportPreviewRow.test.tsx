@@ -8,8 +8,8 @@ import type { CategoryItem, ImportCommitItem, ImportPreviewItem } from "@/types/
 const categories: CategoryItem[] = [
   {
     id: 1,
-    slug: "receitas",
-    label: "Receitas",
+    slug: "salario",
+    label: "Salario",
     transactionType: "income",
     iconName: "Wallet",
     icon: (() => null) as never,
@@ -18,9 +18,21 @@ const categories: CategoryItem[] = [
     groupLabel: "Receitas",
     groupColor: "bg-income",
   },
+  {
+    id: 2,
+    slug: "outros-despesas",
+    label: "Outros",
+    transactionType: "expense",
+    iconName: "Wallet",
+    icon: (() => null) as never,
+    color: "text-muted-foreground",
+    groupSlug: "outros",
+    groupLabel: "Outros",
+    groupColor: "bg-muted-foreground",
+  },
 ];
 
-const draft: ImportCommitItem = {
+const incomeDraft: ImportCommitItem = {
   rowIndex: 1,
   description: "Transferencia recebida",
   amount: "396.00",
@@ -31,7 +43,7 @@ const draft: ImportCommitItem = {
   ignoreDuplicate: false,
 };
 
-const item: ImportPreviewItem = {
+const baseItem: ImportPreviewItem = {
   rowIndex: 1,
   description: "Transferencia recebida",
   normalizedDescription: "transferencia recebida",
@@ -43,30 +55,34 @@ const item: ImportPreviewItem = {
   suggestedCategoryId: null,
   suggestedCategoryLabel: null,
   suggestionSource: null,
+  importSource: "bank_statement",
+  bankConnectionId: 1,
+  bankConnectionName: "Itau",
   matchedRuleId: null,
-  aiSuggestedType: "income",
-  aiSuggestedCategoryId: 1,
-  aiSuggestedCategoryLabel: "Receitas",
-  aiConfidence: 0.91,
-  aiReason: "Recebimento com padrao recorrente.",
-  aiStatus: "suggested",
+  aiSuggestedType: null,
+  aiSuggestedCategoryId: null,
+  aiSuggestedCategoryLabel: null,
+  aiConfidence: null,
+  aiReason: null,
+  aiStatus: "idle",
   possibleDuplicate: true,
   duplicateReason: "Ja existe uma transacao importada com os mesmos dados.",
   canImport: false,
   requiresCategorySelection: true,
   requiresUserAction: true,
+  defaultExclude: false,
   warnings: ["Duplicata provavel encontrada."],
   errors: [],
 };
 
 describe("ImportPreviewRow", () => {
-  it("renders a readable segmented control with the active type highlighted", () => {
+  it("keeps category mandatory for income rows", () => {
     render(
       <Table>
         <TableBody>
           <ImportPreviewRow
-            draft={draft}
-            item={item}
+            draft={incomeDraft}
+            item={baseItem}
             categories={categories}
             onChange={vi.fn()}
             onCreateCategory={vi.fn()}
@@ -75,22 +91,16 @@ describe("ImportPreviewRow", () => {
       </Table>,
     );
 
-    const expenseButton = screen.getByRole("button", { name: "Despesa" });
-    const incomeButton = screen.getByRole("button", { name: "Receita" });
-
-    expect(expenseButton).toBeInTheDocument();
-    expect(incomeButton).toBeInTheDocument();
-    expect(incomeButton.className).toContain("bg-income");
-    expect(expenseButton.className).toContain("flex-1");
+    expect(screen.getByText("Categoria obrigatoria")).toBeInTheDocument();
   });
 
-  it("shows AI suggestion metadata when available", () => {
+  it("shows fallback guidance for expenses without category", () => {
     render(
       <Table>
         <TableBody>
           <ImportPreviewRow
-            draft={draft}
-            item={item}
+            draft={{ ...incomeDraft, type: "expense", categoryId: "" }}
+            item={{ ...baseItem, type: "expense", requiresCategorySelection: false, canImport: true, requiresUserAction: false }}
             categories={categories}
             onChange={vi.fn()}
             onCreateCategory={vi.fn()}
@@ -99,8 +109,8 @@ describe("ImportPreviewRow", () => {
       </Table>,
     );
 
-    expect(screen.getByText(/Sugestao IA Receita 91%/i)).toBeInTheDocument();
-    expect(screen.getByText(/Receita · Receitas: Recebimento com padrao recorrente\./i)).toBeInTheDocument();
+    expect(screen.queryByText("Categoria obrigatoria")).not.toBeInTheDocument();
+    expect(screen.getByText(/sera importada como Outros/i)).toBeInTheDocument();
   });
 
   it("shows history and recurring source badges from the preview", () => {
@@ -108,35 +118,23 @@ describe("ImportPreviewRow", () => {
       <Table>
         <TableBody>
           <ImportPreviewRow
-            draft={{ ...draft, categoryId: 1 }}
+            draft={{ ...incomeDraft, categoryId: 1 }}
             item={{
-              ...item,
-              aiStatus: "idle",
-              aiSuggestedType: null,
-              aiSuggestedCategoryId: null,
-              aiSuggestedCategoryLabel: null,
-              aiConfidence: null,
-              aiReason: null,
+              ...baseItem,
               suggestionSource: "history",
-              suggestedCategoryLabel: "Receitas",
+              suggestedCategoryLabel: "Salario",
             }}
             categories={categories}
             onChange={vi.fn()}
             onCreateCategory={vi.fn()}
           />
           <ImportPreviewRow
-            draft={{ ...draft, rowIndex: 2, categoryId: 1 }}
+            draft={{ ...incomeDraft, rowIndex: 2, categoryId: 1 }}
             item={{
-              ...item,
+              ...baseItem,
               rowIndex: 2,
-              aiStatus: "idle",
-              aiSuggestedType: null,
-              aiSuggestedCategoryId: null,
-              aiSuggestedCategoryLabel: null,
-              aiConfidence: null,
-              aiReason: null,
               suggestionSource: "recurring_rule",
-              suggestedCategoryLabel: "Receitas",
+              suggestedCategoryLabel: "Salario",
             }}
             categories={categories}
             onChange={vi.fn()}
@@ -148,7 +146,7 @@ describe("ImportPreviewRow", () => {
 
     expect(screen.getByText("Historico")).toBeInTheDocument();
     expect(screen.getByText("Recorrencia")).toBeInTheDocument();
-    expect(screen.getByText(/Historico do usuario: Receita · Receitas/i)).toBeInTheDocument();
-    expect(screen.getByText(/Regra recorrente: Receita · Receitas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Historico do usuario: Receita - Salario/i)).toBeInTheDocument();
+    expect(screen.getByText(/Regra recorrente: Receita - Salario/i)).toBeInTheDocument();
   });
 });

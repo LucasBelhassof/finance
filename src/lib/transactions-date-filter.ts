@@ -1,4 +1,4 @@
-export type TransactionsDateFilterPreset = "week" | "fifteen_days" | "month" | "custom";
+export type TransactionsDateFilterPreset = "week" | "fifteen_days" | "month" | "year" | "custom";
 
 export type TransactionsDateRange = {
   startDate: string;
@@ -52,6 +52,11 @@ export function resolvePresetRange(preset: TransactionsDateFilterPreset, now = n
         startDate: getLocalDateKey(createLocalDate(now.getFullYear(), now.getMonth(), 1)),
         endDate: today,
       };
+    case "year":
+      return {
+        startDate: getLocalDateKey(createLocalDate(now.getFullYear(), 0, 1)),
+        endDate: today,
+      };
     default:
       return {
         startDate: today,
@@ -78,7 +83,11 @@ export function formatDateRangeLabel(range: TransactionsDateRange, preset: Trans
   }
 
   if (preset === "month") {
-    return "Mês";
+    return "Mes";
+  }
+
+  if (preset === "year") {
+    return "Ano";
   }
 
   const [startYear, startMonth, startDay] = range.startDate.split("-");

@@ -6,6 +6,7 @@ export const MAX_IMPORT_ROWS = 5000;
 export const PREVIEW_TTL_MS = 15 * 60 * 1000;
 export const IMPORT_AI_MAX_REASON_LENGTH = 160;
 export const RECURRING_RULE_MIN_CONFIRMATIONS = 3;
+const DEFAULT_EXPENSE_CATEGORY_SLUG = "outros-despesas";
 const IMPORT_FINGERPRINT_VERSION = "v1";
 const PDF_PAGE_JOINER = "\n-- page_number of total_number --\n";
 
@@ -1118,10 +1119,12 @@ function buildPreviewItem({
 
   const finalSuggestedCategory = historicalSuggestion?.category ?? suggestion.category ?? null;
   const finalSuggestionSource = historicalSuggestion?.source ?? (suggestion.category ? "rule" : null);
-  const finalRequiresCategorySelection = !defaultExclude && !finalSuggestedCategory;
+  const finalRequiresCategorySelection = !defaultExclude && type === "income" && !finalSuggestedCategory;
 
   if (finalRequiresCategorySelection) {
     warnings.push("Selecione uma categoria antes de importar.");
+  } else if (!defaultExclude && type === "expense" && !finalSuggestedCategory) {
+    warnings.push("Se nenhuma categoria for escolhida, a despesa sera importada como Outros.");
   }
 
   const canImport = errors.length === 0 && !finalRequiresCategorySelection;
@@ -1201,6 +1204,12 @@ function buildHistoricalCategorizationMatches(rows) {
   }
 
   return resolved;
+}
+
+function getDefaultExpenseCategory(categories) {
+  return categories.find(
+    (item) => item.transactionType === "expense" && String(item.slug ?? "") === DEFAULT_EXPENSE_CATEGORY_SLUG,
+  ) ?? null;
 }
 
 function buildRecurringRuleMatches(rows) {
@@ -1776,20 +1785,35 @@ export function validateCommitLine(input, categories) {
     throw new Error("Tipo invalido.");
   }
 
-  const categoryId = Number(input.categoryId);
+  const rawCategoryId = input.categoryId;
+  let category = null;
 
-  if (!Number.isInteger(categoryId)) {
-    throw new Error("Categoria invalida.");
-  }
+  if (rawCategoryId === undefined || rawCategoryId === null || rawCategoryId === "") {
+    if (type === "income") {
+      throw new Error("Categoria obrigatoria para receitas.");
+    }
 
-  const category = categories.find((item) => Number(item.id) === categoryId);
+    category = getDefaultExpenseCategory(categories);
 
-  if (!category) {
-    throw new Error("Categoria invalida.");
-  }
+    if (!category) {
+      throw new Error("Categoria padrao de despesa nao encontrada.");
+    }
+  } else {
+    const categoryId = Number(rawCategoryId);
 
-  if (category.transactionType !== type) {
-    throw new Error("A categoria selecionada nao corresponde ao tipo da transacao.");
+    if (!Number.isInteger(categoryId)) {
+      throw new Error("Categoria invalida.");
+    }
+
+    category = categories.find((item) => Number(item.id) === categoryId);
+
+    if (!category) {
+      throw new Error("Categoria invalida.");
+    }
+
+    if (category.transactionType !== type) {
+      throw new Error("A categoria selecionada nao corresponde ao tipo da transacao.");
+    }
   }
 
   const signedAmount = signedAmountFromType(type, amount);
@@ -1801,7 +1825,7 @@ export function validateCommitLine(input, categories) {
     occurredOn,
     normalizedOccurredOn: occurredOn,
     type,
-    categoryId,
+    categoryId: category.id,
     signedAmount,
     normalizedSignedAmount: normalizeAmountString(signedAmount),
     exclude: Boolean(input.exclude),

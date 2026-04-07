@@ -24,6 +24,10 @@ describe("transactions date filter utils", () => {
       startDate: "2026-04-01",
       endDate: "2026-04-06",
     });
+    expect(resolvePresetRange("year", referenceDate)).toEqual({
+      startDate: "2026-01-01",
+      endDate: "2026-04-06",
+    });
   });
 
   it("compares dates inclusively", () => {
@@ -38,7 +42,8 @@ describe("transactions date filter utils", () => {
   });
 
   it("formats labels and validates custom ranges", () => {
-    expect(formatDateRangeLabel({ startDate: "2026-04-01", endDate: "2026-04-06" }, "month")).toBe("Mês");
+    expect(formatDateRangeLabel({ startDate: "2026-04-01", endDate: "2026-04-06" }, "month")).toBe("Mes");
+    expect(formatDateRangeLabel({ startDate: "2026-01-01", endDate: "2026-04-06" }, "year")).toBe("Ano");
     expect(formatDateRangeLabel({ startDate: "2026-04-01", endDate: "2026-04-06" }, "custom")).toBe("01/04/2026 - 06/04/2026");
     expect(isValidCustomRange({ startDate: "2026-04-01", endDate: "2026-04-06" })).toBe(true);
     expect(isValidCustomRange({ startDate: "2026-04-06", endDate: "2026-04-01" })).toBe(false);

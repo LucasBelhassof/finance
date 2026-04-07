@@ -48,7 +48,7 @@ import type { CreateCategoryInput, CreateTransactionInput, TransactionItem, Upda
 import { toast } from "@/components/ui/sonner";
 
 type TransactionTypeFilter = "all" | "income" | "expense";
-type TransactionsDateFilterPreset = "week" | "fifteen_days" | "month" | "custom";
+type TransactionsDateFilterPreset = "week" | "fifteen_days" | "month" | "year" | "custom";
 type TransactionFormState = {
   id?: string;
   description: string;
@@ -217,6 +217,7 @@ export default function TransactionsPage() {
     () => categories.filter((category) => category.transactionType === transactionForm.type),
     [categories, transactionForm.type],
   );
+  const categoryIsRequired = transactionForm.type === "income";
 
   const openCreateTransaction = (type: "income" | "expense") => {
     setTransactionForm(emptyTransactionForm(type));
@@ -231,8 +232,13 @@ export default function TransactionsPage() {
   const handleTransactionSave = async () => {
     const parsedAmount = Number(transactionForm.amount.replace(",", "."));
 
-    if (!transactionForm.description.trim() || !Number.isFinite(parsedAmount) || !transactionForm.bankConnectionId || !transactionForm.categoryId) {
-      toast.error("Preencha descricao, valor, conta e categoria.");
+    if (
+      !transactionForm.description.trim() ||
+      !Number.isFinite(parsedAmount) ||
+      !transactionForm.bankConnectionId ||
+      (categoryIsRequired && !transactionForm.categoryId)
+    ) {
+      toast.error(categoryIsRequired ? "Preencha descricao, valor, conta e categoria." : "Preencha descricao, valor e conta.");
       return;
     }
 
@@ -241,7 +247,7 @@ export default function TransactionsPage() {
       amount: transactionForm.type === "expense" ? -Math.abs(parsedAmount) : Math.abs(parsedAmount),
       occurredOn: transactionForm.occurredOn,
       bankConnectionId: transactionForm.bankConnectionId,
-      categoryId: transactionForm.categoryId,
+      ...(transactionForm.categoryId ? { categoryId: transactionForm.categoryId } : {}),
     };
 
     try {
@@ -424,7 +430,7 @@ export default function TransactionsPage() {
               onValueChange={(value) => setTransactionForm((current) => ({ ...current, categoryId: value }))}
             >
               <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-                <SelectValue placeholder="Categoria" />
+                <SelectValue placeholder={categoryIsRequired ? "Categoria" : "Categoria (opcional)"} />
               </SelectTrigger>
               <SelectContent>
                 {filteredTransactionCategories.map((category) => (
@@ -434,6 +440,9 @@ export default function TransactionsPage() {
                 ))}
               </SelectContent>
             </Select>
+            {!categoryIsRequired ? (
+              <p className="text-xs text-muted-foreground">Se nao escolher, a despesa sera salva como Outros.</p>
+            ) : null}
             <Input
               type="date"
               value={transactionForm.occurredOn}

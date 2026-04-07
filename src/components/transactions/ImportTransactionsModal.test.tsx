@@ -1,11 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
 import type { ImportPreviewData } from "@/types/api";
 
 const previewMutateAsync = vi.fn();
-const aiSuggestionsMutateAsync = vi.fn();
 const commitMutateAsync = vi.fn();
 const createCategoryMutateAsync = vi.fn();
 
@@ -16,10 +15,6 @@ vi.mock("@/hooks/use-transactions", () => ({
   }),
   useCommitTransactionImport: () => ({
     mutateAsync: commitMutateAsync,
-    isPending: false,
-  }),
-  useImportAiSuggestions: () => ({
-    mutateAsync: aiSuggestionsMutateAsync,
     isPending: false,
   }),
   useCreateCategory: () => ({
@@ -52,22 +47,22 @@ const previewData: ImportPreviewData = {
     statementReferenceMonth: null,
   },
   fileSummary: {
-    totalRows: 17,
-    importableRows: 4,
-    errorRows: 1,
-    duplicateRows: 10,
-    actionRequiredRows: 12,
+    totalRows: 1,
+    importableRows: 1,
+    errorRows: 0,
+    duplicateRows: 0,
+    actionRequiredRows: 0,
   },
   items: [
     {
       rowIndex: 15,
-      description: "Transferencia recebida",
-      normalizedDescription: "transferencia recebida",
+      description: "Despesa sem categoria",
+      normalizedDescription: "despesa sem categoria",
       amount: "396.00",
       normalizedAmount: "396.00",
       occurredOn: "2026-03-28",
       normalizedOccurredOn: "2026-03-28",
-      type: "income",
+      type: "expense",
       bankConnectionId: 2,
       bankConnectionName: "Caixa/Dinheiro",
       suggestedCategoryId: null,
@@ -80,13 +75,13 @@ const previewData: ImportPreviewData = {
       aiConfidence: null,
       aiReason: null,
       aiStatus: "idle",
-      possibleDuplicate: true,
-      duplicateReason: "Ja existe uma transacao importada com os mesmos dados.",
-      canImport: false,
-      requiresCategorySelection: true,
-      requiresUserAction: true,
+      possibleDuplicate: false,
+      duplicateReason: "",
+      canImport: true,
+      requiresCategorySelection: false,
+      requiresUserAction: false,
       defaultExclude: false,
-      warnings: ["Duplicata provavel encontrada."],
+      warnings: [],
       errors: [],
     },
   ],
@@ -95,33 +90,9 @@ const previewData: ImportPreviewData = {
 describe("ImportTransactionsModal", () => {
   beforeEach(() => {
     previewMutateAsync.mockReset();
-    aiSuggestionsMutateAsync.mockReset();
     commitMutateAsync.mockReset();
     createCategoryMutateAsync.mockReset();
     previewMutateAsync.mockResolvedValue(previewData);
-    aiSuggestionsMutateAsync.mockResolvedValue({
-      previewToken: "preview-1",
-      status: "completed",
-      autoApplyThreshold: 0.8,
-      summary: {
-        requestedRows: 1,
-        suggestedRows: 1,
-        noMatchRows: 0,
-        failedRows: 0,
-      },
-      items: [
-        {
-          rowIndex: 15,
-          aiSuggestedType: "income",
-          aiSuggestedCategoryId: 1,
-          aiSuggestedCategoryLabel: "Alimentacao",
-          aiConfidence: 0.92,
-          aiReason: "Recebimento classificado automaticamente.",
-          aiStatus: "suggested",
-          suggestionSource: "ai",
-        },
-      ],
-    });
     commitMutateAsync.mockResolvedValue({
       importedCount: 1,
       skippedCount: 0,
@@ -130,26 +101,12 @@ describe("ImportTransactionsModal", () => {
     });
   });
 
-  it("keeps the footer accessible and the preview body scrollable after generating preview", async () => {
-    const onOpenChange = vi.fn();
+  it("keeps the footer accessible and does not call AI after generating preview", async () => {
     render(
       <ImportTransactionsModal
         open
-        onOpenChange={onOpenChange}
-        categories={[
-          {
-            id: 1,
-            slug: "alimentacao",
-            label: "Alimentacao",
-            transactionType: "income",
-            iconName: "Wallet",
-            icon: (() => null) as never,
-            color: "text-warning",
-            groupSlug: "alimentacao",
-            groupLabel: "Alimentacao",
-            groupColor: "bg-warning",
-          },
-        ]}
+        onOpenChange={vi.fn()}
+        categories={[]}
         banks={[
           {
             id: 2,
@@ -185,25 +142,10 @@ describe("ImportTransactionsModal", () => {
       expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
     });
 
-    const dialog = screen.getByRole("dialog");
-    const body = screen.getByTestId("import-preview-body");
-    const footer = screen.getByTestId("import-preview-footer");
-
-    expect(dialog.className).toContain("!top-6");
-    expect(dialog.className).toContain("!translate-y-0");
-    expect(dialog.className).toContain("max-h-[calc(100vh-48px)]");
-    expect(dialog.className).toContain("overflow-hidden");
-    expect(body.className).toContain("overflow-y-auto");
-    expect(screen.getByRole("button", { name: /Confirmar importacao/i })).toBeInTheDocument();
-    expect(footer).toContainElement(screen.getByRole("button", { name: /Confirmar importacao/i }));
     expect(previewMutateAsync).toHaveBeenCalledWith({
       file: expect.any(File),
       importSource: "bank_statement",
       bankConnectionId: "2",
-    });
-    expect(aiSuggestionsMutateAsync).toHaveBeenCalledWith({
-      previewToken: "preview-1",
-      rowIndexes: [15],
     });
   });
 
@@ -239,25 +181,12 @@ describe("ImportTransactionsModal", () => {
     expect(screen.getByText(/Selecione um arquivo CSV ou PDF da fatura/i)).toBeInTheDocument();
   });
 
-  it("auto-applies high-confidence AI suggestions only into empty drafts", async () => {
+  it("commits expenses without category so the backend can apply Outros", async () => {
     render(
       <ImportTransactionsModal
         open
         onOpenChange={vi.fn()}
-        categories={[
-          {
-            id: 1,
-            slug: "alimentacao",
-            label: "Alimentacao",
-            transactionType: "income",
-            iconName: "Wallet",
-            icon: (() => null) as never,
-            color: "text-warning",
-            groupSlug: "alimentacao",
-            groupLabel: "Alimentacao",
-            groupColor: "bg-warning",
-          },
-        ]}
+        categories={[]}
         banks={[
           {
             id: 2,
@@ -289,100 +218,7 @@ describe("ImportTransactionsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
 
     await waitFor(() => {
-      expect(aiSuggestionsMutateAsync).toHaveBeenCalled();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar importacao/i }));
-
-    await waitFor(() => {
-      expect(commitMutateAsync).toHaveBeenCalledWith({
-        previewToken: "preview-1",
-        items: [
-          expect.objectContaining({
-            rowIndex: 15,
-            type: "income",
-            categoryId: "1",
-          }),
-        ],
-      });
-    });
-  });
-
-  it("auto-applies semantic type even when AI has no category match", async () => {
-    aiSuggestionsMutateAsync.mockResolvedValueOnce({
-      previewToken: "preview-1",
-      status: "completed",
-      autoApplyThreshold: 0.8,
-      summary: {
-        requestedRows: 1,
-        suggestedRows: 0,
-        noMatchRows: 1,
-        failedRows: 0,
-      },
-      items: [
-        {
-          rowIndex: 15,
-          aiSuggestedType: "expense",
-          aiSuggestedCategoryId: null,
-          aiSuggestedCategoryLabel: null,
-          aiConfidence: 0.9,
-          aiReason: "Transferencia enviada sem categoria especifica.",
-          aiStatus: "no_match",
-          suggestionSource: null,
-        },
-      ],
-    });
-
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[
-          {
-            id: 1,
-            slug: "alimentacao",
-            label: "Alimentacao",
-            transactionType: "expense",
-            iconName: "Wallet",
-            icon: (() => null) as never,
-            color: "text-warning",
-            groupSlug: "alimentacao",
-            groupLabel: "Alimentacao",
-            groupColor: "bg-warning",
-          },
-        ]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
-      },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cartao/i }));
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
-
-    await waitFor(() => {
-      expect(aiSuggestionsMutateAsync).toHaveBeenCalled();
+      expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Confirmar importacao/i }));

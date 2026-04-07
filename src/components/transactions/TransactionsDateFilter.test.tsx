@@ -48,6 +48,25 @@ describe("TransactionsDateFilter", () => {
     expect(onSelectPreset).toHaveBeenCalledWith("week");
   });
 
+  it("renders the annual preset after month and triggers it when clicked", () => {
+    const onSelectPreset = vi.fn();
+
+    render(
+      <TransactionsDateFilter
+        preset="month"
+        range={{ startDate: "2026-04-01", endDate: "2026-04-06" }}
+        onSelectPreset={onSelectPreset}
+        onApplyCustomRange={vi.fn()}
+      />,
+    );
+
+    const presetButtons = screen.getAllByRole("button").slice(0, 4);
+    expect(presetButtons.map((button) => button.textContent)).toEqual(["Semana", "15 dias", "Mes", "Ano"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ano" }));
+    expect(onSelectPreset).toHaveBeenCalledWith("year");
+  });
+
   it("resets previous range on first click, previews on hover and applies only after second click", () => {
     const onSelectPreset = vi.fn();
     const onApplyCustomRange = vi.fn();

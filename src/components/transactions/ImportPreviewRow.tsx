@@ -31,10 +31,8 @@ export default function ImportPreviewRow({
   onCreateCategory,
 }: ImportPreviewRowProps) {
   const isInvalid = item.errors.length > 0;
-  const needsCategory = !draft.categoryId;
+  const needsCategory = draft.type === "income" && !draft.categoryId;
   const filteredCategories = categories.filter((category) => category.transactionType === draft.type);
-  const aiConfidencePercent =
-    typeof item.aiConfidence === "number" ? `${Math.round(Math.max(0, Math.min(1, item.aiConfidence)) * 100)}%` : null;
 
   return (
     <TableRow className={cn(draft.exclude && "opacity-55")}>
@@ -57,12 +55,6 @@ export default function ImportPreviewRow({
               Categoria obrigatoria
             </Badge>
           ) : null}
-          {item.aiStatus === "suggested" ? (
-            <Badge variant="secondary" className="bg-info/10 text-info">
-              Sugestao IA{item.aiSuggestedType ? ` ${item.aiSuggestedType === "income" ? "Receita" : "Despesa"}` : ""}
-              {aiConfidencePercent ? ` ${aiConfidencePercent}` : ""}
-            </Badge>
-          ) : null}
           {item.suggestionSource === "history" ? (
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               Historico
@@ -76,23 +68,16 @@ export default function ImportPreviewRow({
         </div>
         {item.errors.length > 0 ? <p className="mt-2 text-xs text-destructive">{item.errors[0]}</p> : null}
         {item.errors.length === 0 && item.warnings[0] ? <p className="mt-2 text-xs text-warning">{item.warnings[0]}</p> : null}
-        {item.errors.length === 0 && item.aiStatus === "error" ? (
-          <p className="mt-2 text-xs text-destructive">{item.aiReason || "A IA falhou ao sugerir uma categoria."}</p>
-        ) : null}
         {item.errors.length === 0 &&
         (item.suggestionSource === "history" || item.suggestionSource === "recurring_rule") &&
         item.suggestedCategoryLabel ? (
           <p className="mt-2 text-xs text-primary">
             {item.suggestionSource === "history" ? "Historico do usuario" : "Regra recorrente"}:{" "}
-            {item.type === "income" ? "Receita" : "Despesa"} · {item.suggestedCategoryLabel}
+            {item.type === "income" ? "Receita" : "Despesa"} - {item.suggestedCategoryLabel}
           </p>
         ) : null}
-        {item.errors.length === 0 && item.aiStatus === "suggested" && item.aiReason ? (
-          <p className="mt-2 text-xs text-info">
-            {item.aiSuggestedType ? `${item.aiSuggestedType === "income" ? "Receita" : "Despesa"} · ` : ""}
-            {item.aiSuggestedCategoryLabel ? `${item.aiSuggestedCategoryLabel}: ` : ""}
-            {item.aiReason}
-          </p>
+        {item.errors.length === 0 && draft.type === "expense" && !draft.categoryId ? (
+          <p className="mt-2 text-xs text-muted-foreground">Sem categoria definida, sera importada como Outros.</p>
         ) : null}
       </TableCell>
       <TableCell className="w-[132px] px-4 py-4 align-top">
@@ -143,7 +128,7 @@ export default function ImportPreviewRow({
         <div className="flex items-center gap-2">
           <Select value={String(draft.categoryId ?? "")} onValueChange={(value) => onChange(item.rowIndex, { categoryId: value })}>
             <SelectTrigger className="h-9 rounded-lg border-border/50 bg-secondary/30">
-              <SelectValue placeholder="Categoria" />
+              <SelectValue placeholder={draft.type === "income" ? "Categoria" : "Categoria (opcional)"} />
             </SelectTrigger>
             <SelectContent>
               {filteredCategories.map((category) => (

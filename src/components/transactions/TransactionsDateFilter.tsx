@@ -19,6 +19,7 @@ const presetOptions: Array<{ label: string; value: Exclude<TransactionsDateFilte
   { label: "Semana", value: "week" },
   { label: "15 dias", value: "fifteen_days" },
   { label: "Mes", value: "month" },
+  { label: "Ano", value: "year" },
 ];
 
 type TransactionsDateFilterProps = {

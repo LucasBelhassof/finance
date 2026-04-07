@@ -301,7 +301,7 @@ export interface CreateTransactionInput {
   description: string;
   amount: number;
   occurredOn: string;
-  categoryId: number | string;
+  categoryId?: number | string;
   bankConnectionId: number | string;
 }
 
@@ -396,7 +396,7 @@ export interface ImportCommitItem {
   amount: string;
   occurredOn: string;
   type: "income" | "expense";
-  categoryId: number | string;
+  categoryId?: number | string;
   exclude: boolean;
   ignoreDuplicate: boolean;
 }

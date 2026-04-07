@@ -24,7 +24,6 @@ import { toast } from "@/components/ui/sonner";
 import {
   useCommitTransactionImport,
   useCreateCategory,
-  useImportAiSuggestions,
   usePreviewTransactionImport,
 } from "@/hooks/use-transactions";
 import { cn } from "@/lib/utils";
@@ -79,11 +78,9 @@ function buildDrafts(preview: ImportPreviewData) {
 
 export default function ImportTransactionsModal({ open, onOpenChange, categories, banks }: ImportTransactionsModalProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const attemptedAiPreviewTokensRef = useRef<Set<string>>(new Set());
   const previewImport = usePreviewTransactionImport();
   const commitImport = useCommitTransactionImport();
   const createCategory = useCreateCategory();
-  const importAiSuggestions = useImportAiSuggestions();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importSource, setImportSource] = useState<ImportSource>("");
@@ -112,7 +109,6 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       setPage(1);
       setCategoryDialogOpen(false);
       setCategoryTargetRow(null);
-      attemptedAiPreviewTokensRef.current = new Set();
       setCategoryForm({
         label: "",
         transactionType: "expense",
@@ -124,10 +120,6 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     }
   }, [open]);
 
-  const originalPreviewTypeByRowIndex = useMemo(
-    () => new Map((preview?.items ?? []).map((item) => [item.rowIndex, item.type])),
-    [preview],
-  );
   const importableBanks = useMemo(
     () =>
       importSource === "credit_card_statement"
@@ -135,107 +127,6 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
         : banks.filter((bank) => bank.accountType === "bank_account"),
     [banks, importSource],
   );
-
-  useEffect(() => {
-    if (!preview || attemptedAiPreviewTokensRef.current.has(preview.previewToken)) {
-      return;
-    }
-
-    const rowIndexes = preview.items
-      .filter((item) => !item.suggestedCategoryId && item.errors.length === 0 && item.aiStatus === "idle")
-      .map((item) => item.rowIndex);
-
-    if (rowIndexes.length === 0) {
-      return;
-    }
-
-    attemptedAiPreviewTokensRef.current.add(preview.previewToken);
-
-    void importAiSuggestions
-      .mutateAsync({
-        previewToken: preview.previewToken,
-        rowIndexes,
-      })
-      .then((response) => {
-        if (response.status === "disabled") {
-          return;
-        }
-
-        const suggestionMap = new Map(response.items.map((item) => [item.rowIndex, item]));
-
-        setPreview((current) => {
-          if (!current || current.previewToken !== response.previewToken) {
-            return current;
-          }
-
-          return {
-            ...current,
-            items: current.items.map((item) => {
-              const suggestion = suggestionMap.get(item.rowIndex);
-
-              if (!suggestion) {
-                return item;
-              }
-
-              return {
-                ...item,
-                aiSuggestedType: suggestion.aiSuggestedType,
-                aiSuggestedCategoryId: suggestion.aiSuggestedCategoryId,
-                aiSuggestedCategoryLabel: suggestion.aiSuggestedCategoryLabel,
-                aiConfidence: suggestion.aiConfidence,
-                aiReason: suggestion.aiReason,
-                aiStatus: suggestion.aiStatus,
-                suggestionSource: suggestion.suggestionSource ?? item.suggestionSource,
-              };
-            }),
-          };
-        });
-
-        setDrafts((current) => {
-          const nextDrafts = { ...current };
-
-          for (const suggestion of response.items) {
-            const draft = nextDrafts[suggestion.rowIndex];
-            const originalType = originalPreviewTypeByRowIndex.get(suggestion.rowIndex);
-            const canApplySuggestedType =
-              Boolean(suggestion.aiSuggestedType) &&
-              draft?.type === originalType &&
-              (suggestion.aiConfidence ?? 0) >= response.autoApplyThreshold;
-
-            if (!draft || draft.categoryId) {
-              if (draft && (suggestion.aiStatus === "suggested" || suggestion.aiStatus === "no_match") && canApplySuggestedType) {
-                nextDrafts[suggestion.rowIndex] = {
-                  ...draft,
-                  type: suggestion.aiSuggestedType,
-                };
-              }
-              continue;
-            }
-
-            if (
-              (suggestion.aiStatus === "suggested" || suggestion.aiStatus === "no_match") &&
-              (suggestion.aiConfidence ?? 0) >= response.autoApplyThreshold
-            ) {
-              nextDrafts[suggestion.rowIndex] = {
-                ...draft,
-                type: canApplySuggestedType ? suggestion.aiSuggestedType : draft.type,
-                categoryId:
-                  suggestion.aiStatus === "suggested" && suggestion.aiSuggestedCategoryId !== null
-                    ? String(suggestion.aiSuggestedCategoryId)
-                    : draft.categoryId,
-              };
-            }
-          }
-
-          return nextDrafts;
-        });
-      })
-      .catch((error) => {
-        toast.error("Nao foi possivel enriquecer a previa com sugestoes de IA.", {
-          description: error instanceof Error ? error.message : "A revisao continua disponivel sem IA.",
-        });
-      });
-  }, [importAiSuggestions, preview]);
 
   const pageCount = Math.max(1, Math.ceil((preview?.items.length ?? 0) / PAGE_SIZE));
   const currentItems = useMemo(() => {

@@ -586,30 +586,34 @@ export async function postCategory(input: CreateCategoryInput) {
 }
 
 export async function postTransaction(input: CreateTransactionInput) {
+  const body = {
+    description: input.description,
+    amount: input.amount,
+    occurredOn: input.occurredOn,
+    bankConnectionId: input.bankConnectionId,
+    ...(input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== "" ? { categoryId: input.categoryId } : {}),
+  };
+
   const response = await request<ApiTransaction>("/api/transactions", {
     method: "POST",
-    body: JSON.stringify({
-      description: input.description,
-      amount: input.amount,
-      occurredOn: input.occurredOn,
-      bankConnectionId: input.bankConnectionId,
-      categoryId: input.categoryId,
-    }),
+    body: JSON.stringify(body),
   });
 
   return mapTransaction(response);
 }
 
 export async function patchTransaction(input: UpdateTransactionInput) {
+  const body = {
+    description: input.description,
+    amount: input.amount,
+    occurredOn: input.occurredOn,
+    bankConnectionId: input.bankConnectionId,
+    ...(input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== "" ? { categoryId: input.categoryId } : {}),
+  };
+
   const response = await request<ApiTransaction>(`/api/transactions/${input.id}`, {
     method: "PATCH",
-    body: JSON.stringify({
-      description: input.description,
-      amount: input.amount,
-      occurredOn: input.occurredOn,
-      bankConnectionId: input.bankConnectionId,
-      categoryId: input.categoryId,
-    }),
+    body: JSON.stringify(body),
   });
 
   return mapTransaction(response);

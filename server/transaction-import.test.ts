@@ -21,6 +21,7 @@ const categories = [
   { id: 1, slug: "restaurantes", label: "Restaurantes", transactionType: "expense" },
   { id: 2, slug: "transporte", label: "Transporte", transactionType: "expense" },
   { id: 3, slug: "salario", label: "Salario", transactionType: "income" },
+  { id: 4, slug: "outros-despesas", label: "Outros", transactionType: "expense" },
 ];
 
 describe("transaction import helpers", () => {
@@ -187,6 +188,37 @@ describe("transaction import helpers", () => {
     expect(line.signedAmount).toBe(-67.9);
     expect(line.normalizedFinalDescription).toBe("ifood");
     expect(line.normalizedOccurredOn).toBe("2026-04-06");
+  });
+
+  it("uses the default Outros category for expenses without category", () => {
+    const line = validateCommitLine(
+      {
+        description: "Despesa sem categoria",
+        amount: "10.00",
+        occurredOn: "2026-04-06",
+        type: "expense",
+        categoryId: "",
+      },
+      categories,
+    );
+
+    expect(line.categoryId).toBe(4);
+    expect(line.signedAmount).toBe(-10);
+  });
+
+  it("keeps income category mandatory during commit validation", () => {
+    expect(() =>
+      validateCommitLine(
+        {
+          description: "Receita sem categoria",
+          amount: "1000.00",
+          occurredOn: "2026-04-06",
+          type: "income",
+          categoryId: "",
+        },
+        categories,
+      ),
+    ).toThrow("Categoria obrigatoria para receitas.");
   });
 
   it("rejects a category that does not match the transaction type", () => {

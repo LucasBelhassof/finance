@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildImportSeedKey,
   createImportPreview,
+  detectPdfIssuer,
   extractCategorizationMatchKey,
   enrichPreviewSessionWithAi,
   getPreviewSession,
   isPreviewItemEligibleForAi,
   normalizeAiCategorizationResult,
+  parseCreditCardPdfStatement,
   resolveAllowedCategoryMap,
   parseAmountInput,
   parseOccurredOnInput,
@@ -33,7 +35,7 @@ describe("transaction import helpers", () => {
     expect(parseOccurredOnInput("06-04-2026")).toBe("2026-04-06");
   });
 
-  it("builds a preview, ignores blank rows and flags duplicates", () => {
+  it("builds a preview, ignores blank rows and flags duplicates", async () => {
     const csv = [
       "Data;Descricao;Valor",
       "06/04/2026;iFood;-67,90",
@@ -45,7 +47,7 @@ describe("transaction import helpers", () => {
       buildImportSeedKey(1, "2026-04-06", -67.9, "ifood"),
     ]);
 
-    const preview = createImportPreview({
+    const preview = await createImportPreview({
       categories,
       existingFingerprints,
       fileBuffer: Buffer.from(csv, "utf8"),
@@ -60,7 +62,7 @@ describe("transaction import helpers", () => {
     expect(preview.items[2].suggestedCategoryId).toBe(3);
   });
 
-  it("reads Nubank credit card CSVs with date,title,amount and interprets purchases as expenses", () => {
+  it("reads Nubank credit card CSVs with date,title,amount and interprets purchases as expenses", async () => {
     const csv = [
       "date,title,amount",
       "2026-03-19,iFood - NuPay,30.99",
@@ -68,7 +70,7 @@ describe("transaction import helpers", () => {
       "2026-03-15,Uber - NuPay,13.95",
     ].join("\n");
 
-    const preview = createImportPreview({
+    const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),
       fileBuffer: Buffer.from(csv, "utf8"),
@@ -87,13 +89,13 @@ describe("transaction import helpers", () => {
     expect(preview.items[2].suggestedCategoryId).toBe(2);
   });
 
-  it("reuses the user's historical categorization before AI", () => {
+  it("reuses the user's historical categorization before AI", async () => {
     const csv = [
       "Data;Descricao;Valor",
       "06/04/2026;Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS;396,00",
     ].join("\n");
 
-    const preview = createImportPreview({
+    const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),
       historicalRows: [
@@ -113,13 +115,13 @@ describe("transaction import helpers", () => {
     expect(preview.items[0].suggestionSource).toBe("history");
   });
 
-  it("prioritizes recurring rules over transaction history", () => {
+  it("prioritizes recurring rules over transaction history", async () => {
     const csv = [
       "Data;Descricao;Valor",
       "06/04/2026;Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS;396,00",
     ].join("\n");
 
-    const preview = createImportPreview({
+    const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),
       historicalRows: [
@@ -186,7 +188,7 @@ describe("transaction import helpers", () => {
       "06/04/2026;Transferencia recebida;396,00",
     ].join("\n");
 
-    const preview = createImportPreview({
+    const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),
       fileBuffer: Buffer.from(csv, "utf8"),
@@ -268,7 +270,7 @@ describe("transaction import helpers", () => {
       "Data;Descricao;Valor",
       "06/04/2026;Transferencia recebida;396,00",
     ].join("\n");
-    const preview = createImportPreview({
+    const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),
       fileBuffer: Buffer.from(csv, "utf8"),
@@ -352,7 +354,7 @@ describe("transaction import helpers", () => {
       "06/04/2026;Transferencia recebida;396,00",
       "06/04/2026;Pagamento recebido;100,00",
     ].join("\n");
-    const preview = createImportPreview({
+    const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),
       fileBuffer: Buffer.from(csv, "utf8"),
@@ -377,5 +379,61 @@ describe("transaction import helpers", () => {
         "Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS - 308838 - BCO C6 S.A. Agencia 1 Conta 3793065-6",
       ),
     ).toBe("levi augusto pereira dos santos");
+  });
+
+  it("detects supported PDF issuers", () => {
+    expect(detectPdfIssuer("Resumo da fatura Banco Inter", "fatura-inter-2026-03.pdf")).toBe("inter");
+    expect(detectPdfIssuer("Fatura Itau Cartoes", "Fatura_Itau_20260407-144227.pdf")).toBe("itau");
+  });
+
+  it("parses Inter credit card PDF text and ignores credits", () => {
+    const result = parseCreditCardPdfStatement({
+      filename: "fatura-inter-2026-03.pdf",
+      text: [
+        "Resumo da fatura",
+        "Data de Vencimento",
+        "07/04/2026",
+        "-- 2 of 7 --",
+        "Despesas da fatura",
+        "CARTÃO 5364****9277",
+        "Data  Movimentação  Beneficiário  Valor",
+        "06 de mar. 2026 PAGAMENTO ON LINE  -  + R$ 1.246,17",
+        "11 de mar. 2026 UBER* TRIP  -  R$ 20,94",
+        "24 de mar. 2026 SEGURO CARTAO CTP  -  R$ 1,90",
+        "CARTÃO 2306****0417",
+        "20 de set. 2025 COMMCENTER (Parcela 07 de 15)  -  R$ 326,66",
+        "Próxima fatura",
+      ].join("\n"),
+    });
+
+    expect(result.issuer).toBe("inter");
+    expect(result.metadata.statementDueDate).toBe("2026-04-07");
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0].description).toContain("Cartao 9277");
+    expect(result.rows[0].amount).toBe("20.94");
+    expect(result.rows[2].occurredOn).toBe("2025-09-20");
+  });
+
+  it("parses Itau credit card PDF text and infers years from the statement reference month", () => {
+    const result = parseCreditCardPdfStatement({
+      filename: "Fatura_Itau_20260407-144227.pdf",
+      text: [
+        "Vencimento: 16/03/2026",
+        "Emissão: 08/03/2026",
+        "La nça me nt os : co m pr as e sa qu es",
+        "14/ 05 DL *Alipay Ali 10/12 48,28 Credito Rotativo / Atraso se rvi ço s Sao Paulo",
+        "Limit e má ximo de ju ro s 0,00 21/09 CO MMCEN TE RRIO 06/15 22,86",
+        "17/02 AM AZO N BRSA O PAUL OBR 49,38 % so bre o limi te máx imo de ju ros 0,00%",
+        "Lançamen tos no cartão 120,52",
+      ].join("\n"),
+    });
+
+    expect(result.issuer).toBe("itau");
+    expect(result.metadata.statementDueDate).toBe("2026-03-16");
+    expect(result.metadata.statementReferenceMonth).toBe("2026-03");
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0].occurredOn).toBe("2025-05-14");
+    expect(result.rows[1].occurredOn).toBe("2025-09-21");
+    expect(result.rows[2].occurredOn).toBe("2026-02-17");
   });
 });

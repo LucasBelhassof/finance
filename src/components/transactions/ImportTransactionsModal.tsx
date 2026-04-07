@@ -456,7 +456,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                     <input
                       ref={inputRef}
                       type="file"
-                      accept=".csv,text/csv"
+                      accept={importSource === "credit_card_statement" ? ".csv,.pdf,text/csv,application/pdf" : ".csv,text/csv"}
                       className="hidden"
                       onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
                     />
@@ -466,7 +466,11 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       className="flex h-12 w-full items-center gap-3 rounded-xl border border-dashed border-border/60 bg-card px-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                     >
                       <Upload size={16} />
-                      {selectedFile ? selectedFile.name : "Selecione um arquivo CSV de extrato"}
+                      {selectedFile
+                        ? selectedFile.name
+                        : importSource === "credit_card_statement"
+                          ? "Selecione um arquivo CSV ou PDF da fatura"
+                          : "Selecione um arquivo CSV de extrato"}
                     </button>
                   </div>
                   <Button onClick={() => void handlePreview()} disabled={previewImport.isPending}>

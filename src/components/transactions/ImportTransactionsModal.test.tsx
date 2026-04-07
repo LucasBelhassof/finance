@@ -45,6 +45,12 @@ const previewData: ImportPreviewData = {
   importSource: "bank_statement",
   bankConnectionId: 2,
   bankConnectionName: "Caixa/Dinheiro",
+  fileMetadata: {
+    originalFilename: "extrato.csv",
+    issuerName: null,
+    statementDueDate: null,
+    statementReferenceMonth: null,
+  },
   fileSummary: {
     totalRows: 17,
     importableRows: 4,
@@ -199,6 +205,38 @@ describe("ImportTransactionsModal", () => {
       previewToken: "preview-1",
       rowIndexes: [15],
     });
+  });
+
+  it("accepts PDF uploads for credit card statements", () => {
+    render(
+      <ImportTransactionsModal
+        open
+        onOpenChange={vi.fn()}
+        categories={[]}
+        banks={[
+          {
+            id: 7,
+            slug: "nubank",
+            name: "Nubank",
+            accountType: "credit_card",
+            parentBankConnectionId: 2,
+            parentAccountName: "Itau",
+            statementCloseDay: 10,
+            statementDueDay: 17,
+            connected: true,
+            color: "bg-purple-500",
+            currentBalance: 0,
+            formattedBalance: "R$ 0,00",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fatura do cartao/i }));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    expect(fileInput.accept).toContain(".pdf");
+    expect(screen.getByText(/Selecione um arquivo CSV ou PDF da fatura/i)).toBeInTheDocument();
   });
 
   it("auto-applies high-confidence AI suggestions only into empty drafts", async () => {

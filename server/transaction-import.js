@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { PDFParse } from "pdf-parse";
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 5000;
@@ -6,6 +7,7 @@ export const PREVIEW_TTL_MS = 15 * 60 * 1000;
 export const IMPORT_AI_MAX_REASON_LENGTH = 160;
 export const RECURRING_RULE_MIN_CONFIRMATIONS = 3;
 const IMPORT_FINGERPRINT_VERSION = "v1";
+const PDF_PAGE_JOINER = "\n-- page_number of total_number --\n";
 
 const previewSessions = new Map();
 
@@ -33,6 +35,20 @@ const categoryKeyResolvers = {
 };
 
 const categoryKeys = Object.keys(categoryKeyResolvers);
+const ptShortMonthMap = new Map([
+  ["jan", 1],
+  ["fev", 2],
+  ["mar", 3],
+  ["abr", 4],
+  ["mai", 5],
+  ["jun", 6],
+  ["jul", 7],
+  ["ago", 8],
+  ["set", 9],
+  ["out", 10],
+  ["nov", 11],
+  ["dez", 12],
+]);
 const matchKeyNoiseTokens = new Set([
   "transferencia",
   "recebida",
@@ -160,6 +176,10 @@ function decodeCsvBuffer(buffer) {
   return buffer.toString("latin1").replace(/^\uFEFF/, "");
 }
 
+function isPdfUpload(contentType, filename) {
+  return String(contentType ?? "").toLowerCase().includes("pdf") || /\.pdf$/i.test(String(filename ?? ""));
+}
+
 function titleCaseWords(value) {
   return String(value ?? "")
     .split(/[\s_-]+/)
@@ -242,6 +262,349 @@ export function extractImportFileMetadata(filename) {
     issuerName: titleCaseWords(basename) || null,
     statementDueDate: null,
     statementReferenceMonth: null,
+  };
+}
+
+function compactNormalizedText(value) {
+  return normalizeDescription(value).replace(/\s+/g, "");
+}
+
+function normalizePdfLine(line) {
+  return String(line ?? "")
+    .replace(/\t/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parsePdfDateWithMonthName(day, monthLabel, year) {
+  const month = ptShortMonthMap.get(normalizeDescription(monthLabel).slice(0, 3));
+
+  if (!month) {
+    throw new Error("Mes invalido na fatura PDF.");
+  }
+
+  return parseOccurredOnInput(`${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`);
+}
+
+function inferYearFromReferenceMonth(day, month, referenceMonth) {
+  if (!referenceMonth || !/^\d{4}-\d{2}$/.test(referenceMonth)) {
+    return null;
+  }
+
+  const [referenceYear, referenceMonthNumber] = referenceMonth.split("-").map(Number);
+  return month > referenceMonthNumber ? referenceYear - 1 : referenceYear;
+}
+
+function normalizeMerchantDescription(value) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+\)/g, ")")
+    .replace(/\(\s+/g, "(")
+    .trim();
+}
+
+function addCardContextToDescription(rows) {
+  const distinctCards = new Set(rows.map((row) => row.cardSuffix).filter(Boolean));
+
+  return rows.map((row) => ({
+    ...row,
+    description: distinctCards.size > 1 && row.cardSuffix ? `Cartao ${row.cardSuffix} - ${row.description}` : row.description,
+  }));
+}
+
+function parseInterDueDate(text) {
+  const match = text.match(/Data de Vencimento\s+(\d{2}\/\d{2}\/\d{4})/i);
+  return match ? parseOccurredOnInput(match[1]) : null;
+}
+
+function parseItauDueDate(text) {
+  const match = text.match(/Vencimento:\s*(\d{2}\/\d{2}\/\d{4})/i);
+  return match ? parseOccurredOnInput(match[1]) : null;
+}
+
+function parseItauEmissionDate(text) {
+  const match = text.match(/Emiss[aã]o:\s*(\d{2}\/\d{2}\/\d{4})/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const occurredOn = parseOccurredOnInput(match[1]);
+  return occurredOn.slice(0, 7);
+}
+
+function parseItauChargeRows(text, occurredOn) {
+  if (!occurredOn) {
+    return [];
+  }
+
+  const chargePatterns = [
+    "Juros do rotativo",
+    "Juros de mora",
+    "Multa por atraso",
+    "IOF de financiamento",
+    "IOF adicional",
+    "Anuidade",
+    "Tarifa",
+  ];
+  const rows = [];
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = normalizePdfLine(rawLine);
+    const normalizedLine = normalizeDescription(line);
+
+    if (!normalizedLine) {
+      continue;
+    }
+
+    const chargePattern = chargePatterns.find((pattern) => normalizedLine.includes(normalizeDescription(pattern)));
+
+    if (!chargePattern) {
+      continue;
+    }
+
+    const amountMatch = line.match(/(\d{1,3}(?:\.\d{3})*,\d{2})\s*$/);
+
+    if (!amountMatch) {
+      continue;
+    }
+
+    const amount = Math.abs(parseAmountInput(amountMatch[1]));
+
+    if (amount <= 0) {
+      continue;
+    }
+
+    rows.push({
+      occurredOn,
+      description: chargePattern,
+      amount: normalizeAmountString(amount),
+      cardSuffix: null,
+    });
+  }
+
+  return rows;
+}
+
+export function detectPdfIssuer(text, filename) {
+  const normalizedFilename = compactNormalizedText(filename);
+  const normalizedText = compactNormalizedText(text);
+
+  if (normalizedFilename.includes("inter") || normalizedText.includes("bancointer")) {
+    return "inter";
+  }
+
+  if (normalizedFilename.includes("itau") || normalizedText.includes("itaucartoes") || normalizedText.includes("itau")) {
+    return "itau";
+  }
+
+  return null;
+}
+
+function parseInterCreditCardPdfText(text) {
+  const lines = text.split(/\r?\n/).map(normalizePdfLine).filter(Boolean);
+  const rows = [];
+  let currentCardSuffix = null;
+  let insideTransactions = false;
+
+  for (const line of lines) {
+    const compact = compactNormalizedText(line);
+
+    if (compact.includes("despesasdafatura")) {
+      insideTransactions = true;
+      continue;
+    }
+
+    if (!insideTransactions) {
+      continue;
+    }
+
+    if (compact.startsWith("proximafatura") || compact.startsWith("limitedecreditototal")) {
+      break;
+    }
+
+    const cardMatch = line.match(/^CART[ÃA]O\s+([0-9*]+)(\d{4})?$/i);
+
+    if (cardMatch) {
+      currentCardSuffix = (cardMatch[2] || cardMatch[1].slice(-4)).replace(/\D/g, "").slice(-4) || null;
+      continue;
+    }
+
+    const transactionMatch = line.match(
+      /^(\d{2}) de ([A-Za-zçÇ]{3})\.?\s+(\d{4})\s+(.+?)\s+([+-]?\s*R\$\s*[\d\.,]+)$/i,
+    );
+
+    if (!transactionMatch) {
+      continue;
+    }
+
+    const amountToken = transactionMatch[5].replace(/\s+/g, " ").trim();
+
+    if (amountToken.includes("+")) {
+      continue;
+    }
+
+    rows.push({
+      occurredOn: parsePdfDateWithMonthName(transactionMatch[1], transactionMatch[2], Number(transactionMatch[3])),
+      description: normalizeMerchantDescription(transactionMatch[4]),
+      amount: normalizeAmountString(Math.abs(parseAmountInput(amountToken))),
+      cardSuffix: currentCardSuffix,
+    });
+  }
+
+  return addCardContextToDescription(rows);
+}
+
+function parseItauCreditCardPdfText(text, referenceMonth) {
+  const lines = text.split(/\r?\n/).map(normalizePdfLine).filter(Boolean);
+  const rows = [];
+  let insideTransactions = false;
+
+  for (const line of lines) {
+    const compact = compactNormalizedText(line);
+
+    if (compact.includes("lancamentoscomprasesaques")) {
+      insideTransactions = true;
+      continue;
+    }
+
+    if (!insideTransactions) {
+      continue;
+    }
+
+    if (compact.includes("lancamentosnocartao") || compact.includes("ltotaldoslancamentosatuais")) {
+      break;
+    }
+
+    const transactionMatch = line.match(/(\d{2})\/\s*(\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})/);
+
+    if (!transactionMatch) {
+      continue;
+    }
+
+    const day = Number(transactionMatch[1]);
+    const month = Number(transactionMatch[2]);
+    const year = inferYearFromReferenceMonth(day, month, referenceMonth);
+
+    if (!year) {
+      continue;
+    }
+
+    rows.push({
+      occurredOn: parseOccurredOnInput(`${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`),
+      description: normalizeMerchantDescription(transactionMatch[3]),
+      amount: normalizeAmountString(Math.abs(parseAmountInput(transactionMatch[4]))),
+      cardSuffix: null,
+    });
+  }
+
+  return rows;
+}
+
+export function parseCreditCardPdfStatement({ text, filename }) {
+  const issuer = detectPdfIssuer(text, filename);
+
+  if (!issuer) {
+    throw new Error("Nao foi possivel identificar o emissor da fatura PDF. Use Inter, Itau ou exporte CSV.");
+  }
+
+  if (issuer === "inter") {
+    const rows = parseInterCreditCardPdfText(text);
+    return {
+      issuer,
+      rows,
+      metadata: {
+        issuerName: "Inter",
+        statementDueDate: parseInterDueDate(text),
+        statementReferenceMonth: rows.length > 0 ? rows[0].occurredOn.slice(0, 7) : null,
+      },
+    };
+  }
+
+  const statementReferenceMonth = parseItauEmissionDate(text);
+  const statementDueDate = parseItauDueDate(text);
+  const rows = [
+    ...parseItauChargeRows(text, statementDueDate),
+    ...parseItauCreditCardPdfText(text, statementReferenceMonth),
+  ];
+
+  return {
+    issuer,
+    rows,
+    metadata: {
+      issuerName: "Itau",
+      statementDueDate,
+      statementReferenceMonth,
+    },
+  };
+}
+
+async function extractPdfText(buffer) {
+  const parser = new PDFParse({
+    data: buffer,
+  });
+
+  try {
+    const result = await parser.getText({
+      pageJoiner: PDF_PAGE_JOINER,
+    });
+    return result.text;
+  } finally {
+    await parser.destroy().catch(() => undefined);
+  }
+}
+
+async function extractImportRowsFromFile({ fileBuffer, contentType, filename, importSource }) {
+  if (isPdfUpload(contentType, filename)) {
+    if (importSource !== "credit_card_statement") {
+      throw new Error("PDF e suportado apenas para fatura do cartao nesta versao.");
+    }
+
+    const text = await extractPdfText(fileBuffer);
+
+    if (!text || !text.trim()) {
+      throw new Error("Nao foi possivel extrair texto do PDF. Use um PDF com texto selecionavel ou exporte CSV.");
+    }
+
+    const parsedPdf = parseCreditCardPdfStatement({
+      text,
+      filename,
+    });
+
+    if (!parsedPdf.rows.length) {
+      throw new Error("Nao foi possivel localizar despesas validas na fatura PDF.");
+    }
+
+    return {
+      headerRow: ["date", "title", "amount"],
+      rows: parsedPdf.rows.map((row) => [row.occurredOn, row.description, row.amount]),
+      importLayout: "credit_card_statement",
+      fileMetadata: {
+        ...extractImportFileMetadata(filename),
+        issuerName: parsedPdf.metadata.issuerName,
+        statementDueDate: parsedPdf.metadata.statementDueDate,
+        statementReferenceMonth: parsedPdf.metadata.statementReferenceMonth,
+      },
+    };
+  }
+
+  const decodedText = decodeCsvBuffer(fileBuffer);
+  const rows = parseCsvText(decodedText);
+  const nonEmptyRows = rows.filter((row) => !isBlankCsvRow(row));
+
+  if (nonEmptyRows.length < 2) {
+    throw new Error("O arquivo CSV precisa ter cabecalho e ao menos uma linha de dados.");
+  }
+
+  if (nonEmptyRows.length - 1 > MAX_IMPORT_ROWS) {
+    throw new Error("O arquivo excede o limite de 5.000 linhas.");
+  }
+
+  return {
+    headerRow: nonEmptyRows[0],
+    rows: nonEmptyRows.slice(1),
+    importLayout: importSource,
+    fileMetadata: extractImportFileMetadata(filename),
   };
 }
 
@@ -1210,11 +1573,12 @@ export function parseMultipartCsvUpload(contentType, bodyBuffer) {
   throw new Error("O upload nao contem um arquivo CSV valido.");
 }
 
-export function createImportPreview({
+export async function createImportPreview({
   categories,
   existingFingerprints,
   bankConnectionId,
   bankConnectionName,
+  contentType = "text/csv",
   fileBuffer,
   filename = "extrato.csv",
   historicalRows = [],
@@ -1227,19 +1591,13 @@ export function createImportPreview({
   }
 
   cleanupExpiredPreviewSessions();
-  const decodedText = decodeCsvBuffer(fileBuffer);
-  const rows = parseCsvText(decodedText);
-  const nonEmptyRows = rows.filter((row) => !isBlankCsvRow(row));
-
-  if (nonEmptyRows.length < 2) {
-    throw new Error("O arquivo CSV precisa ter cabecalho e ao menos uma linha de dados.");
-  }
-
-  if (nonEmptyRows.length - 1 > MAX_IMPORT_ROWS) {
-    throw new Error("O arquivo excede o limite de 5.000 linhas.");
-  }
-
-  const headerRow = nonEmptyRows[0];
+  const extracted = await extractImportRowsFromFile({
+    fileBuffer,
+    contentType,
+    filename,
+    importSource,
+  });
+  const headerRow = extracted.headerRow;
   const headerIndexes = resolveHeaderIndexes(headerRow);
   const items = buildPreviewItems({
     categories,
@@ -1247,16 +1605,16 @@ export function createImportPreview({
     headerIndexes,
     headerRow,
     historicalRows,
-    importSource,
+    importSource: extracted.importLayout,
     recurringRules,
-    rows: nonEmptyRows.slice(1),
+    rows: extracted.rows,
     userId,
   }).map((item) => ({
     ...item,
     bankConnectionId,
     bankConnectionName,
   }));
-  const fileMetadata = extractImportFileMetadata(filename);
+  const fileMetadata = extracted.fileMetadata;
 
   const previewToken = crypto.randomUUID();
   const expiresAtMs = Date.now() + PREVIEW_TTL_MS;
@@ -1278,7 +1636,7 @@ export function createImportPreview({
   return {
     previewToken,
     expiresAt: new Date(expiresAtMs).toISOString(),
-    importSource,
+    importSource: extracted.importLayout,
     bankConnectionId,
     bankConnectionName,
     fileMetadata,

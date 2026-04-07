@@ -1070,7 +1070,7 @@ export async function deleteTransaction(transactionId) {
   }
 }
 
-export async function previewTransactionImport(fileBuffer, importSource = "bank_statement", bankConnectionId, filename) {
+export async function previewTransactionImport(fileBuffer, importSource = "bank_statement", bankConnectionId, filename, contentType) {
   const user = await getPrimaryUser();
   const parsedBankConnectionId = Number(bankConnectionId);
 
@@ -1105,11 +1105,12 @@ export async function previewTransactionImport(fileBuffer, importSource = "bank_
     ),
   );
 
-  return createImportPreview({
+  return await createImportPreview({
     categories,
     existingFingerprints,
     bankConnectionId: parsedBankConnectionId,
     bankConnectionName: bankConnection.name,
+    contentType,
     fileBuffer,
     filename,
     historicalRows,

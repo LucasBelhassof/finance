@@ -297,10 +297,27 @@ export async function listBanks() {
   const user = await getPrimaryUser();
   const result = await pool.query(
     `
-      SELECT id, slug, name, account_type, connected, color, current_balance, sort_order
-      FROM bank_connections
-      WHERE user_id = $1
-      ORDER BY sort_order ASC, id ASC
+      SELECT
+        b.id,
+        b.slug,
+        b.name,
+        b.account_type,
+        b.connected,
+        b.color,
+        b.current_balance,
+        b.sort_order,
+        b.parent_bank_connection_id,
+        parent.name AS parent_account_name,
+        b.statement_close_day,
+        b.statement_due_day
+      FROM bank_connections b
+      LEFT JOIN bank_connections parent ON parent.id = b.parent_bank_connection_id
+      WHERE b.user_id = $1
+      ORDER BY
+        COALESCE(b.parent_bank_connection_id, b.id) ASC,
+        CASE WHEN b.account_type = 'credit_card' THEN 1 ELSE 0 END ASC,
+        b.sort_order ASC,
+        b.id ASC
     `,
     [user.id],
   );
@@ -314,7 +331,150 @@ export async function listBanks() {
     color: row.color,
     currentBalance: parseNumeric(row.current_balance),
     formattedBalance: formatCurrency(row.current_balance),
+    parentBankConnectionId: row.parent_bank_connection_id,
+    parentAccountName: row.parent_account_name,
+    statementCloseDay: row.statement_close_day,
+    statementDueDay: row.statement_due_day,
   }));
+}
+
+export async function createBankConnection(input) {
+  const user = await getPrimaryUser();
+  const normalized = await validateBankConnectionInput(user.id, input);
+  const [slug, sortOrder] = await Promise.all([
+    buildUniqueBankSlug(user.id, normalized.name),
+    getNextBankSortOrder(user.id),
+  ]);
+
+  const result = await pool.query(
+    `
+      INSERT INTO bank_connections (
+        user_id,
+        slug,
+        name,
+        account_type,
+        connected,
+        color,
+        current_balance,
+        sort_order,
+        parent_bank_connection_id,
+        statement_close_day,
+        statement_due_day
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
+    `,
+    [
+      user.id,
+      slug,
+      normalized.name,
+      normalized.accountType,
+      normalized.connected,
+      normalized.color,
+      normalized.currentBalance,
+      sortOrder,
+      normalized.parentBankConnectionId,
+      normalized.statementCloseDay,
+      normalized.statementDueDay,
+    ],
+  );
+
+  const created = await listBanks();
+  const bank = created.find((item) => String(item.id) === String(result.rows[0].id));
+
+  if (!bank) {
+    throw new Error("bank connection not found after creation");
+  }
+
+  return bank;
+}
+
+export async function updateBankConnection(bankConnectionId, input) {
+  const user = await getPrimaryUser();
+  const existing = await getBankConnectionById(user.id, bankConnectionId);
+
+  if (!existing) {
+    throw new Error("bank connection not found");
+  }
+
+  const normalized = await validateBankConnectionInput(user.id, input, bankConnectionId);
+  const hasChildren = await hasChildBankConnections(user.id, bankConnectionId);
+
+  if (hasChildren && normalized.accountType !== "bank_account") {
+    throw new Error("accounts with linked cards must remain bank accounts");
+  }
+
+  await pool.query(
+    `
+      UPDATE bank_connections
+      SET name = $3,
+          account_type = $4,
+          connected = $5,
+          color = $6,
+          current_balance = $7,
+          parent_bank_connection_id = $8,
+          statement_close_day = $9,
+          statement_due_day = $10,
+          updated_at = NOW()
+      WHERE user_id = $1
+        AND id = $2
+    `,
+    [
+      user.id,
+      bankConnectionId,
+      normalized.name,
+      normalized.accountType,
+      normalized.connected,
+      normalized.color,
+      normalized.currentBalance,
+      normalized.parentBankConnectionId,
+      normalized.statementCloseDay,
+      normalized.statementDueDay,
+    ],
+  );
+
+  const updated = await listBanks();
+  const bank = updated.find((item) => String(item.id) === String(bankConnectionId));
+
+  if (!bank) {
+    throw new Error("bank connection not found after update");
+  }
+
+  return bank;
+}
+
+export async function deleteBankConnection(bankConnectionId) {
+  const user = await getPrimaryUser();
+  const existing = await getBankConnectionById(user.id, bankConnectionId);
+
+  if (!existing) {
+    throw new Error("bank connection not found");
+  }
+
+  if (await hasChildBankConnections(user.id, bankConnectionId)) {
+    throw new Error("delete linked cards before deleting the parent bank account");
+  }
+
+  if (await hasTransactionsForBankConnection(user.id, bankConnectionId)) {
+    throw new Error("cannot delete a bank connection already used by transactions");
+  }
+
+  if (existing.account_type === "cash" && (await countCashBankConnections(user.id)) <= 1) {
+    throw new Error("at least one cash account must remain");
+  }
+
+  const result = await pool.query(
+    `
+      DELETE FROM bank_connections
+      WHERE user_id = $1
+        AND id = $2
+    `,
+    [user.id, bankConnectionId],
+  );
+
+  if (!result.rowCount) {
+    throw new Error("bank connection not found");
+  }
 }
 
 export async function listRecentTransactions(limit = 8) {
@@ -465,7 +625,17 @@ async function getCategoryById(categoryId) {
 async function getBankConnectionById(userId, bankConnectionId) {
   const result = await pool.query(
     `
-      SELECT id, slug, name, account_type, connected, color, current_balance
+      SELECT
+        id,
+        slug,
+        name,
+        account_type,
+        connected,
+        color,
+        current_balance,
+        parent_bank_connection_id,
+        statement_close_day,
+        statement_due_day
       FROM bank_connections
       WHERE user_id = $1
         AND id = $2
@@ -475,6 +645,170 @@ async function getBankConnectionById(userId, bankConnectionId) {
   );
 
   return result.rows[0] ?? null;
+}
+
+async function getNextBankSortOrder(userId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT COALESCE(MAX(sort_order), 0) + 10 AS next_sort_order
+      FROM bank_connections
+      WHERE user_id = $1
+    `,
+    [userId],
+  );
+
+  return Number(result.rows[0]?.next_sort_order ?? 10);
+}
+
+async function hasChildBankConnections(userId, bankConnectionId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT 1
+      FROM bank_connections
+      WHERE user_id = $1
+        AND parent_bank_connection_id = $2
+      LIMIT 1
+    `,
+    [userId, bankConnectionId],
+  );
+
+  return result.rowCount > 0;
+}
+
+async function countCashBankConnections(userId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT COUNT(*)::INT AS total
+      FROM bank_connections
+      WHERE user_id = $1
+        AND account_type = 'cash'
+    `,
+    [userId],
+  );
+
+  return Number(result.rows[0]?.total ?? 0);
+}
+
+async function hasTransactionsForBankConnection(userId, bankConnectionId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT 1
+      FROM transactions
+      WHERE user_id = $1
+        AND bank_connection_id = $2
+      LIMIT 1
+    `,
+    [userId, bankConnectionId],
+  );
+
+  return result.rowCount > 0;
+}
+
+async function buildUniqueBankSlug(userId, name, client = pool) {
+  const slugBase = slugify(name);
+
+  if (!slugBase) {
+    throw new Error("invalid bank connection name");
+  }
+
+  const result = await client.query(
+    `
+      SELECT COUNT(*)::INT AS total
+      FROM bank_connections
+      WHERE user_id = $1
+        AND (slug = $2 OR slug LIKE $3)
+    `,
+    [userId, slugBase, `${slugBase}-%`],
+  );
+
+  const total = Number(result.rows[0]?.total ?? 0);
+  return total === 0 ? slugBase : `${slugBase}-${total + 1}`;
+}
+
+function parseOptionalInteger(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : Number.NaN;
+}
+
+function validateStatementDay(value, fieldName) {
+  if (value === null) {
+    return null;
+  }
+
+  if (!Number.isInteger(value) || value < 1 || value > 31) {
+    throw new Error(`${fieldName} must be between 1 and 31`);
+  }
+
+  return value;
+}
+
+async function validateBankConnectionInput(userId, input, currentId = null) {
+  const name = String(input.name ?? "").trim();
+  const accountType =
+    input.accountType === "credit_card"
+      ? "credit_card"
+      : input.accountType === "cash"
+        ? "cash"
+        : input.accountType === "bank_account"
+          ? "bank_account"
+          : null;
+  const color = String(input.color ?? "").trim() || "bg-secondary";
+  const connected = input.connected === false ? false : true;
+  const currentBalance = Number(input.currentBalance ?? 0);
+  const parentBankConnectionId = parseOptionalInteger(input.parentBankConnectionId);
+  const statementCloseDay = validateStatementDay(parseOptionalInteger(input.statementCloseDay), "statementCloseDay");
+  const statementDueDay = validateStatementDay(parseOptionalInteger(input.statementDueDay), "statementDueDay");
+
+  if (!name || !accountType || !Number.isFinite(currentBalance)) {
+    throw new Error("name, accountType and currentBalance are required");
+  }
+
+  if (accountType === "credit_card") {
+    if (!Number.isInteger(parentBankConnectionId)) {
+      throw new Error("parentBankConnectionId is required for credit cards");
+    }
+
+    if (statementCloseDay === null || statementDueDay === null) {
+      throw new Error("statementCloseDay and statementDueDay are required for credit cards");
+    }
+
+    const parentBankConnection = await getBankConnectionById(userId, parentBankConnectionId);
+
+    if (!parentBankConnection) {
+      throw new Error("parent bank connection not found");
+    }
+
+    if (parentBankConnection.account_type !== "bank_account") {
+      throw new Error("credit cards must be linked to a bank account");
+    }
+
+    if (currentId !== null && Number(parentBankConnectionId) === Number(currentId)) {
+      throw new Error("a credit card cannot be linked to itself");
+    }
+  } else {
+    if (parentBankConnectionId !== null) {
+      throw new Error("parentBankConnectionId is allowed only for credit cards");
+    }
+
+    if (statementCloseDay !== null || statementDueDay !== null) {
+      throw new Error("statement days are allowed only for credit cards");
+    }
+  }
+
+  return {
+    name,
+    accountType,
+    color,
+    connected,
+    currentBalance,
+    parentBankConnectionId,
+    statementCloseDay,
+    statementDueDay,
+  };
 }
 
 async function listTransactionFingerprintRows(userId) {

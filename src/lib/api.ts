@@ -30,6 +30,7 @@ import type {
   ChatMessage,
   ChatReply,
   ChatRole,
+  CreateBankConnectionInput,
   CreateCategoryInput,
   CreateTransactionInput,
   DashboardData,
@@ -46,6 +47,7 @@ import type {
   TransactionAccount,
   TransactionItem,
   UpdateTransactionInput,
+  UpdateBankConnectionInput,
 } from "@/types/api";
 
 const DEFAULT_API_URL = "http://localhost:3001";
@@ -288,6 +290,10 @@ export function mapBank(bank: ApiBank): BankItem {
     slug: safeString(bank.slug, "bank"),
     name: safeString(bank.name, "Banco"),
     accountType: bank.accountType === "credit_card" || bank.accountType === "cash" ? bank.accountType : "bank_account",
+    parentBankConnectionId: bank.parentBankConnectionId ?? null,
+    parentAccountName: bank.parentAccountName ?? null,
+    statementCloseDay: typeof bank.statementCloseDay === "number" ? bank.statementCloseDay : null,
+    statementDueDay: typeof bank.statementDueDay === "number" ? bank.statementDueDay : null,
     connected: Boolean(bank.connected),
     color: safeString(bank.color, "bg-secondary"),
     currentBalance,
@@ -513,6 +519,39 @@ export async function getInsights() {
 export async function getBanks() {
   const response = await request<ApiBanksResponse>("/api/banks");
   return mapBanksResponse(response);
+}
+
+export async function postBank(input: CreateBankConnectionInput) {
+  const response = await request<ApiBank>("/api/banks", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+  return mapBank(response);
+}
+
+export async function patchBank(input: UpdateBankConnectionInput) {
+  const response = await request<ApiBank>(`/api/banks/${input.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      name: input.name,
+      accountType: input.accountType,
+      currentBalance: input.currentBalance,
+      color: input.color,
+      connected: input.connected,
+      parentBankConnectionId: input.parentBankConnectionId,
+      statementCloseDay: input.statementCloseDay,
+      statementDueDay: input.statementDueDay,
+    }),
+  });
+
+  return mapBank(response);
+}
+
+export async function deleteBank(id: number | string) {
+  await request<null>(`/api/banks/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export async function getChatMessages(limit?: number) {

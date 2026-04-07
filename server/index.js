@@ -4,8 +4,10 @@ import express from "express";
 import {
   commitTransactionImport,
   createCategory,
+  createBankConnection,
   createChatReply,
   createTransaction,
+  deleteBankConnection,
   deleteTransaction,
   getDashboardData,
   getTransactionImportAiSuggestions,
@@ -19,6 +21,7 @@ import {
   listSpendingByCategory,
   pingDatabase,
   previewTransactionImport,
+  updateBankConnection,
   updateTransaction,
 } from "./database.js";
 import { MAX_IMPORT_BYTES, parseMultipartCsvUpload } from "./transaction-import.js";
@@ -179,6 +182,47 @@ app.get("/api/banks", async (_request, response, next) => {
   try {
     const banks = await listBanks();
     response.json({ banks });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/banks", async (request, response, next) => {
+  try {
+    const bank = await createBankConnection(request.body ?? {});
+    response.status(201).json(bank);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/banks/:id", async (request, response, next) => {
+  try {
+    const bankConnectionId = Number.parseInt(request.params.id, 10);
+
+    if (!Number.isInteger(bankConnectionId)) {
+      response.status(400).json({ error: "invalid_bank_connection_id" });
+      return;
+    }
+
+    const bank = await updateBankConnection(bankConnectionId, request.body ?? {});
+    response.json(bank);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/banks/:id", async (request, response, next) => {
+  try {
+    const bankConnectionId = Number.parseInt(request.params.id, 10);
+
+    if (!Number.isInteger(bankConnectionId)) {
+      response.status(400).json({ error: "invalid_bank_connection_id" });
+      return;
+    }
+
+    await deleteBankConnection(bankConnectionId);
+    response.status(204).send();
   } catch (error) {
     next(error);
   }

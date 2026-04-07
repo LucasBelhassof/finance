@@ -80,6 +80,10 @@ export interface ApiBank {
   slug?: string;
   name?: string;
   accountType?: string;
+  parentBankConnectionId?: number | string | null;
+  parentAccountName?: string | null;
+  statementCloseDay?: number | null;
+  statementDueDay?: number | null;
   connected?: boolean;
   color?: string;
   currentBalance?: number;
@@ -426,10 +430,29 @@ export interface BankItem {
   slug: string;
   name: string;
   accountType: "bank_account" | "credit_card" | "cash";
+  parentBankConnectionId: number | string | null;
+  parentAccountName: string | null;
+  statementCloseDay: number | null;
+  statementDueDay: number | null;
   connected: boolean;
   color: string;
   currentBalance: number;
   formattedBalance: string;
+}
+
+export interface CreateBankConnectionInput {
+  name: string;
+  accountType: "bank_account" | "credit_card" | "cash";
+  currentBalance: number;
+  color: string;
+  connected?: boolean;
+  parentBankConnectionId?: number | string | null;
+  statementCloseDay?: number | null;
+  statementDueDay?: number | null;
+}
+
+export interface UpdateBankConnectionInput extends CreateBankConnectionInput {
+  id: number | string;
 }
 
 export interface TransactionAccount {

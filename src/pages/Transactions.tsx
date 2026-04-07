@@ -192,6 +192,7 @@ export default function TransactionsPage() {
   const [transactionForm, setTransactionForm] = useState<TransactionFormState>(emptyTransactionForm("expense"));
   const [categoryForm, setCategoryForm] = useState<CreateCategoryInput>({
     label: "",
+    transactionType: "expense",
     icon: "Wallet",
     color: "text-income",
     groupLabel: "",
@@ -207,6 +208,10 @@ export default function TransactionsPage() {
 
   const deleteTarget = transactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
   const isEditing = Boolean(transactionForm.id);
+  const filteredTransactionCategories = useMemo(
+    () => categories.filter((category) => category.transactionType === transactionForm.type),
+    [categories, transactionForm.type],
+  );
 
   const openCreateTransaction = (type: "income" | "expense") => {
     setTransactionForm(emptyTransactionForm(type));
@@ -269,6 +274,7 @@ export default function TransactionsPage() {
       setCategoryDialogOpen(false);
       setCategoryForm({
         label: "",
+        transactionType: "expense",
         icon: "Wallet",
         color: "text-income",
         groupLabel: "",
@@ -363,7 +369,7 @@ export default function TransactionsPage() {
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setTransactionForm((current) => ({ ...current, type: option.value }))}
+                    onClick={() => setTransactionForm((current) => ({ ...current, type: option.value, categoryId: "" }))}
                     className={cn(
                       "rounded-xl px-4 py-2.5 text-sm transition-colors",
                       active
@@ -400,9 +406,9 @@ export default function TransactionsPage() {
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
+                {filteredTransactionCategories.map((category) => (
                   <SelectItem key={category.id} value={String(category.id)}>
-                    {category.groupLabel}
+                    {category.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -460,6 +466,29 @@ export default function TransactionsPage() {
               placeholder="Nome da categoria"
               className="h-11 rounded-xl border-border/60 bg-secondary/35"
             />
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-secondary/60 p-1">
+              {transactionTypeOptions.map((option) => {
+                const active = categoryForm.transactionType === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setCategoryForm((current) => ({ ...current, transactionType: option.value }))}
+                    className={cn(
+                      "rounded-xl px-4 py-2.5 text-sm transition-colors",
+                      active
+                        ? option.value === "expense"
+                          ? "bg-expense/20 text-expense"
+                          : "bg-income/20 text-income"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Cor</p>
               <div className="flex flex-wrap gap-3">

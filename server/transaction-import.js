@@ -4,6 +4,7 @@ export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 5000;
 export const PREVIEW_TTL_MS = 15 * 60 * 1000;
 export const IMPORT_AI_MAX_REASON_LENGTH = 160;
+export const RECURRING_RULE_MIN_CONFIRMATIONS = 3;
 const IMPORT_FINGERPRINT_VERSION = "v1";
 
 const previewSessions = new Map();
@@ -15,6 +16,8 @@ const headerAliases = {
   debit: ["debito", "débito", "saidas", "saída", "saida", "valor debito", "valor débito"],
   credit: ["credito", "crédito", "entradas", "entrada", "valor credito", "valor crédito"],
 };
+
+headerAliases.description.push("title", "titulo");
 
 const categoryKeyResolvers = {
   grocery: ["supermercado"],
@@ -30,6 +33,27 @@ const categoryKeyResolvers = {
 };
 
 const categoryKeys = Object.keys(categoryKeyResolvers);
+const matchKeyNoiseTokens = new Set([
+  "transferencia",
+  "recebida",
+  "recebido",
+  "enviada",
+  "enviado",
+  "pix",
+  "pelo",
+  "pela",
+  "ted",
+  "doc",
+  "pagamento",
+  "boleto",
+  "debito",
+  "credito",
+  "conta",
+  "agencia",
+  "bco",
+  "banco",
+  "sa",
+]);
 
 const importRules = [
   { id: "salary", priority: 100, matchType: "contains", patterns: ["salario", "salary", "folha pag"], categoryKey: "salary", typeOverride: "income" },
@@ -74,6 +98,28 @@ export function normalizeDescription(value) {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+export function extractCategorizationMatchKey(value) {
+  const normalized = normalizeDescription(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const tokens = normalized
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => !matchKeyNoiseTokens.has(token))
+    .filter((token) => !/\d/.test(token))
+    .filter((token) => token.length > 1);
+
+  if (tokens.length >= 2) {
+    return tokens.join(" ");
+  }
+
+  return normalized;
 }
 
 function normalizeHeader(value) {
@@ -219,6 +265,49 @@ function resolveHeaderIndexes(headerRow) {
   return mapping;
 }
 
+function detectImportLayout(headerRow, dataRows, headerIndexes) {
+  const normalizedHeaders = headerRow.map(normalizeHeader);
+  const hasTitleHeader = normalizedHeaders.includes("title");
+
+  if (!hasTitleHeader || typeof headerIndexes.amount !== "number") {
+    return "bank_statement";
+  }
+
+  let paymentRows = 0;
+  let purchaseRows = 0;
+
+  for (const rowValues of dataRows.slice(0, 25)) {
+    const rawDescription = String(rowValues[headerIndexes.description] ?? "").trim();
+    const normalizedDescriptionValue = normalizeDescription(rawDescription);
+
+    if (!normalizedDescriptionValue) {
+      continue;
+    }
+
+    let parsedAmount;
+
+    try {
+      parsedAmount = parseAmountInput(rowValues[headerIndexes.amount]);
+    } catch {
+      continue;
+    }
+
+    if (parsedAmount < 0 && normalizedDescriptionValue.includes("pagamento recebido")) {
+      paymentRows += 1;
+    }
+
+    if (parsedAmount > 0 && !normalizedDescriptionValue.includes("pagamento recebido")) {
+      purchaseRows += 1;
+    }
+  }
+
+  return paymentRows > 0 && purchaseRows > 0 ? "credit_card_statement" : "bank_statement";
+}
+
+function isCreditCardPaymentReceived(normalizedDescriptionValue) {
+  return normalizedDescriptionValue.includes("pagamento recebido");
+}
+
 export function parseAmountInput(rawValue) {
   const original = String(rawValue ?? "").trim();
 
@@ -330,6 +419,14 @@ function resolveCategoryForKey(categoryKey, categories) {
   return null;
 }
 
+function isCategoryCompatibleWithType(category, type) {
+  if (!category || !type) {
+    return false;
+  }
+
+  return category.transactionType === type;
+}
+
 export function listAllowedCategoryKeys(categories) {
   return categoryKeys.filter((categoryKey) => Boolean(resolveCategoryForKey(categoryKey, categories)));
 }
@@ -362,6 +459,36 @@ function suggestCategory(normalizedDescriptionValue, categories) {
   };
 }
 
+function chooseHistoricalMatch(matchKey, categories, historicalMatches, recurringRuleMatches) {
+  if (recurringRuleMatches?.has(matchKey)) {
+    const match = recurringRuleMatches.get(matchKey);
+    const category = categories.find((item) => Number(item.id) === Number(match.categoryId));
+
+    if (isCategoryCompatibleWithType(category, match.type)) {
+      return {
+        category,
+        typeOverride: match.type,
+        source: "recurring_rule",
+      };
+    }
+  }
+
+  if (historicalMatches?.has(matchKey)) {
+    const match = historicalMatches.get(matchKey);
+    const category = categories.find((item) => Number(item.id) === Number(match.categoryId));
+
+    if (isCategoryCompatibleWithType(category, match.type)) {
+      return {
+        category,
+        typeOverride: match.type,
+        source: "history",
+      };
+    }
+  }
+
+  return null;
+}
+
 function buildRowSource(headerRow, rowValues) {
   const source = {};
 
@@ -377,11 +504,14 @@ function buildRowSource(headerRow, rowValues) {
 }
 
 function buildPreviewItem({
+  importLayout,
   rowIndex,
   rowValues,
   headerRow,
   headerIndexes,
   categories,
+  historicalMatches,
+  recurringRuleMatches,
   userId,
   seenFingerprints,
   existingFingerprints,
@@ -391,9 +521,11 @@ function buildPreviewItem({
   const sourceRow = buildRowSource(headerRow, rowValues);
   const rawDescription = String(rowValues[headerIndexes.description] ?? "").trim();
   const normalizedDescriptionValue = normalizeDescription(rawDescription);
+  const categorizationMatchKey = extractCategorizationMatchKey(rawDescription);
   let type = "expense";
   let absoluteAmount = null;
   let occurredOn = "";
+  let defaultExclude = false;
 
   if (!rawDescription) {
     errors.push("Descricao ausente.");
@@ -408,7 +540,13 @@ function buildPreviewItem({
   try {
     if (typeof headerIndexes.amount === "number") {
       const parsed = parseAmountInput(rowValues[headerIndexes.amount]);
-      type = parsed < 0 ? "expense" : "income";
+      type = importLayout === "credit_card_statement"
+        ? parsed < 0
+          ? "income"
+          : "expense"
+        : parsed < 0
+          ? "expense"
+          : "income";
       absoluteAmount = Math.abs(parsed);
     } else {
       const debitValue = String(rowValues[headerIndexes.debit] ?? "").trim();
@@ -435,9 +573,18 @@ function buildPreviewItem({
   }
 
   const suggestion = suggestCategory(normalizedDescriptionValue, categories);
+  const historicalSuggestion =
+    !suggestion.category && categorizationMatchKey
+      ? chooseHistoricalMatch(categorizationMatchKey, categories, historicalMatches, recurringRuleMatches)
+      : null;
 
-  if (suggestion.typeOverride) {
-    type = suggestion.typeOverride;
+  if (suggestion.typeOverride || historicalSuggestion?.typeOverride) {
+    type = historicalSuggestion?.typeOverride ?? suggestion.typeOverride;
+  }
+
+  if (importLayout === "credit_card_statement" && isCreditCardPaymentReceived(normalizedDescriptionValue)) {
+    defaultExclude = true;
+    warnings.push("Pagamento recebido de fatura sera ignorado por padrao.");
   }
 
   let normalizedAmount = absoluteAmount !== null ? normalizeAmountString(absoluteAmount) : "";
@@ -462,13 +609,15 @@ function buildPreviewItem({
     seenFingerprints.add(fingerprint);
   }
 
-  const requiresCategorySelection = !suggestion.category;
+  const finalSuggestedCategory = historicalSuggestion?.category ?? suggestion.category ?? null;
+  const finalSuggestionSource = historicalSuggestion?.source ?? (suggestion.category ? "rule" : null);
+  const finalRequiresCategorySelection = !defaultExclude && !finalSuggestedCategory;
 
-  if (requiresCategorySelection) {
+  if (finalRequiresCategorySelection) {
     warnings.push("Selecione uma categoria antes de importar.");
   }
 
-  const canImport = errors.length === 0 && !requiresCategorySelection;
+  const canImport = errors.length === 0 && !finalRequiresCategorySelection;
 
   return {
     rowIndex,
@@ -479,9 +628,10 @@ function buildPreviewItem({
     occurredOn,
     normalizedOccurredOn: occurredOn,
     type,
-    suggestedCategoryId: suggestion.category?.id ?? null,
-    suggestedCategoryLabel: suggestion.category?.label ?? null,
-    suggestionSource: suggestion.category ? "rule" : null,
+    suggestedCategoryId: finalSuggestedCategory?.id ?? null,
+    suggestedCategoryLabel: finalSuggestedCategory?.label ?? null,
+    suggestionSource: finalSuggestionSource,
+    importSource: importLayout,
     matchedRuleId: suggestion.matchedRuleId,
     aiSuggestedType: null,
     aiSuggestedCategoryId: null,
@@ -492,12 +642,107 @@ function buildPreviewItem({
     possibleDuplicate,
     duplicateReason,
     canImport,
-    requiresCategorySelection,
-    requiresUserAction: !canImport || possibleDuplicate,
+    requiresCategorySelection: finalRequiresCategorySelection,
+    requiresUserAction: (!canImport || possibleDuplicate) && !defaultExclude,
+    defaultExclude,
     warnings,
     errors,
     sourceRow,
   };
+}
+
+function buildHistoricalCategorizationMatches(rows) {
+  const grouped = new Map();
+
+  for (const row of rows ?? []) {
+    const matchKey = extractCategorizationMatchKey(row.description);
+
+    if (!matchKey) {
+      continue;
+    }
+
+    const type = row.transaction_type === "income" || row.transaction_type === "expense"
+      ? row.transaction_type
+      : Number(row.amount) >= 0
+        ? "income"
+        : "expense";
+    const comboKey = `${type}:${row.category_id}`;
+    const entry = grouped.get(matchKey) ?? new Map();
+    const current = entry.get(comboKey) ?? { type, categoryId: row.category_id, count: 0, latestOccurredOn: "" };
+    current.count += 1;
+    current.latestOccurredOn = String(row.occurred_on ?? "");
+    entry.set(comboKey, current);
+    grouped.set(matchKey, entry);
+  }
+
+  const resolved = new Map();
+
+  for (const [matchKey, options] of grouped.entries()) {
+    const ranked = Array.from(options.values()).sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+
+      return String(right.latestOccurredOn).localeCompare(String(left.latestOccurredOn));
+    });
+
+    if (ranked.length === 1 || ranked[0].count > ranked[1].count) {
+      resolved.set(matchKey, ranked[0]);
+    }
+  }
+
+  return resolved;
+}
+
+function buildRecurringRuleMatches(rows) {
+  const resolved = new Map();
+
+  for (const row of rows ?? []) {
+    if (!row.match_key || Number(row.times_confirmed) < RECURRING_RULE_MIN_CONFIRMATIONS) {
+      continue;
+    }
+
+    resolved.set(String(row.match_key), {
+      type: row.type,
+      categoryId: row.category_id,
+      timesConfirmed: Number(row.times_confirmed),
+    });
+  }
+
+  return resolved;
+}
+
+function buildPreviewItems({
+  categories,
+  existingFingerprints,
+  headerIndexes,
+  headerRow,
+  historicalRows,
+  importSource,
+  recurringRules,
+  rows,
+  userId,
+}) {
+  const seenFingerprints = new Set();
+  const historicalMatches = buildHistoricalCategorizationMatches(historicalRows);
+  const recurringRuleMatches = buildRecurringRuleMatches(recurringRules);
+  const importLayout = importSource || detectImportLayout(headerRow, rows, headerIndexes);
+
+  return rows.map((rowValues, index) =>
+    buildPreviewItem({
+      importLayout,
+      rowIndex: index + 1,
+      rowValues,
+      headerRow,
+      headerIndexes,
+      categories,
+      historicalMatches,
+      recurringRuleMatches,
+      userId,
+      seenFingerprints,
+      existingFingerprints,
+    }),
+  );
 }
 
 function normalizeRowIndexes(rowIndexes, session, maxRows) {
@@ -710,7 +955,7 @@ export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
 
   const category = allowedCategoryMap.get(categoryKey);
 
-  if (!category) {
+  if (!category || !isCategoryCompatibleWithType(category, suggestedType)) {
     return {
       rowIndex,
       aiSuggestedType: null,
@@ -781,6 +1026,7 @@ export async function enrichPreviewSessionWithAi({
           categoryKey,
           id: category.id,
           label: category.label,
+          transactionType: category.transactionType,
         })),
       });
 
@@ -877,7 +1123,15 @@ export function parseMultipartCsvUpload(contentType, bodyBuffer) {
   throw new Error("O upload nao contem um arquivo CSV valido.");
 }
 
-export function createImportPreview({ categories, existingFingerprints, fileBuffer, userId }) {
+export function createImportPreview({
+  categories,
+  existingFingerprints,
+  fileBuffer,
+  historicalRows = [],
+  importSource = "bank_statement",
+  recurringRules = [],
+  userId,
+}) {
   if (fileBuffer.length > MAX_IMPORT_BYTES) {
     throw new Error("O arquivo excede o limite de 5 MB.");
   }
@@ -897,19 +1151,17 @@ export function createImportPreview({ categories, existingFingerprints, fileBuff
 
   const headerRow = nonEmptyRows[0];
   const headerIndexes = resolveHeaderIndexes(headerRow);
-  const seenFingerprints = new Set();
-  const items = nonEmptyRows.slice(1).map((rowValues, index) =>
-    buildPreviewItem({
-      rowIndex: index + 1,
-      rowValues,
-      headerRow,
-      headerIndexes,
-      categories,
-      userId,
-      seenFingerprints,
-      existingFingerprints,
-    }),
-  );
+  const items = buildPreviewItems({
+    categories,
+    existingFingerprints,
+    headerIndexes,
+    headerRow,
+    historicalRows,
+    importSource,
+    recurringRules,
+    rows: nonEmptyRows.slice(1),
+    userId,
+  });
 
   const previewToken = crypto.randomUUID();
   const expiresAtMs = Date.now() + PREVIEW_TTL_MS;
@@ -928,6 +1180,7 @@ export function createImportPreview({ categories, existingFingerprints, fileBuff
   return {
     previewToken,
     expiresAt: new Date(expiresAtMs).toISOString(),
+    importSource,
     fileSummary: {
       totalRows: items.length,
       importableRows: items.filter((item) => item.canImport && !item.possibleDuplicate).length,
@@ -1012,6 +1265,10 @@ export function validateCommitLine(input, categories) {
 
   if (!category) {
     throw new Error("Categoria invalida.");
+  }
+
+  if (category.transactionType !== type) {
+    throw new Error("A categoria selecionada nao corresponde ao tipo da transacao.");
   }
 
   const signedAmount = signedAmountFromType(type, amount);

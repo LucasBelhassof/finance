@@ -32,6 +32,7 @@ export default function ImportPreviewRow({
 }: ImportPreviewRowProps) {
   const isInvalid = item.errors.length > 0;
   const needsCategory = !draft.categoryId;
+  const filteredCategories = categories.filter((category) => category.transactionType === draft.type);
   const aiConfidencePercent =
     typeof item.aiConfidence === "number" ? `${Math.round(Math.max(0, Math.min(1, item.aiConfidence)) * 100)}%` : null;
 
@@ -62,11 +63,29 @@ export default function ImportPreviewRow({
               {aiConfidencePercent ? ` ${aiConfidencePercent}` : ""}
             </Badge>
           ) : null}
+          {item.suggestionSource === "history" ? (
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              Historico
+            </Badge>
+          ) : null}
+          {item.suggestionSource === "recurring_rule" ? (
+            <Badge variant="secondary" className="bg-income/10 text-income">
+              Recorrencia
+            </Badge>
+          ) : null}
         </div>
         {item.errors.length > 0 ? <p className="mt-2 text-xs text-destructive">{item.errors[0]}</p> : null}
         {item.errors.length === 0 && item.warnings[0] ? <p className="mt-2 text-xs text-warning">{item.warnings[0]}</p> : null}
         {item.errors.length === 0 && item.aiStatus === "error" ? (
           <p className="mt-2 text-xs text-destructive">{item.aiReason || "A IA falhou ao sugerir uma categoria."}</p>
+        ) : null}
+        {item.errors.length === 0 &&
+        (item.suggestionSource === "history" || item.suggestionSource === "recurring_rule") &&
+        item.suggestedCategoryLabel ? (
+          <p className="mt-2 text-xs text-primary">
+            {item.suggestionSource === "history" ? "Historico do usuario" : "Regra recorrente"}:{" "}
+            {item.type === "income" ? "Receita" : "Despesa"} · {item.suggestedCategoryLabel}
+          </p>
         ) : null}
         {item.errors.length === 0 && item.aiStatus === "suggested" && item.aiReason ? (
           <p className="mt-2 text-xs text-info">
@@ -96,7 +115,7 @@ export default function ImportPreviewRow({
         <div className="flex rounded-xl border border-border/50 bg-secondary/35 p-1">
           <button
             type="button"
-            onClick={() => onChange(item.rowIndex, { type: "expense" })}
+            onClick={() => onChange(item.rowIndex, { type: "expense", categoryId: draft.type === "expense" ? draft.categoryId : "" })}
             className={cn(
               "flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
               draft.type === "expense"
@@ -108,7 +127,7 @@ export default function ImportPreviewRow({
           </button>
           <button
             type="button"
-            onClick={() => onChange(item.rowIndex, { type: "income" })}
+            onClick={() => onChange(item.rowIndex, { type: "income", categoryId: draft.type === "income" ? draft.categoryId : "" })}
             className={cn(
               "flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
               draft.type === "income"
@@ -127,7 +146,7 @@ export default function ImportPreviewRow({
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
+              {filteredCategories.map((category) => (
                 <SelectItem key={category.id} value={String(category.id)}>
                   {category.label}
                 </SelectItem>

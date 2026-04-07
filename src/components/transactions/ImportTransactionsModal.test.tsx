@@ -129,6 +129,7 @@ describe("ImportTransactionsModal", () => {
             id: 1,
             slug: "alimentacao",
             label: "Alimentacao",
+            transactionType: "income",
             iconName: "Wallet",
             icon: (() => null) as never,
             color: "text-warning",
@@ -147,6 +148,7 @@ describe("ImportTransactionsModal", () => {
       },
     });
 
+    fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
     fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
 
     await waitFor(() => {
@@ -164,6 +166,10 @@ describe("ImportTransactionsModal", () => {
     expect(body.className).toContain("overflow-y-auto");
     expect(screen.getByRole("button", { name: /Confirmar importacao/i })).toBeInTheDocument();
     expect(footer).toContainElement(screen.getByRole("button", { name: /Confirmar importacao/i }));
+    expect(previewMutateAsync).toHaveBeenCalledWith({
+      file: expect.any(File),
+      importSource: "bank_statement",
+    });
     expect(aiSuggestionsMutateAsync).toHaveBeenCalledWith({
       previewToken: "preview-1",
       rowIndexes: [15],
@@ -180,6 +186,7 @@ describe("ImportTransactionsModal", () => {
             id: 1,
             slug: "alimentacao",
             label: "Alimentacao",
+            transactionType: "income",
             iconName: "Wallet",
             icon: (() => null) as never,
             color: "text-warning",
@@ -197,6 +204,7 @@ describe("ImportTransactionsModal", () => {
         files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
       },
     });
+    fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
     fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
 
     await waitFor(() => {
@@ -253,6 +261,7 @@ describe("ImportTransactionsModal", () => {
             id: 1,
             slug: "alimentacao",
             label: "Alimentacao",
+            transactionType: "expense",
             iconName: "Wallet",
             icon: (() => null) as never,
             color: "text-warning",
@@ -270,6 +279,7 @@ describe("ImportTransactionsModal", () => {
         files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
       },
     });
+    fireEvent.click(screen.getByRole("button", { name: /Fatura do cartao/i }));
     fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
 
     await waitFor(() => {

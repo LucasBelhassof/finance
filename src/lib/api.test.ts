@@ -113,6 +113,7 @@ describe("api mappers", () => {
     const preview = mapImportPreviewResponse({
       previewToken: "preview-1",
       expiresAt: "2026-04-06T10:15:00.000Z",
+      importSource: "credit_card_statement",
       fileSummary: {
         totalRows: 3,
         importableRows: 1,
@@ -133,6 +134,7 @@ describe("api mappers", () => {
           suggestedCategoryId: 12,
           suggestedCategoryLabel: "Restaurantes",
           suggestionSource: "rule",
+          importSource: "credit_card_statement",
           matchedRuleId: "ifood",
           aiSuggestedType: null,
           aiSuggestedCategoryId: null,
@@ -145,6 +147,7 @@ describe("api mappers", () => {
           canImport: true,
           requiresCategorySelection: false,
           requiresUserAction: true,
+          defaultExclude: false,
           warnings: ["Duplicata provavel encontrada."],
           errors: [],
         },
@@ -177,6 +180,7 @@ describe("api mappers", () => {
     });
 
     expect(preview.previewToken).toBe("preview-1");
+    expect(preview.importSource).toBe("credit_card_statement");
     expect(preview.fileSummary.duplicateRows).toBe(1);
     expect(preview.items[0].matchedRuleId).toBe("ifood");
     expect(preview.items[0].possibleDuplicate).toBe(true);
@@ -185,6 +189,67 @@ describe("api mappers", () => {
     expect(commit.importedCount).toBe(1);
     expect(commit.results[0].status).toBe("imported");
     expect(commit.results[0].transaction?.description).toBe("iFood");
+  });
+
+  it("maps preview suggestion sources from history and recurring rules", () => {
+    const preview = mapImportPreviewResponse({
+      previewToken: "preview-2",
+      expiresAt: "2026-04-06T10:15:00.000Z",
+      fileSummary: {
+        totalRows: 2,
+        importableRows: 2,
+        errorRows: 0,
+        duplicateRows: 0,
+        actionRequiredRows: 0,
+      },
+      items: [
+        {
+          rowIndex: 1,
+          description: "PIX Levi",
+          normalizedDescription: "pix levi",
+          amount: "396.00",
+          normalizedAmount: "396.00",
+          occurredOn: "2026-04-06",
+          normalizedOccurredOn: "2026-04-06",
+          type: "income",
+          suggestedCategoryId: 3,
+          suggestedCategoryLabel: "Salario",
+          suggestionSource: "history",
+          matchedRuleId: null,
+          aiStatus: "idle",
+          possibleDuplicate: false,
+          canImport: true,
+          requiresCategorySelection: false,
+          requiresUserAction: false,
+          warnings: [],
+          errors: [],
+        },
+        {
+          rowIndex: 2,
+          description: "PIX Levi",
+          normalizedDescription: "pix levi",
+          amount: "396.00",
+          normalizedAmount: "396.00",
+          occurredOn: "2026-04-06",
+          normalizedOccurredOn: "2026-04-06",
+          type: "income",
+          suggestedCategoryId: 3,
+          suggestedCategoryLabel: "Salario",
+          suggestionSource: "recurring_rule",
+          matchedRuleId: null,
+          aiStatus: "idle",
+          possibleDuplicate: false,
+          canImport: true,
+          requiresCategorySelection: false,
+          requiresUserAction: false,
+          warnings: [],
+          errors: [],
+        },
+      ],
+    });
+
+    expect(preview.items[0].suggestionSource).toBe("history");
+    expect(preview.items[1].suggestionSource).toBe("recurring_rule");
   });
 
   it("maps import AI suggestion payloads", () => {

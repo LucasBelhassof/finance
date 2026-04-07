@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildImportSeedKey,
   createImportPreview,
+  extractCategorizationMatchKey,
   enrichPreviewSessionWithAi,
   getPreviewSession,
   isPreviewItemEligibleForAi,
@@ -14,9 +15,9 @@ import {
 } from "./transaction-import.js";
 
 const categories = [
-  { id: 1, slug: "restaurantes", label: "Restaurantes" },
-  { id: 2, slug: "transporte", label: "Transporte" },
-  { id: 3, slug: "salario", label: "Salario" },
+  { id: 1, slug: "restaurantes", label: "Restaurantes", transactionType: "expense" },
+  { id: 2, slug: "transporte", label: "Transporte", transactionType: "expense" },
+  { id: 3, slug: "salario", label: "Salario", transactionType: "income" },
 ];
 
 describe("transaction import helpers", () => {
@@ -59,6 +60,93 @@ describe("transaction import helpers", () => {
     expect(preview.items[2].suggestedCategoryId).toBe(3);
   });
 
+  it("reads Nubank credit card CSVs with date,title,amount and interprets purchases as expenses", () => {
+    const csv = [
+      "date,title,amount",
+      "2026-03-19,iFood - NuPay,30.99",
+      "2026-03-18,Pagamento recebido,-377.84",
+      "2026-03-15,Uber - NuPay,13.95",
+    ].join("\n");
+
+    const preview = createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      importSource: "credit_card_statement",
+      userId: 1,
+    });
+
+    expect(preview.fileSummary.totalRows).toBe(3);
+    expect(preview.items[0].description).toBe("iFood - NuPay");
+    expect(preview.items[0].type).toBe("expense");
+    expect(preview.items[0].suggestedCategoryId).toBe(1);
+    expect(preview.items[1].description).toBe("Pagamento recebido");
+    expect(preview.items[1].type).toBe("income");
+    expect(preview.items[1].defaultExclude).toBe(true);
+    expect(preview.items[2].type).toBe("expense");
+    expect(preview.items[2].suggestedCategoryId).toBe(2);
+  });
+
+  it("reuses the user's historical categorization before AI", () => {
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS;396,00",
+    ].join("\n");
+
+    const preview = createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      historicalRows: [
+        {
+          description: "Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS",
+          amount: 400,
+          category_id: 3,
+          occurred_on: "2026-03-06",
+        },
+      ],
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+
+    expect(preview.items[0].type).toBe("income");
+    expect(preview.items[0].suggestedCategoryId).toBe(3);
+    expect(preview.items[0].suggestionSource).toBe("history");
+  });
+
+  it("prioritizes recurring rules over transaction history", () => {
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS;396,00",
+    ].join("\n");
+
+    const preview = createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      historicalRows: [
+        {
+          description: "Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS",
+          amount: 400,
+          category_id: 2,
+          occurred_on: "2026-03-06",
+        },
+      ],
+      recurringRules: [
+        {
+          match_key: "levi augusto pereira dos santos",
+          type: "income",
+          category_id: 3,
+          times_confirmed: 3,
+        },
+      ],
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+
+    expect(preview.items[0].type).toBe("income");
+    expect(preview.items[0].suggestedCategoryId).toBe(3);
+    expect(preview.items[0].suggestionSource).toBe("recurring_rule");
+  });
+
   it("revalidates commit lines with signed amount derived from type", () => {
     const line = validateCommitLine(
       {
@@ -74,6 +162,21 @@ describe("transaction import helpers", () => {
     expect(line.signedAmount).toBe(-67.9);
     expect(line.normalizedFinalDescription).toBe("ifood");
     expect(line.normalizedOccurredOn).toBe("2026-04-06");
+  });
+
+  it("rejects a category that does not match the transaction type", () => {
+    expect(() =>
+      validateCommitLine(
+        {
+          description: "Salario pago",
+          amount: "1000.00",
+          occurredOn: "2026-04-06",
+          type: "expense",
+          categoryId: 3,
+        },
+        categories,
+      ),
+    ).toThrow("nao corresponde ao tipo");
   });
 
   it("keeps rows with local rule matches out of AI enrichment", async () => {
@@ -266,5 +369,13 @@ describe("transaction import helpers", () => {
         suggestCategories: async () => [],
       }),
     ).rejects.toThrow("no maximo 1 linhas");
+  });
+
+  it("extracts a useful match key from noisy banking descriptions", () => {
+    expect(
+      extractCategorizationMatchKey(
+        "Transferencia recebida pelo Pix - LEVI AUGUSTO PEREIRA DOS SANTOS - 308838 - BCO C6 S.A. Agencia 1 Conta 3793065-6",
+      ),
+    ).toBe("levi augusto pereira dos santos");
   });
 });

@@ -38,6 +38,7 @@ export interface ApiCategory {
   id?: number | string;
   slug?: string;
   label?: string;
+  transactionType?: string;
   icon?: string;
   color?: string;
   groupSlug?: string;
@@ -134,6 +135,7 @@ export interface ApiImportPreviewItem {
   suggestedCategoryId?: number | string | null;
   suggestedCategoryLabel?: string | null;
   suggestionSource?: string | null;
+  importSource?: string | null;
   matchedRuleId?: string | null;
   aiSuggestedType?: string | null;
   aiSuggestedCategoryId?: number | string | null;
@@ -146,6 +148,7 @@ export interface ApiImportPreviewItem {
   canImport?: boolean;
   requiresCategorySelection?: boolean;
   requiresUserAction?: boolean;
+  defaultExclude?: boolean;
   warnings?: string[];
   errors?: string[];
   sourceRow?: Record<string, string>;
@@ -178,6 +181,7 @@ export interface ApiImportAiSuggestionsResponse {
 export interface ApiImportPreviewResponse {
   previewToken?: string;
   expiresAt?: string;
+  importSource?: string;
   fileSummary?: {
     totalRows?: number;
     importableRows?: number;
@@ -250,6 +254,7 @@ export interface CategoryItem {
   id: number | string;
   slug: string;
   label: string;
+  transactionType: "income" | "expense";
   iconName: string;
   icon: LucideIcon;
   color: string;
@@ -260,6 +265,7 @@ export interface CategoryItem {
 
 export interface CreateCategoryInput {
   label: string;
+  transactionType: "income" | "expense";
   icon: string;
   color: string;
   groupLabel: string;
@@ -288,7 +294,8 @@ export interface ImportPreviewItem {
   type: "income" | "expense";
   suggestedCategoryId: number | string | null;
   suggestedCategoryLabel: string | null;
-  suggestionSource: "rule" | "ai" | null;
+  suggestionSource: "rule" | "history" | "recurring_rule" | "ai" | null;
+  importSource: "bank_statement" | "credit_card_statement";
   matchedRuleId: string | null;
   aiSuggestedType: "income" | "expense" | null;
   aiSuggestedCategoryId: number | string | null;
@@ -301,6 +308,7 @@ export interface ImportPreviewItem {
   canImport: boolean;
   requiresCategorySelection: boolean;
   requiresUserAction: boolean;
+  defaultExclude: boolean;
   warnings: string[];
   errors: string[];
   sourceRow?: Record<string, string>;
@@ -317,6 +325,7 @@ export interface ImportPreviewSummary {
 export interface ImportPreviewData {
   previewToken: string;
   expiresAt: string;
+  importSource: "bank_statement" | "credit_card_statement";
   fileSummary: ImportPreviewSummary;
   items: ImportPreviewItem[];
 }

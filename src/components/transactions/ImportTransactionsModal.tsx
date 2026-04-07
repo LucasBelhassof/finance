@@ -37,12 +37,18 @@ const colorSwatches = [
   { text: "text-primary", bg: "bg-primary", ring: "ring-primary/40" },
   { text: "text-muted-foreground", bg: "bg-muted-foreground", ring: "ring-muted-foreground/40" },
 ];
+const transactionTypeOptions: Array<{ label: string; value: "income" | "expense" }> = [
+  { label: "Receita", value: "income" },
+  { label: "Despesa", value: "expense" },
+];
 
 type ImportTransactionsModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: CategoryItem[];
 };
+
+type ImportSource = "bank_statement" | "credit_card_statement" | "";
 
 function buildDrafts(preview: ImportPreviewData) {
   return Object.fromEntries(
@@ -55,7 +61,7 @@ function buildDrafts(preview: ImportPreviewData) {
         occurredOn: item.occurredOn,
         type: item.type,
         categoryId: item.suggestedCategoryId ? String(item.suggestedCategoryId) : "",
-        exclude: false,
+        exclude: item.defaultExclude,
         ignoreDuplicate: false,
       } satisfies ImportCommitItem,
     ]),
@@ -71,6 +77,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   const importAiSuggestions = useImportAiSuggestions();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importSource, setImportSource] = useState<ImportSource>("");
   const [preview, setPreview] = useState<ImportPreviewData | null>(null);
   const [drafts, setDrafts] = useState<Record<number, ImportCommitItem>>({});
   const [page, setPage] = useState(1);
@@ -78,6 +85,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   const [categoryTargetRow, setCategoryTargetRow] = useState<number | null>(null);
   const [categoryForm, setCategoryForm] = useState<CreateCategoryInput>({
     label: "",
+    transactionType: "expense",
     icon: "Wallet",
     color: "text-income",
     groupLabel: "",
@@ -87,6 +95,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   useEffect(() => {
     if (!open) {
       setSelectedFile(null);
+      setImportSource("");
       setPreview(null);
       setDrafts({});
       setPage(1);
@@ -95,6 +104,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       attemptedAiPreviewTokensRef.current = new Set();
       setCategoryForm({
         label: "",
+        transactionType: "expense",
         icon: "Wallet",
         color: "text-income",
         groupLabel: "",
@@ -225,8 +235,16 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       return;
     }
 
+    if (!importSource) {
+      toast.error("Escolha se o CSV e extrato bancario ou fatura do cartao.");
+      return;
+    }
+
     try {
-      const nextPreview = await previewImport.mutateAsync(selectedFile);
+      const nextPreview = await previewImport.mutateAsync({
+        file: selectedFile,
+        importSource,
+      });
       setPreview(nextPreview);
       setDrafts(buildDrafts(nextPreview));
       setPage(1);
@@ -250,6 +268,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
   const handleOpenCategoryDialog = (rowIndex: number) => {
     setCategoryTargetRow(rowIndex);
+    setCategoryForm((current) => ({
+      ...current,
+      transactionType: drafts[rowIndex]?.type ?? "expense",
+    }));
     setCategoryDialogOpen(true);
   };
 
@@ -276,6 +298,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       setCategoryTargetRow(null);
       setCategoryForm({
         label: "",
+        transactionType: drafts[categoryTargetRow]?.type ?? "expense",
         icon: "Wallet",
         color: "text-income",
         groupLabel: "",
@@ -338,7 +361,41 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
           <div data-testid="import-preview-body" className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <div className="space-y-6">
               <div className="rounded-2xl border border-border/50 bg-secondary/20 p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-2 rounded-2xl bg-secondary/60 p-1 lg:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setImportSource("bank_statement")}
+                      className={cn(
+                        "rounded-xl px-4 py-3 text-left text-sm transition-colors",
+                        importSource === "bank_statement"
+                          ? "bg-primary/15 text-primary"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <div className="font-medium">Extrato bancario</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Recebimentos entram como receita e saidas como despesa.
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImportSource("credit_card_statement")}
+                      className={cn(
+                        "rounded-xl px-4 py-3 text-left text-sm transition-colors",
+                        importSource === "credit_card_statement"
+                          ? "bg-primary/15 text-primary"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <div className="font-medium">Fatura do cartao</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Compras entram como despesa e pagamento recebido sera ignorado por padrao.
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                   <div className="flex-1">
                     <input
                       ref={inputRef}
@@ -359,6 +416,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   <Button onClick={() => void handlePreview()} disabled={previewImport.isPending}>
                     {previewImport.isPending ? "Gerando previa..." : "Gerar previa"}
                   </Button>
+                </div>
                 </div>
               </div>
 
@@ -456,6 +514,30 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
               placeholder="Nome da categoria"
               className="h-11 rounded-xl border-border/60 bg-secondary/35"
             />
+
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-secondary/60 p-1">
+              {transactionTypeOptions.map((option) => {
+                const active = categoryForm.transactionType === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setCategoryForm((current) => ({ ...current, transactionType: option.value }))}
+                    className={cn(
+                      "rounded-xl px-4 py-2.5 text-sm transition-colors",
+                      active
+                        ? option.value === "expense"
+                          ? "bg-expense/20 text-expense"
+                          : "bg-income/20 text-income"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
 
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Cor</p>

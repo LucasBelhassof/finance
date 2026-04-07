@@ -5,6 +5,7 @@ import { runMigrations } from "./migrations.js";
 import {
   buildImportSeedKey,
   createImportPreview,
+  extractCategorizationMatchKey,
   enrichPreviewSessionWithAi,
   getPreviewSession,
   normalizeDescription,
@@ -92,6 +93,10 @@ function normalizeDateValue(value) {
   return String(value).slice(0, 10);
 }
 
+function getTransactionTypeFromAmount(amount) {
+  return Number(amount) < 0 ? "expense" : "income";
+}
+
 function parseDateOnly(value) {
   return new Date(`${normalizeDateValue(value)}T12:00:00Z`);
 }
@@ -171,6 +176,7 @@ function mapCategoryRow(row) {
     id: row.id,
     slug: row.slug,
     label: row.label,
+    transactionType: row.transaction_type,
     icon: row.icon,
     color: row.color,
     groupSlug: row.group_slug,
@@ -369,7 +375,7 @@ export async function listCategories() {
   await initializeDatabase();
   const result = await pool.query(
     `
-      SELECT id, slug, label, icon, color, group_slug, group_label, group_color
+      SELECT id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color
       FROM categories
       ORDER BY sort_order ASC, label ASC, id ASC
     `,
@@ -380,13 +386,14 @@ export async function listCategories() {
 
 export async function createCategory(input) {
   const label = String(input.label ?? "").trim();
+  const transactionType = input.transactionType === "income" ? "income" : input.transactionType === "expense" ? "expense" : null;
   const icon = String(input.icon ?? "").trim();
   const color = String(input.color ?? "").trim();
   const groupLabel = String(input.groupLabel ?? "").trim();
   const groupColor = String(input.groupColor ?? "").trim();
 
-  if (!label || !icon || !color || !groupLabel || !groupColor) {
-    throw new Error("label, icon, color, groupLabel and groupColor are required");
+  if (!label || !transactionType || !icon || !color || !groupLabel || !groupColor) {
+    throw new Error("label, transactionType, icon, color, groupLabel and groupColor are required");
   }
 
   const slugBase = slugify(label);
@@ -411,11 +418,11 @@ export async function createCategory(input) {
 
   const result = await pool.query(
     `
-      INSERT INTO categories (slug, label, icon, color, group_slug, group_label, group_color, sort_order)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id, slug, label, icon, color, group_slug, group_label, group_color
+      INSERT INTO categories (slug, label, transaction_type, icon, color, group_slug, group_label, group_color, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color
     `,
-    [slug, label, icon, color, groupSlug, groupLabel, groupColor, sortOrderResult.rows[0].next_sort_order],
+    [slug, label, transactionType, icon, color, groupSlug, groupLabel, groupColor, sortOrderResult.rows[0].next_sort_order],
   );
 
   return mapCategoryRow(result.rows[0]);
@@ -424,7 +431,7 @@ export async function createCategory(input) {
 async function getCategoryById(categoryId) {
   const result = await pool.query(
     `
-      SELECT id, slug, label, icon, color, group_slug, group_label, group_color
+      SELECT id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color
       FROM categories
       WHERE id = $1
       LIMIT 1
@@ -446,6 +453,91 @@ async function listTransactionFingerprintRows(userId) {
   );
 
   return result.rows;
+}
+
+async function listHistoricalCategorizationRows(userId) {
+  const result = await pool.query(
+    `
+      SELECT t.description, t.amount, t.category_id, t.occurred_on, c.transaction_type
+      FROM transactions t
+      INNER JOIN categories c ON c.id = t.category_id
+      WHERE user_id = $1
+        AND t.category_id IS NOT NULL
+    `,
+    [userId],
+  );
+
+  return result.rows;
+}
+
+async function listRecurringCategorizationRules(userId) {
+  const result = await pool.query(
+    `
+      SELECT match_key, type, category_id, times_confirmed, source
+      FROM transaction_categorization_rules
+      WHERE user_id = $1
+    `,
+    [userId],
+  );
+
+  return result.rows;
+}
+
+async function upsertTransactionCategorizationRule({ categoryId, matchKey, type, userId }, client = pool) {
+  if (!matchKey || !type || !Number.isInteger(Number(categoryId))) {
+    return;
+  }
+
+  const existing = await client.query(
+    `
+      SELECT id, type, category_id, times_confirmed
+      FROM transaction_categorization_rules
+      WHERE user_id = $1
+        AND match_key = $2
+      LIMIT 1
+    `,
+    [userId, matchKey],
+  );
+
+  if (!existing.rowCount) {
+    await client.query(
+      `
+        INSERT INTO transaction_categorization_rules (
+          user_id,
+          match_key,
+          type,
+          category_id,
+          source,
+          times_confirmed,
+          last_used_at,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, 'user_confirmed', 1, NOW(), NOW(), NOW())
+      `,
+      [userId, matchKey, type, Number(categoryId)],
+    );
+    return;
+  }
+
+  const row = existing.rows[0];
+  const sameDecision = row.type === type && Number(row.category_id) === Number(categoryId);
+  const nextCount = sameDecision ? Number(row.times_confirmed ?? 0) + 1 : 1;
+  const source = nextCount >= 3 ? "learned_recurring" : "user_confirmed";
+
+  await client.query(
+    `
+      UPDATE transaction_categorization_rules
+      SET type = $2,
+          category_id = $3,
+          source = $4,
+          times_confirmed = $5,
+          last_used_at = NOW(),
+          updated_at = NOW()
+      WHERE id = $1
+    `,
+    [row.id, type, Number(categoryId), source, nextCount],
+  );
 }
 
 async function createImportedTransaction({ userId, categoryId, description, amount, occurredOn, seedKey }) {
@@ -512,6 +604,10 @@ export async function createTransaction(input) {
     throw new Error("category not found");
   }
 
+  if (category.transaction_type !== getTransactionTypeFromAmount(amount)) {
+    throw new Error("category does not match transaction type");
+  }
+
   const result = await pool.query(
     `
       INSERT INTO transactions (user_id, category_id, description, amount, occurred_on)
@@ -540,6 +636,10 @@ export async function updateTransaction(transactionId, input) {
 
   if (!category) {
     throw new Error("category not found");
+  }
+
+  if (category.transaction_type !== getTransactionTypeFromAmount(amount)) {
+    throw new Error("category does not match transaction type");
   }
 
   const result = await pool.query(
@@ -580,9 +680,14 @@ export async function deleteTransaction(transactionId) {
   }
 }
 
-export async function previewTransactionImport(fileBuffer) {
+export async function previewTransactionImport(fileBuffer, importSource = "bank_statement") {
   const user = await getPrimaryUser();
-  const [categories, fingerprintRows] = await Promise.all([listCategories(), listTransactionFingerprintRows(user.id)]);
+  const [categories, fingerprintRows, historicalRows, recurringRules] = await Promise.all([
+    listCategories(),
+    listTransactionFingerprintRows(user.id),
+    listHistoricalCategorizationRows(user.id),
+    listRecurringCategorizationRules(user.id),
+  ]);
 
   const existingFingerprints = new Set(
     fingerprintRows.map((row) =>
@@ -594,6 +699,9 @@ export async function previewTransactionImport(fileBuffer) {
     categories,
     existingFingerprints,
     fileBuffer,
+    historicalRows,
+    importSource,
+    recurringRules,
     userId: user.id,
   });
 }
@@ -716,6 +824,12 @@ export async function commitTransactionImport(input) {
       }
 
       importedCount += 1;
+      await upsertTransactionCategorizationRule({
+        userId: user.id,
+        matchKey: extractCategorizationMatchKey(normalized.description),
+        type: normalized.type,
+        categoryId: normalized.categoryId,
+      });
       results.push({
         rowIndex: item.rowIndex,
         status: "imported",

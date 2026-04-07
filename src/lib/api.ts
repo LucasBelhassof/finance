@@ -201,6 +201,7 @@ export function mapCategory(category: ApiCategory): CategoryItem {
     id: category.id ?? safeString(category.slug, "category"),
     slug: safeString(category.slug, "category"),
     label: safeString(category.label, "Sem categoria"),
+    transactionType: category.transactionType === "income" ? "income" : "expense",
     iconName: safeString(category.icon),
     icon: resolveLucideIcon(category.icon),
     color: safeString(category.color, "text-muted-foreground"),
@@ -343,7 +344,14 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     type: normalizeImportType(item.type),
     suggestedCategoryId: item.suggestedCategoryId ?? null,
     suggestedCategoryLabel: item.suggestedCategoryLabel ?? null,
-    suggestionSource: item.suggestionSource === "rule" || item.suggestionSource === "ai" ? item.suggestionSource : null,
+    suggestionSource:
+      item.suggestionSource === "rule" ||
+      item.suggestionSource === "history" ||
+      item.suggestionSource === "recurring_rule" ||
+      item.suggestionSource === "ai"
+        ? item.suggestionSource
+        : null,
+    importSource: item.importSource === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
     matchedRuleId: item.matchedRuleId ?? null,
     aiSuggestedType: item.aiSuggestedType === "income" || item.aiSuggestedType === "expense" ? item.aiSuggestedType : null,
     aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
@@ -356,6 +364,7 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     canImport: Boolean(item.canImport),
     requiresCategorySelection: Boolean(item.requiresCategorySelection),
     requiresUserAction: Boolean(item.requiresUserAction),
+    defaultExclude: Boolean(item.defaultExclude),
     warnings: Array.isArray(item.warnings) ? item.warnings.map((value) => safeString(value)).filter(Boolean) : [],
     errors: Array.isArray(item.errors) ? item.errors.map((value) => safeString(value)).filter(Boolean) : [],
     sourceRow: item.sourceRow,
@@ -386,6 +395,7 @@ export function mapImportPreviewResponse(response: ApiImportPreviewResponse): Im
   return {
     previewToken: safeString(response.previewToken),
     expiresAt: safeString(response.expiresAt),
+    importSource: response.importSource === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
     fileSummary: {
       totalRows: safeNumber(response.fileSummary?.totalRows),
       importableRows: safeNumber(response.fileSummary?.importableRows),
@@ -541,11 +551,11 @@ export async function deleteTransaction(id: number | string) {
   });
 }
 
-export async function previewTransactionImport(file: File) {
+export async function previewTransactionImport(file: File, importSource: "bank_statement" | "credit_card_statement") {
   const body = new FormData();
   body.set("file", file);
 
-  const response = await request<ApiImportPreviewResponse>("/api/transactions/import/preview", {
+  const response = await request<ApiImportPreviewResponse>(buildPath("/api/transactions/import/preview", { importSource }), {
     method: "POST",
     body,
   });

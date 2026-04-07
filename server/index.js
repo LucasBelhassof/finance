@@ -79,7 +79,9 @@ app.post(
   async (request, response, next) => {
     try {
       const upload = parseMultipartCsvUpload(request.headers["content-type"], request.body);
-      const preview = await previewTransactionImport(upload.buffer);
+      const importSource =
+        request.query.importSource === "credit_card_statement" ? "credit_card_statement" : "bank_statement";
+      const preview = await previewTransactionImport(upload.buffer, importSource);
       response.status(201).json(preview);
     } catch (error) {
       next(error);

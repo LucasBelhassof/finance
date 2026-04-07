@@ -54,6 +54,7 @@ function buildPrompt(payload) {
   return [
     "Classifique transacoes financeiras usando apenas categoryKey da whitelist fornecida.",
     "Classifique tambem semanticamente se a linha e income ou expense.",
+    "Cada categoria da whitelist informa o transactionType permitido. Nunca combine uma categoria income com suggestedType expense, nem o contrario.",
     "Nunca invente categorias fora da whitelist.",
     "Se nao houver confianca suficiente, retorne categoryKey null e status no_match.",
     "Se a descricao indicar pix recebido, transferencia recebida, ted recebida, doc recebido, deposito ou credito em conta, priorize income.",

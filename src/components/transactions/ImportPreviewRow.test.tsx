@@ -10,6 +10,7 @@ const categories: CategoryItem[] = [
     id: 1,
     slug: "receitas",
     label: "Receitas",
+    transactionType: "income",
     iconName: "Wallet",
     icon: (() => null) as never,
     color: "text-income",
@@ -100,5 +101,54 @@ describe("ImportPreviewRow", () => {
 
     expect(screen.getByText(/Sugestao IA Receita 91%/i)).toBeInTheDocument();
     expect(screen.getByText(/Receita · Receitas: Recebimento com padrao recorrente\./i)).toBeInTheDocument();
+  });
+
+  it("shows history and recurring source badges from the preview", () => {
+    render(
+      <Table>
+        <TableBody>
+          <ImportPreviewRow
+            draft={{ ...draft, categoryId: 1 }}
+            item={{
+              ...item,
+              aiStatus: "idle",
+              aiSuggestedType: null,
+              aiSuggestedCategoryId: null,
+              aiSuggestedCategoryLabel: null,
+              aiConfidence: null,
+              aiReason: null,
+              suggestionSource: "history",
+              suggestedCategoryLabel: "Receitas",
+            }}
+            categories={categories}
+            onChange={vi.fn()}
+            onCreateCategory={vi.fn()}
+          />
+          <ImportPreviewRow
+            draft={{ ...draft, rowIndex: 2, categoryId: 1 }}
+            item={{
+              ...item,
+              rowIndex: 2,
+              aiStatus: "idle",
+              aiSuggestedType: null,
+              aiSuggestedCategoryId: null,
+              aiSuggestedCategoryLabel: null,
+              aiConfidence: null,
+              aiReason: null,
+              suggestionSource: "recurring_rule",
+              suggestedCategoryLabel: "Receitas",
+            }}
+            categories={categories}
+            onChange={vi.fn()}
+            onCreateCategory={vi.fn()}
+          />
+        </TableBody>
+      </Table>,
+    );
+
+    expect(screen.getByText("Historico")).toBeInTheDocument();
+    expect(screen.getByText("Recorrencia")).toBeInTheDocument();
+    expect(screen.getByText(/Historico do usuario: Receita · Receitas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Regra recorrente: Receita · Receitas/i)).toBeInTheDocument();
   });
 });

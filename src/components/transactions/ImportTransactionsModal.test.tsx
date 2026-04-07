@@ -63,6 +63,7 @@ const previewData: ImportPreviewData = {
       suggestedCategoryLabel: null,
       suggestionSource: null,
       matchedRuleId: null,
+      aiSuggestedType: null,
       aiSuggestedCategoryId: null,
       aiSuggestedCategoryLabel: null,
       aiConfidence: null,
@@ -99,6 +100,7 @@ describe("ImportTransactionsModal", () => {
       items: [
         {
           rowIndex: 15,
+          aiSuggestedType: "income",
           aiSuggestedCategoryId: 1,
           aiSuggestedCategoryLabel: "Alimentacao",
           aiConfidence: 0.92,
@@ -209,7 +211,81 @@ describe("ImportTransactionsModal", () => {
         items: [
           expect.objectContaining({
             rowIndex: 15,
+            type: "income",
             categoryId: "1",
+          }),
+        ],
+      });
+    });
+  });
+
+  it("auto-applies semantic type even when AI has no category match", async () => {
+    aiSuggestionsMutateAsync.mockResolvedValueOnce({
+      previewToken: "preview-1",
+      status: "completed",
+      autoApplyThreshold: 0.8,
+      summary: {
+        requestedRows: 1,
+        suggestedRows: 0,
+        noMatchRows: 1,
+        failedRows: 0,
+      },
+      items: [
+        {
+          rowIndex: 15,
+          aiSuggestedType: "expense",
+          aiSuggestedCategoryId: null,
+          aiSuggestedCategoryLabel: null,
+          aiConfidence: 0.9,
+          aiReason: "Transferencia enviada sem categoria especifica.",
+          aiStatus: "no_match",
+          suggestionSource: null,
+        },
+      ],
+    });
+
+    render(
+      <ImportTransactionsModal
+        open
+        onOpenChange={vi.fn()}
+        categories={[
+          {
+            id: 1,
+            slug: "alimentacao",
+            label: "Alimentacao",
+            iconName: "Wallet",
+            icon: (() => null) as never,
+            color: "text-warning",
+            groupSlug: "alimentacao",
+            groupLabel: "Alimentacao",
+            groupColor: "bg-warning",
+          },
+        ]}
+      />,
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
+
+    await waitFor(() => {
+      expect(aiSuggestionsMutateAsync).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar importacao/i }));
+
+    await waitFor(() => {
+      expect(commitMutateAsync).toHaveBeenCalledWith({
+        previewToken: "preview-1",
+        items: [
+          expect.objectContaining({
+            rowIndex: 15,
+            type: "expense",
+            categoryId: "",
           }),
         ],
       });

@@ -103,6 +103,11 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     }
   }, [open]);
 
+  const originalPreviewTypeByRowIndex = useMemo(
+    () => new Map((preview?.items ?? []).map((item) => [item.rowIndex, item.type])),
+    [preview],
+  );
+
   useEffect(() => {
     if (!preview || attemptedAiPreviewTokensRef.current.has(preview.previewToken)) {
       return;
@@ -146,6 +151,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
               return {
                 ...item,
+                aiSuggestedType: suggestion.aiSuggestedType,
                 aiSuggestedCategoryId: suggestion.aiSuggestedCategoryId,
                 aiSuggestedCategoryLabel: suggestion.aiSuggestedCategoryLabel,
                 aiConfidence: suggestion.aiConfidence,
@@ -162,19 +168,33 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
           for (const suggestion of response.items) {
             const draft = nextDrafts[suggestion.rowIndex];
+            const originalType = originalPreviewTypeByRowIndex.get(suggestion.rowIndex);
+            const canApplySuggestedType =
+              Boolean(suggestion.aiSuggestedType) &&
+              draft?.type === originalType &&
+              (suggestion.aiConfidence ?? 0) >= response.autoApplyThreshold;
 
             if (!draft || draft.categoryId) {
+              if (draft && (suggestion.aiStatus === "suggested" || suggestion.aiStatus === "no_match") && canApplySuggestedType) {
+                nextDrafts[suggestion.rowIndex] = {
+                  ...draft,
+                  type: suggestion.aiSuggestedType,
+                };
+              }
               continue;
             }
 
             if (
-              suggestion.aiStatus === "suggested" &&
-              suggestion.aiSuggestedCategoryId !== null &&
+              (suggestion.aiStatus === "suggested" || suggestion.aiStatus === "no_match") &&
               (suggestion.aiConfidence ?? 0) >= response.autoApplyThreshold
             ) {
               nextDrafts[suggestion.rowIndex] = {
                 ...draft,
-                categoryId: String(suggestion.aiSuggestedCategoryId),
+                type: canApplySuggestedType ? suggestion.aiSuggestedType : draft.type,
+                categoryId:
+                  suggestion.aiStatus === "suggested" && suggestion.aiSuggestedCategoryId !== null
+                    ? String(suggestion.aiSuggestedCategoryId)
+                    : draft.categoryId,
               };
             }
           }

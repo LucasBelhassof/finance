@@ -483,6 +483,7 @@ function buildPreviewItem({
     suggestedCategoryLabel: suggestion.category?.label ?? null,
     suggestionSource: suggestion.category ? "rule" : null,
     matchedRuleId: suggestion.matchedRuleId,
+    aiSuggestedType: null,
     aiSuggestedCategoryId: null,
     aiSuggestedCategoryLabel: null,
     aiConfidence: null,
@@ -563,6 +564,7 @@ export function isPreviewItemEligibleForAi(item) {
 function createAiSuggestionResult(rowIndex, patch) {
   return {
     rowIndex,
+    aiSuggestedType: patch.aiSuggestedType ?? null,
     aiSuggestedCategoryId: patch.aiSuggestedCategoryId ?? null,
     aiSuggestedCategoryLabel: patch.aiSuggestedCategoryLabel ?? null,
     aiConfidence: patch.aiConfidence ?? null,
@@ -573,6 +575,7 @@ function createAiSuggestionResult(rowIndex, patch) {
 }
 
 function applyAiSuggestionPatch(item, patch) {
+  item.aiSuggestedType = patch.aiSuggestedType ?? null;
   item.aiSuggestedCategoryId = patch.aiSuggestedCategoryId ?? null;
   item.aiSuggestedCategoryLabel = patch.aiSuggestedCategoryLabel ?? null;
   item.aiConfidence = patch.aiConfidence ?? null;
@@ -608,6 +611,15 @@ function normalizeAiConfidence(value) {
   return confidence;
 }
 
+function isRawAiConfidenceInvalid(value) {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  const confidence = Number(value);
+  return !Number.isFinite(confidence) || confidence < 0 || confidence > 1;
+}
+
 function normalizeAiReason(value) {
   const reason = String(value ?? "").trim();
 
@@ -626,6 +638,7 @@ export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
   }
 
   const status = raw?.status;
+  const suggestedType = raw?.suggestedType === "income" || raw?.suggestedType === "expense" ? raw.suggestedType : null;
   const confidence = normalizeAiConfidence(raw?.confidence);
   const categoryKey = typeof raw?.categoryKey === "string" ? raw.categoryKey.trim() : "";
   const reason = normalizeAiReason(raw?.reason);
@@ -633,6 +646,7 @@ export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
   if (status === "error" || status === "invalid") {
     return {
       rowIndex,
+      aiSuggestedType: null,
       aiSuggestedCategoryId: null,
       aiSuggestedCategoryLabel: null,
       aiConfidence: confidence,
@@ -642,9 +656,23 @@ export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
     };
   }
 
-  if (!categoryKey) {
+  if (isRawAiConfidenceInvalid(raw?.confidence)) {
     return {
       rowIndex,
+      aiSuggestedType: null,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: null,
+      aiReason: reason,
+      aiStatus: "invalid",
+      suggestionSource: null,
+    };
+  }
+
+  if (!categoryKey && suggestedType) {
+    return {
+      rowIndex,
+      aiSuggestedType: suggestedType,
       aiSuggestedCategoryId: null,
       aiSuggestedCategoryLabel: null,
       aiConfidence: confidence,
@@ -654,11 +682,38 @@ export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
     };
   }
 
+  if (!categoryKey) {
+    return {
+      rowIndex,
+      aiSuggestedType: null,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: confidence,
+      aiReason: reason,
+      aiStatus: "no_match",
+      suggestionSource: null,
+    };
+  }
+
+  if (!suggestedType) {
+    return {
+      rowIndex,
+      aiSuggestedType: null,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: null,
+      aiReason: reason,
+      aiStatus: "invalid",
+      suggestionSource: null,
+    };
+  }
+
   const category = allowedCategoryMap.get(categoryKey);
 
   if (!category) {
     return {
       rowIndex,
+      aiSuggestedType: null,
       aiSuggestedCategoryId: null,
       aiSuggestedCategoryLabel: null,
       aiConfidence: confidence,
@@ -670,6 +725,7 @@ export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
 
   return {
     rowIndex,
+    aiSuggestedType: suggestedType,
     aiSuggestedCategoryId: category.id,
     aiSuggestedCategoryLabel: category.label,
     aiConfidence: confidence,

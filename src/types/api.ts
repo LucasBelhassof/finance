@@ -135,6 +135,7 @@ export interface ApiImportPreviewItem {
   suggestedCategoryLabel?: string | null;
   suggestionSource?: string | null;
   matchedRuleId?: string | null;
+  aiSuggestedType?: string | null;
   aiSuggestedCategoryId?: number | string | null;
   aiSuggestedCategoryLabel?: string | null;
   aiConfidence?: number | null;
@@ -152,6 +153,7 @@ export interface ApiImportPreviewItem {
 
 export interface ApiImportAiSuggestionItem {
   rowIndex?: number;
+  aiSuggestedType?: string | null;
   aiSuggestedCategoryId?: number | string | null;
   aiSuggestedCategoryLabel?: string | null;
   aiConfidence?: number | null;
@@ -288,6 +290,7 @@ export interface ImportPreviewItem {
   suggestedCategoryLabel: string | null;
   suggestionSource: "rule" | "ai" | null;
   matchedRuleId: string | null;
+  aiSuggestedType: "income" | "expense" | null;
   aiSuggestedCategoryId: number | string | null;
   aiSuggestedCategoryLabel: string | null;
   aiConfidence: number | null;
@@ -320,6 +323,7 @@ export interface ImportPreviewData {
 
 export interface ImportAiSuggestionItem {
   rowIndex: number;
+  aiSuggestedType: "income" | "expense" | null;
   aiSuggestedCategoryId: number | string | null;
   aiSuggestedCategoryLabel: string | null;
   aiConfidence: number | null;

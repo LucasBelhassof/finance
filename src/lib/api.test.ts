@@ -134,6 +134,7 @@ describe("api mappers", () => {
           suggestedCategoryLabel: "Restaurantes",
           suggestionSource: "rule",
           matchedRuleId: "ifood",
+          aiSuggestedType: null,
           aiSuggestedCategoryId: null,
           aiSuggestedCategoryLabel: null,
           aiConfidence: null,
@@ -200,6 +201,7 @@ describe("api mappers", () => {
       items: [
         {
           rowIndex: 2,
+          aiSuggestedType: "income",
           aiSuggestedCategoryId: 3,
           aiSuggestedCategoryLabel: "Salario",
           aiConfidence: 0.88,
@@ -214,6 +216,7 @@ describe("api mappers", () => {
     expect(result.autoApplyThreshold).toBe(0.8);
     expect(result.items[0].aiStatus).toBe("suggested");
     expect(result.items[0].aiConfidence).toBe(0.88);
+    expect(result.items[0].aiSuggestedType).toBe("income");
     expect(result.items[0].suggestionSource).toBe("ai");
   });
 });

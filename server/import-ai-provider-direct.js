@@ -16,6 +16,10 @@ const aiCategorizationSchema = {
         additionalProperties: false,
         properties: {
           rowIndex: { type: "integer" },
+          suggestedType: {
+            type: ["string", "null"],
+            enum: ["income", "expense", null],
+          },
           categoryKey: { type: ["string", "null"] },
           confidence: { type: ["number", "null"] },
           reason: { type: ["string", "null"] },
@@ -24,7 +28,7 @@ const aiCategorizationSchema = {
             enum: AI_STATUS_VALUES,
           },
         },
-        required: ["rowIndex", "categoryKey", "confidence", "reason", "status"],
+        required: ["rowIndex", "suggestedType", "categoryKey", "confidence", "reason", "status"],
       },
     },
   },
@@ -49,8 +53,11 @@ export function getDirectProviderConfig() {
 function buildPrompt(payload) {
   return [
     "Classifique transacoes financeiras usando apenas categoryKey da whitelist fornecida.",
+    "Classifique tambem semanticamente se a linha e income ou expense.",
     "Nunca invente categorias fora da whitelist.",
     "Se nao houver confianca suficiente, retorne categoryKey null e status no_match.",
+    "Se a descricao indicar pix recebido, transferencia recebida, ted recebida, doc recebido, deposito ou credito em conta, priorize income.",
+    "Se a descricao indicar pix enviado, pagamento, transferencia enviada, compra, debito, saque, tarifa ou consumo, priorize expense.",
     "confidence deve ficar entre 0 e 1.",
     "reason deve ser curta e objetiva.",
     "Nao altere valor, data, tipo, persistencia ou duplicidade.",
@@ -200,6 +207,10 @@ function normalizeItem(rawItem) {
   }
 
   const status = typeof rawItem?.status === "string" ? rawItem.status : "";
+  const suggestedType =
+    rawItem?.suggestedType === null || rawItem?.suggestedType === "income" || rawItem?.suggestedType === "expense"
+      ? rawItem.suggestedType
+      : undefined;
   const categoryKey =
     rawItem?.categoryKey === null || typeof rawItem?.categoryKey === "string" ? rawItem.categoryKey : null;
   const confidence =
@@ -209,6 +220,7 @@ function normalizeItem(rawItem) {
   if (!AI_STATUS_VALUES.includes(status)) {
     return {
       rowIndex,
+      suggestedType: null,
       categoryKey: null,
       confidence: null,
       reason,
@@ -219,6 +231,7 @@ function normalizeItem(rawItem) {
   if (confidence !== null && (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)) {
     return {
       rowIndex,
+      suggestedType: null,
       categoryKey: null,
       confidence: null,
       reason,
@@ -226,9 +239,10 @@ function normalizeItem(rawItem) {
     };
   }
 
-  if (status === "suggested" && (!categoryKey || typeof categoryKey !== "string")) {
+  if (status === "suggested" && (suggestedType === null || suggestedType === undefined || !categoryKey || typeof categoryKey !== "string")) {
     return {
       rowIndex,
+      suggestedType: null,
       categoryKey: null,
       confidence: null,
       reason,
@@ -236,9 +250,21 @@ function normalizeItem(rawItem) {
     };
   }
 
-  if ((status === "no_match" || status === "error" || status === "invalid") && categoryKey) {
+  if ((status === "error" || status === "invalid") && (categoryKey || suggestedType)) {
     return {
       rowIndex,
+      suggestedType: null,
+      categoryKey: null,
+      confidence: null,
+      reason,
+      status: "invalid",
+    };
+  }
+
+  if (status === "no_match" && categoryKey) {
+    return {
+      rowIndex,
+      suggestedType: null,
       categoryKey: null,
       confidence: null,
       reason,
@@ -248,6 +274,7 @@ function normalizeItem(rawItem) {
 
   return {
     rowIndex,
+    suggestedType: suggestedType ?? null,
     categoryKey: categoryKey ?? null,
     confidence,
     reason,

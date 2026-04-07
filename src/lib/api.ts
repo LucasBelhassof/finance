@@ -345,6 +345,7 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     suggestedCategoryLabel: item.suggestedCategoryLabel ?? null,
     suggestionSource: item.suggestionSource === "rule" || item.suggestionSource === "ai" ? item.suggestionSource : null,
     matchedRuleId: item.matchedRuleId ?? null,
+    aiSuggestedType: item.aiSuggestedType === "income" || item.aiSuggestedType === "expense" ? item.aiSuggestedType : null,
     aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
     aiSuggestedCategoryLabel: item.aiSuggestedCategoryLabel ?? null,
     aiConfidence: typeof item.aiConfidence === "number" ? item.aiConfidence : null,
@@ -362,9 +363,10 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
 }
 
 function mapImportAiSuggestionItem(item: ApiImportAiSuggestionItem): ImportAiSuggestionItem {
-  return {
-    rowIndex: safeNumber(item.rowIndex),
-    aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
+    return {
+      rowIndex: safeNumber(item.rowIndex),
+      aiSuggestedType: item.aiSuggestedType === "income" || item.aiSuggestedType === "expense" ? item.aiSuggestedType : null,
+      aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
     aiSuggestedCategoryLabel: item.aiSuggestedCategoryLabel ?? null,
     aiConfidence: typeof item.aiConfidence === "number" ? item.aiConfidence : null,
     aiReason: safeString(item.aiReason),

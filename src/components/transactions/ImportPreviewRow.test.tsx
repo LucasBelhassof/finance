@@ -43,6 +43,7 @@ const item: ImportPreviewItem = {
   suggestedCategoryLabel: null,
   suggestionSource: null,
   matchedRuleId: null,
+  aiSuggestedType: "income",
   aiSuggestedCategoryId: 1,
   aiSuggestedCategoryLabel: "Receitas",
   aiConfidence: 0.91,
@@ -97,7 +98,7 @@ describe("ImportPreviewRow", () => {
       </Table>,
     );
 
-    expect(screen.getByText(/Sugestao IA 91%/i)).toBeInTheDocument();
-    expect(screen.getByText(/Receitas: Recebimento com padrao recorrente\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Sugestao IA Receita 91%/i)).toBeInTheDocument();
+    expect(screen.getByText(/Receita · Receitas: Recebimento com padrao recorrente\./i)).toBeInTheDocument();
   });
 });

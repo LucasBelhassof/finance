@@ -58,7 +58,8 @@ export default function ImportPreviewRow({
           ) : null}
           {item.aiStatus === "suggested" ? (
             <Badge variant="secondary" className="bg-info/10 text-info">
-              Sugestao IA{aiConfidencePercent ? ` ${aiConfidencePercent}` : ""}
+              Sugestao IA{item.aiSuggestedType ? ` ${item.aiSuggestedType === "income" ? "Receita" : "Despesa"}` : ""}
+              {aiConfidencePercent ? ` ${aiConfidencePercent}` : ""}
             </Badge>
           ) : null}
         </div>
@@ -69,6 +70,7 @@ export default function ImportPreviewRow({
         ) : null}
         {item.errors.length === 0 && item.aiStatus === "suggested" && item.aiReason ? (
           <p className="mt-2 text-xs text-info">
+            {item.aiSuggestedType ? `${item.aiSuggestedType === "income" ? "Receita" : "Despesa"} · ` : ""}
             {item.aiSuggestedCategoryLabel ? `${item.aiSuggestedCategoryLabel}: ` : ""}
             {item.aiReason}
           </p>

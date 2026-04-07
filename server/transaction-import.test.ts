@@ -93,6 +93,7 @@ describe("transaction import helpers", () => {
     const suggestCategories = async ({ items }) =>
       items.map((item) => ({
         rowIndex: item.rowIndex,
+        suggestedType: "income",
         categoryKey: "salary",
         confidence: 0.92,
         reason: "Transferencia associada a recebimento.",
@@ -111,6 +112,7 @@ describe("transaction import helpers", () => {
     expect(result.items[0].aiStatus).toBe("no_match");
     expect(result.items[1].rowIndex).toBe(2);
     expect(result.items[1].aiStatus).toBe("suggested");
+    expect(result.items[1].aiSuggestedType).toBe("income");
     expect(result.summary.suggestedRows).toBe(1);
   });
 
@@ -118,6 +120,7 @@ describe("transaction import helpers", () => {
     const normalized = normalizeAiCategorizationResult(
       {
         rowIndex: 2,
+        suggestedType: "expense",
         categoryKey: "unknown",
         confidence: 0.9,
         reason: "Resposta invalida",
@@ -134,6 +137,7 @@ describe("transaction import helpers", () => {
     const normalized = normalizeAiCategorizationResult(
       {
         rowIndex: 2,
+        suggestedType: "expense",
         categoryKey: "salary",
         confidence: 1.2,
         reason: "Confianca invalida",
@@ -142,7 +146,7 @@ describe("transaction import helpers", () => {
       resolveAllowedCategoryMap(categories),
     );
 
-    expect(normalized.aiStatus).toBe("suggested");
+    expect(normalized.aiStatus).toBe("invalid");
     expect(normalized.aiConfidence).toBeNull();
   });
 
@@ -174,6 +178,7 @@ describe("transaction import helpers", () => {
 
       return items.map((item) => ({
         rowIndex: item.rowIndex,
+        suggestedType: "income",
         categoryKey: "salary",
         confidence: 0.94,
         reason: "Recebimento com alta semelhanca.",
@@ -198,7 +203,44 @@ describe("transaction import helpers", () => {
 
     expect(callCount).toBe(1);
     expect(first.items[0].aiSuggestedCategoryId).toBe(3);
+    expect(first.items[0].aiSuggestedType).toBe("income");
     expect(second.items[0].aiSuggestedCategoryId).toBe(3);
+  });
+
+  it("marks AI results without suggestedType as invalid", () => {
+    const normalized = normalizeAiCategorizationResult(
+      {
+        rowIndex: 2,
+        suggestedType: null,
+        categoryKey: "salary",
+        confidence: 0.9,
+        reason: "Recebimento identificado",
+        status: "suggested",
+      },
+      resolveAllowedCategoryMap(categories),
+    );
+
+    expect(normalized.aiStatus).toBe("invalid");
+    expect(normalized.aiSuggestedType).toBeNull();
+  });
+
+  it("keeps semantic type when AI returns no_match without category", () => {
+    const normalized = normalizeAiCategorizationResult(
+      {
+        rowIndex: 2,
+        suggestedType: "income",
+        categoryKey: null,
+        confidence: 0.87,
+        reason: "Transferencia recebida sem categoria especifica",
+        status: "no_match",
+      },
+      resolveAllowedCategoryMap(categories),
+    );
+
+    expect(normalized.aiStatus).toBe("no_match");
+    expect(normalized.aiSuggestedType).toBe("income");
+    expect(normalized.aiSuggestedCategoryId).toBeNull();
+    expect(normalized.aiConfidence).toBe(0.87);
   });
 
   it("rejects AI enrichment requests above the row limit", async () => {

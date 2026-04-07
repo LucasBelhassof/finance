@@ -79,6 +79,7 @@ describe("import-ai-provider-direct", () => {
                     items: [
                       {
                         rowIndex: 1,
+                        suggestedType: "expense",
                         categoryKey: "transport",
                         confidence: 0.91,
                         reason: "Descricao relacionada a corrida.",
@@ -101,6 +102,7 @@ describe("import-ai-provider-direct", () => {
     expect(items).toEqual([
       {
         rowIndex: 1,
+        suggestedType: "expense",
         categoryKey: "transport",
         confidence: 0.91,
         reason: "Descricao relacionada a corrida.",
@@ -128,6 +130,7 @@ describe("import-ai-provider-direct", () => {
                         items: [
                           {
                             rowIndex: 2,
+                            suggestedType: null,
                             categoryKey: null,
                             confidence: null,
                             reason: "Descricao insuficiente.",
@@ -152,9 +155,36 @@ describe("import-ai-provider-direct", () => {
     expect(items).toEqual([
       {
         rowIndex: 2,
+        suggestedType: null,
         categoryKey: null,
         confidence: null,
         reason: "Descricao insuficiente.",
+        status: "no_match",
+      },
+    ]);
+  });
+
+  it("accepts no_match with semantic type but without categoryKey", () => {
+    const items = normalizeAiCategorizationResults({
+      items: [
+        {
+          rowIndex: 5,
+          suggestedType: "income",
+          categoryKey: null,
+          confidence: 0.89,
+          reason: "Transferencia recebida sem categoria especifica.",
+          status: "no_match",
+        },
+      ],
+    });
+
+    expect(items).toEqual([
+      {
+        rowIndex: 5,
+        suggestedType: "income",
+        categoryKey: null,
+        confidence: 0.89,
+        reason: "Transferencia recebida sem categoria especifica.",
         status: "no_match",
       },
     ]);
@@ -165,6 +195,7 @@ describe("import-ai-provider-direct", () => {
       items: [
         {
           rowIndex: 3,
+          suggestedType: "expense",
           categoryKey: "transport",
           confidence: 4,
           reason: "Confianca invalida.",
@@ -176,9 +207,36 @@ describe("import-ai-provider-direct", () => {
     expect(items).toEqual([
       {
         rowIndex: 3,
+        suggestedType: null,
         categoryKey: null,
         confidence: null,
         reason: "Confianca invalida.",
+        status: "invalid",
+      },
+    ]);
+  });
+
+  it("marks a suggested item without suggestedType as invalid", () => {
+    const items = normalizeAiCategorizationResults({
+      items: [
+        {
+          rowIndex: 4,
+          suggestedType: null,
+          categoryKey: "salary",
+          confidence: 0.92,
+          reason: "Recebimento identificado.",
+          status: "suggested",
+        },
+      ],
+    });
+
+    expect(items).toEqual([
+      {
+        rowIndex: 4,
+        suggestedType: null,
+        categoryKey: null,
+        confidence: null,
+        reason: "Recebimento identificado.",
         status: "invalid",
       },
     ]);

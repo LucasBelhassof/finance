@@ -9,6 +9,7 @@ import {
   getPreviewSession,
   isPreviewItemEligibleForAi,
   normalizeAiCategorizationResult,
+  normalizeOccurredOnToStatementMonth,
   parseCreditCardPdfStatement,
   resolveAllowedCategoryMap,
   parseAmountInput,
@@ -87,6 +88,28 @@ describe("transaction import helpers", () => {
     expect(preview.items[1].defaultExclude).toBe(true);
     expect(preview.items[2].type).toBe("expense");
     expect(preview.items[2].suggestedCategoryId).toBe(2);
+  });
+
+  it("forces credit card CSV transaction dates into the statement month from filename metadata", async () => {
+    const csv = [
+      "date,title,amount",
+      "2026-02-20,Droper - Parcela 3/3,257.81",
+      "2026-02-25,Mlp *Kabum-Kabum - Parcela 1/10,154.25",
+    ].join("\n");
+
+    const preview = await createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      filename: "Nubank_2026-03-27.csv",
+      importSource: "credit_card_statement",
+      userId: 1,
+    });
+
+    expect(preview.fileMetadata.statementReferenceMonth).toBe("2026-03");
+    expect(preview.items[0].occurredOn).toBe("2026-03-20");
+    expect(preview.items[1].occurredOn).toBe("2026-03-25");
+    expect(preview.items[0].description).toContain("Parcela 3/3");
   });
 
   it("reuses the user's historical categorization before AI", async () => {
@@ -412,6 +435,19 @@ describe("transaction import helpers", () => {
     expect(result.rows[0].description).toContain("Cartao 9277");
     expect(result.rows[0].amount).toBe("20.94");
     expect(result.rows[2].occurredOn).toBe("2025-09-20");
+  });
+
+  it("maps installment dates into the statement month when the bill month is known", () => {
+    expect(
+      normalizeOccurredOnToStatementMonth("2025-09-20", {
+        statementReferenceMonth: "2026-03",
+      }),
+    ).toBe("2026-03-20");
+    expect(
+      normalizeOccurredOnToStatementMonth("2026-02-28", {
+        statementReferenceMonth: "2026-04",
+      }),
+    ).toBe("2026-04-28");
   });
 
   it("parses Itau credit card PDF text and infers years from the statement reference month", () => {

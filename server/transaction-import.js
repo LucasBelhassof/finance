@@ -197,6 +197,40 @@ function normalizeMonthReference(year, month) {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
 }
 
+function getDaysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function resolveStatementReferenceMonth(fileMetadata) {
+  if (fileMetadata?.statementReferenceMonth && /^\d{4}-\d{2}$/.test(fileMetadata.statementReferenceMonth)) {
+    return fileMetadata.statementReferenceMonth;
+  }
+
+  if (fileMetadata?.statementDueDate && /^\d{4}-\d{2}-\d{2}$/.test(fileMetadata.statementDueDate)) {
+    return fileMetadata.statementDueDate.slice(0, 7);
+  }
+
+  return null;
+}
+
+export function normalizeOccurredOnToStatementMonth(occurredOn, fileMetadata) {
+  if (!occurredOn || !/^\d{4}-\d{2}-\d{2}$/.test(occurredOn)) {
+    return occurredOn;
+  }
+
+  const statementReferenceMonth = resolveStatementReferenceMonth(fileMetadata);
+
+  if (!statementReferenceMonth) {
+    return occurredOn;
+  }
+
+  const [, , rawDay] = occurredOn.split("-").map(Number);
+  const [statementYear, statementMonth] = statementReferenceMonth.split("-").map(Number);
+  const clampedDay = Math.min(rawDay, getDaysInMonth(statementYear, statementMonth));
+
+  return `${String(statementYear).padStart(4, "0")}-${String(statementMonth).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`;
+}
+
 export function extractImportFileMetadata(filename) {
   const rawFilename = String(filename ?? "").trim();
   const basename = rawFilename.replace(/\.[^.]+$/, "");
@@ -600,11 +634,32 @@ async function extractImportRowsFromFile({ fileBuffer, contentType, filename, im
     throw new Error("O arquivo excede o limite de 5.000 linhas.");
   }
 
+  const fileMetadata = extractImportFileMetadata(filename);
+
+  if (importSource === "credit_card_statement" && !resolveStatementReferenceMonth(fileMetadata)) {
+    const dataRows = nonEmptyRows.slice(1);
+    const headerIndexes = resolveHeaderIndexes(nonEmptyRows[0]);
+    const candidateDates = dataRows
+      .map((row) => {
+        try {
+          return parseOccurredOnInput(row[headerIndexes.date]);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .sort();
+
+    if (candidateDates.length > 0) {
+      fileMetadata.statementReferenceMonth = candidateDates[candidateDates.length - 1].slice(0, 7);
+    }
+  }
+
   return {
     headerRow: nonEmptyRows[0],
     rows: nonEmptyRows.slice(1),
     importLayout: importSource,
-    fileMetadata: extractImportFileMetadata(filename),
+    fileMetadata,
   };
 }
 
@@ -953,6 +1008,7 @@ function buildRowSource(headerRow, rowValues) {
 
 function buildPreviewItem({
   importLayout,
+  fileMetadata,
   rowIndex,
   rowValues,
   headerRow,
@@ -981,6 +1037,9 @@ function buildPreviewItem({
 
   try {
     occurredOn = parseOccurredOnInput(rowValues[headerIndexes.date]);
+    if (importLayout === "credit_card_statement") {
+      occurredOn = normalizeOccurredOnToStatementMonth(occurredOn, fileMetadata);
+    }
   } catch (error) {
     errors.push(error.message);
   }
@@ -1165,6 +1224,7 @@ function buildRecurringRuleMatches(rows) {
 function buildPreviewItems({
   categories,
   existingFingerprints,
+  fileMetadata,
   headerIndexes,
   headerRow,
   historicalRows,
@@ -1181,6 +1241,7 @@ function buildPreviewItems({
   return rows.map((rowValues, index) =>
     buildPreviewItem({
       importLayout,
+      fileMetadata,
       rowIndex: index + 1,
       rowValues,
       headerRow,
@@ -1602,6 +1663,7 @@ export async function createImportPreview({
   const items = buildPreviewItems({
     categories,
     existingFingerprints,
+    fileMetadata: extracted.fileMetadata,
     headerIndexes,
     headerRow,
     historicalRows,

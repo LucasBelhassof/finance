@@ -297,6 +297,10 @@ export interface CreateCategoryInput {
   groupColor: string;
 }
 
+export interface UpdateCategoryInput extends CreateCategoryInput {
+  id: number | string;
+}
+
 export interface CreateTransactionInput {
   description: string;
   amount: number;

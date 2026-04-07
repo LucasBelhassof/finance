@@ -40,6 +40,7 @@ import {
   useCreateTransaction,
   useDeleteTransaction,
   useTransactions,
+  useUpdateCategory,
   useUpdateTransaction,
 } from "@/hooks/use-transactions";
 import { resolvePresetRange } from "@/lib/transactions-date-filter";
@@ -184,6 +185,7 @@ export default function TransactionsPage() {
   const updateTransaction = useUpdateTransaction();
   const removeTransaction = useDeleteTransaction();
   const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
@@ -193,7 +195,10 @@ export default function TransactionsPage() {
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [editingCategoryTransactionId, setEditingCategoryTransactionId] = useState<string | null>(null);
+  const [updatingCategoryTransactionId, setUpdatingCategoryTransactionId] = useState<string | null>(null);
   const [transactionForm, setTransactionForm] = useState<TransactionFormState>(emptyTransactionForm("expense"));
   const [categoryForm, setCategoryForm] = useState<CreateCategoryInput>({
     label: "",
@@ -278,12 +283,24 @@ export default function TransactionsPage() {
     }
 
     try {
-      await createCategory.mutateAsync({
-        ...categoryForm,
-        label: categoryForm.label.trim(),
-        groupLabel: categoryForm.label.trim(),
-      });
+      if (editingCategoryId) {
+        await updateCategory.mutateAsync({
+          id: editingCategoryId,
+          ...categoryForm,
+          label: categoryForm.label.trim(),
+          groupLabel: categoryForm.label.trim(),
+        });
+        toast.success("Categoria atualizada.");
+      } else {
+        await createCategory.mutateAsync({
+          ...categoryForm,
+          label: categoryForm.label.trim(),
+          groupLabel: categoryForm.label.trim(),
+        });
+        toast.success("Categoria criada.");
+      }
       setCategoryDialogOpen(false);
+      setEditingCategoryId(null);
       setCategoryForm({
         label: "",
         transactionType: "expense",
@@ -292,9 +309,8 @@ export default function TransactionsPage() {
         groupLabel: "",
         groupColor: "bg-income",
       });
-      toast.success("Categoria criada.");
     } catch (error) {
-      toast.error("Nao foi possivel criar a categoria.", {
+      toast.error(editingCategoryId ? "Nao foi possivel atualizar a categoria." : "Nao foi possivel criar a categoria.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -314,6 +330,34 @@ export default function TransactionsPage() {
       toast.error("Nao foi possivel remover a transacao.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
+    }
+  };
+
+  const handleInlineCategoryChange = async (transaction: TransactionItem, nextCategoryId: string) => {
+    if (!nextCategoryId || String(transaction.category.id) === nextCategoryId) {
+      setEditingCategoryTransactionId(null);
+      return;
+    }
+
+    setUpdatingCategoryTransactionId(String(transaction.id));
+
+    try {
+      await updateTransaction.mutateAsync({
+        id: transaction.id,
+        description: transaction.description,
+        amount: transaction.amount,
+        occurredOn: transaction.occurredOn,
+        bankConnectionId: transaction.account.id,
+        categoryId: nextCategoryId,
+      } satisfies UpdateTransactionInput);
+      setEditingCategoryTransactionId(null);
+      toast.success("Categoria atualizada.");
+    } catch (error) {
+      toast.error("Nao foi possivel atualizar a categoria.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+    } finally {
+      setUpdatingCategoryTransactionId(null);
     }
   };
 
@@ -480,7 +524,7 @@ export default function TransactionsPage() {
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent className="max-w-[510px] border-border/70 bg-card p-6">
           <DialogHeader>
-            <DialogTitle>Nova Categoria</DialogTitle>
+            <DialogTitle>{editingCategoryId ? "Editar Categoria" : "Nova Categoria"}</DialogTitle>
             <DialogDescription className="sr-only">Formulario de categoria</DialogDescription>
           </DialogHeader>
 
@@ -504,7 +548,12 @@ export default function TransactionsPage() {
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setCategoryForm((current) => ({ ...current, transactionType: option.value }))}
+                    onClick={() => {
+                      if (editingCategoryId) {
+                        return;
+                      }
+                      setCategoryForm((current) => ({ ...current, transactionType: option.value }));
+                    }}
                     className={cn(
                       "rounded-xl px-4 py-2.5 text-sm transition-colors",
                       active
@@ -512,7 +561,9 @@ export default function TransactionsPage() {
                           ? "bg-expense/20 text-expense"
                           : "bg-income/20 text-income"
                         : "text-muted-foreground hover:text-foreground",
+                      editingCategoryId && "cursor-not-allowed opacity-60",
                     )}
+                    disabled={Boolean(editingCategoryId)}
                   >
                     {option.label}
                   </button>
@@ -548,8 +599,14 @@ export default function TransactionsPage() {
             <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => void handleCategoryCreate()} disabled={createCategory.isPending}>
-              {createCategory.isPending ? "Criando..." : "Criar"}
+            <Button onClick={() => void handleCategoryCreate()} disabled={createCategory.isPending || updateCategory.isPending}>
+              {createCategory.isPending || updateCategory.isPending
+                ? editingCategoryId
+                  ? "Salvando..."
+                  : "Criando..."
+                : editingCategoryId
+                  ? "Salvar"
+                  : "Criar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -637,7 +694,7 @@ export default function TransactionsPage() {
               <SelectContent>
                 <SelectItem value="all">Todas categorias</SelectItem>
                 {categoryCounts.map((group) => (
-                  <SelectItem key={group.label} value={group.label}>
+                  <SelectItem key={group.id} value={group.id}>
                     {group.label}
                   </SelectItem>
                 ))}
@@ -665,13 +722,25 @@ export default function TransactionsPage() {
                 const Icon = transaction.amount >= 0 ? ArrowUpCircle : ArrowDownCircle;
                 const accentColor = transaction.amount >= 0 ? "text-income" : "text-expense";
                 const categoryTextColor = textColorFromGroup(transaction.category.groupColor);
+                const transactionCategories = categories.filter(
+                  (category) => category.transactionType === (transaction.amount >= 0 ? "income" : "expense"),
+                );
+                const isEditingCategory = editingCategoryTransactionId === String(transaction.id);
+                const isUpdatingCategory = updatingCategoryTransactionId === String(transaction.id);
 
                 return (
-                  <button
+                  <div
                     key={transaction.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => openEditTransaction(transaction)}
-                    className="group flex w-full items-center gap-4 rounded-xl px-4 py-4 text-left transition-colors hover:bg-secondary/30"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openEditTransaction(transaction);
+                      }
+                    }}
+                    className="group flex w-full items-center gap-4 rounded-xl px-4 py-4 text-left transition-colors hover:bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
                   >
                     <div className={cn("flex h-9 w-9 items-center justify-center rounded-full", accentColor)}>
                       <Icon size={18} />
@@ -682,7 +751,54 @@ export default function TransactionsPage() {
                         <Pencil size={14} className="opacity-0 transition-opacity text-muted-foreground group-hover:opacity-100" />
                       </div>
                       <div className="mt-1 flex items-center gap-3 text-sm">
-                        <span className={cn("font-medium", categoryTextColor)}>{transaction.category.groupLabel}</span>
+                        {isEditingCategory ? (
+                          <div
+                            className="min-w-[168px]"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Select
+                              open={isEditingCategory}
+                              onOpenChange={(open) => {
+                                if (!open) {
+                                  setEditingCategoryTransactionId(null);
+                                }
+                              }}
+                              value={String(transaction.category.id)}
+                              onValueChange={(value) => {
+                                void handleInlineCategoryChange(transaction, value);
+                              }}
+                            >
+                              <SelectTrigger className="h-8 rounded-lg border-border/60 bg-secondary/35 text-xs">
+                                <SelectValue placeholder="Categoria" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {transactionCategories.map((category) => (
+                                  <SelectItem key={category.id} value={String(category.id)}>
+                                    {category.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className={cn(
+                              "rounded-md px-1.5 py-0.5 font-medium transition-colors hover:bg-secondary/50",
+                              categoryTextColor,
+                            )}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (isUpdatingCategory) {
+                                return;
+                              }
+                              setEditingCategoryTransactionId(String(transaction.id));
+                            }}
+                            disabled={isUpdatingCategory}
+                          >
+                            {isUpdatingCategory ? "Atualizando..." : transaction.category.label}
+                          </button>
+                        )}
                         <span className="text-muted-foreground">{transaction.account.name}</span>
                         <span className="text-muted-foreground">{transaction.occurredOn.split("-").reverse().join("/")}</span>
                       </div>
@@ -691,7 +807,7 @@ export default function TransactionsPage() {
                       {transaction.amount >= 0 ? "+ " : "- "}
                       {formatCurrency(Math.abs(transaction.amount))}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -703,7 +819,18 @@ export default function TransactionsPage() {
             <h3 className="text-[1.35rem] font-semibold text-foreground">Categorias</h3>
             <button
               type="button"
-              onClick={() => setCategoryDialogOpen(true)}
+              onClick={() => {
+                setEditingCategoryId(null);
+                setCategoryForm({
+                  label: "",
+                  transactionType: "expense",
+                  icon: "Wallet",
+                  color: "text-income",
+                  groupLabel: "",
+                  groupColor: "bg-income",
+                });
+                setCategoryDialogOpen(true);
+              }}
               className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <Plus size={16} />
@@ -712,12 +839,47 @@ export default function TransactionsPage() {
 
           <div className="space-y-5">
             {categoryCounts.map((group) => (
-              <div key={group.label} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className={cn("h-3 w-3 rounded-full", group.color)} />
-                  <span className="text-lg text-foreground">{group.label}</span>
-                </div>
-                <span className="text-base text-muted-foreground">{group.count}</span>
+              <div
+                key={group.id}
+                className={cn(
+                  "group grid grid-cols-[minmax(0,1fr)_20px_24px] items-center gap-2 rounded-xl px-2 py-2 transition-colors hover:bg-secondary/30",
+                  categoryFilter === group.id && "bg-primary/10",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter((current) => (current === group.id ? "all" : group.id))}
+                  className="flex min-w-0 items-center gap-2.5 text-left"
+                >
+                  <span className={cn("h-3 w-3 shrink-0 rounded-full", group.color)} />
+                  <span className="break-words text-[0.96rem] font-medium leading-snug text-foreground">{group.label}</span>
+                </button>
+                <span className="text-right text-sm tabular-nums text-muted-foreground">{group.count}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const category = categories.find((item) => String(item.id) === group.id);
+
+                    if (!category) {
+                      return;
+                    }
+
+                    setEditingCategoryId(group.id);
+                    setCategoryForm({
+                      label: category.label,
+                      transactionType: category.transactionType,
+                      icon: category.iconName || "Wallet",
+                      color: category.color,
+                      groupLabel: category.label,
+                      groupColor: category.groupColor,
+                    });
+                    setCategoryDialogOpen(true);
+                  }}
+                  className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+                  aria-label={`Editar categoria ${group.label}`}
+                >
+                  <Pencil size={14} />
+                </button>
               </div>
             ))}
           </div>

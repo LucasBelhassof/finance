@@ -7,6 +7,7 @@ import {
   createBankConnection,
   createChatReply,
   createTransaction,
+  updateCategory,
   deleteBankConnection,
   deleteTransaction,
   getDashboardData,
@@ -161,6 +162,22 @@ app.post("/api/categories", async (request, response, next) => {
   try {
     const category = await createCategory(request.body ?? {});
     response.status(201).json(category);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/categories/:id", async (request, response, next) => {
+  try {
+    const categoryId = Number.parseInt(request.params.id, 10);
+
+    if (!Number.isInteger(categoryId)) {
+      response.status(400).json({ error: "invalid_category_id" });
+      return;
+    }
+
+    const category = await updateCategory(categoryId, request.body ?? {});
+    response.json(category);
   } catch (error) {
     next(error);
   }

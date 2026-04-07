@@ -46,6 +46,7 @@ import type {
   SummaryCard,
   TransactionAccount,
   TransactionItem,
+  UpdateCategoryInput,
   UpdateTransactionInput,
   UpdateBankConnectionInput,
 } from "@/types/api";
@@ -580,6 +581,22 @@ export async function postCategory(input: CreateCategoryInput) {
   const response = await request<ApiCategory>("/api/categories", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+
+  return mapCategory(response);
+}
+
+export async function patchCategory(input: UpdateCategoryInput) {
+  const response = await request<ApiCategory>(`/api/categories/${input.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      label: input.label,
+      transactionType: input.transactionType,
+      icon: input.icon,
+      color: input.color,
+      groupLabel: input.groupLabel,
+      groupColor: input.groupColor,
+    }),
   });
 
   return mapCategory(response);

@@ -35,7 +35,7 @@ export function getFilteredTransactionsData(
       filters.typeFilter === "all" ||
       (filters.typeFilter === "income" ? transaction.amount > 0 : transaction.amount < 0);
     const matchesCategory =
-      filters.categoryFilter === "all" || transaction.category.groupLabel === filters.categoryFilter;
+      filters.categoryFilter === "all" || String(transaction.category.id) === filters.categoryFilter;
     const matchesSearch =
       !normalizedSearch ||
       normalizeText(transaction.description).includes(normalizedSearch) ||
@@ -52,16 +52,18 @@ export function getFilteredTransactionsData(
     .filter((transaction) => transaction.amount < 0)
     .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
 
-  const groupedMap = new Map<string, { label: string; color: string; count: number }>();
+  const groupedMap = new Map<string, { id: string; label: string; color: string; count: number }>();
 
   filteredTransactions.forEach((transaction) => {
-    const current = groupedMap.get(transaction.category.groupLabel);
+    const categoryKey = String(transaction.category.id);
+    const current = groupedMap.get(categoryKey);
 
     if (current) {
       current.count += 1;
     } else {
-      groupedMap.set(transaction.category.groupLabel, {
-        label: transaction.category.groupLabel,
+      groupedMap.set(categoryKey, {
+        id: categoryKey,
+        label: transaction.category.label,
         color: transaction.category.groupColor,
         count: 1,
       });
@@ -69,9 +71,12 @@ export function getFilteredTransactionsData(
   });
 
   categories.forEach((category) => {
-    if (!groupedMap.has(category.groupLabel)) {
-      groupedMap.set(category.groupLabel, {
-        label: category.groupLabel,
+    const categoryKey = String(category.id);
+
+    if (!groupedMap.has(categoryKey)) {
+      groupedMap.set(categoryKey, {
+        id: categoryKey,
+        label: category.label,
         color: category.groupColor,
         count: 0,
       });

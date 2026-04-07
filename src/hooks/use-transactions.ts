@@ -6,6 +6,7 @@ import {
   deleteTransaction,
   getCategories,
   getTransactions,
+  patchCategory,
   patchTransaction,
   postCategory,
   postTransaction,
@@ -19,6 +20,7 @@ import type {
   ImportCommitItem,
   ImportPreviewData,
   TransactionItem,
+  UpdateCategoryInput,
   UpdateTransactionInput,
 } from "@/types/api";
 import { dashboardQueryKey } from "@/hooks/use-dashboard";
@@ -66,6 +68,22 @@ export function useCreateCategory() {
     mutationFn: (input: CreateCategoryInput) => postCategory(input),
     onSuccess: (category) => {
       queryClient.setQueryData<CategoryItem[]>(categoriesQueryKey, (items = []) => [...items, category]);
+    },
+  });
+}
+
+export function useUpdateCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateCategoryInput) => patchCategory(input),
+    onSuccess: (category) => {
+      queryClient.setQueryData<CategoryItem[]>(categoriesQueryKey, (items = []) =>
+        items.map((item) => (String(item.id) === String(category.id) ? category : item)),
+      );
+      queryClient.invalidateQueries({ queryKey: transactionsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+      queryClient.invalidateQueries({ queryKey: spendingQueryKey });
     },
   });
 }

@@ -608,6 +608,47 @@ export async function createCategory(input) {
   return mapCategoryRow(result.rows[0]);
 }
 
+export async function updateCategory(categoryId, input) {
+  const label = String(input.label ?? "").trim();
+  const icon = String(input.icon ?? "").trim();
+  const color = String(input.color ?? "").trim();
+  const groupLabel = String(input.groupLabel ?? "").trim();
+  const groupColor = String(input.groupColor ?? "").trim();
+
+  if (!label || !icon || !color || !groupLabel || !groupColor) {
+    throw new Error("label, icon, color, groupLabel and groupColor are required");
+  }
+
+  const groupSlug = slugify(groupLabel);
+
+  if (!groupSlug) {
+    throw new Error("invalid category label");
+  }
+
+  const existing = await getCategoryById(categoryId);
+
+  if (!existing) {
+    throw new Error("category not found");
+  }
+
+  const result = await pool.query(
+    `
+      UPDATE categories
+      SET label = $2,
+          icon = $3,
+          color = $4,
+          group_slug = $5,
+          group_label = $6,
+          group_color = $7
+      WHERE id = $1
+      RETURNING id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color
+    `,
+    [categoryId, label, icon, color, groupSlug, groupLabel, groupColor],
+  );
+
+  return mapCategoryRow(result.rows[0]);
+}
+
 async function getCategoryById(categoryId) {
   const result = await pool.query(
     `

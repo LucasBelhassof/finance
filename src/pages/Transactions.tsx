@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 
 import AppShell from "@/components/AppShell";
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
+import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFilteredTransactionsData } from "@/hooks/use-filtered-transactions-data";
 import {
   useCategories,
   useCreateCategory,
@@ -39,11 +41,13 @@ import {
   useTransactions,
   useUpdateTransaction,
 } from "@/hooks/use-transactions";
+import { resolvePresetRange } from "@/lib/transactions-date-filter";
 import { cn } from "@/lib/utils";
 import type { CreateCategoryInput, CreateTransactionInput, TransactionItem, UpdateTransactionInput } from "@/types/api";
 import { toast } from "@/components/ui/sonner";
 
 type TransactionTypeFilter = "all" | "income" | "expense";
+type TransactionsDateFilterPreset = "week" | "fifteen_days" | "month" | "custom";
 type TransactionFormState = {
   id?: string;
   description: string;
@@ -82,13 +86,6 @@ function formatCurrency(value: number) {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
-}
-
-function normalizeText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
 }
 
 function textColorFromGroup(groupColor: string) {
@@ -185,6 +182,8 @@ export default function TransactionsPage() {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
+  const [datePreset, setDatePreset] = useState<TransactionsDateFilterPreset>("month");
+  const [dateRange, setDateRange] = useState(() => resolvePresetRange("month"));
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -199,68 +198,12 @@ export default function TransactionsPage() {
     groupColor: "bg-income",
   });
 
-  const summary = useMemo(() => {
-    const incomes = transactions.filter((transaction) => transaction.amount > 0);
-    const expenses = transactions.filter((transaction) => transaction.amount < 0);
-    const totalIncomes = incomes.reduce((sum, transaction) => sum + transaction.amount, 0);
-    const totalExpenses = expenses.reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
-
-    return {
-      totalIncomes,
-      totalExpenses,
-      balance: totalIncomes - totalExpenses,
-    };
-  }, [transactions]);
-
-  const groupedCategories = useMemo(() => {
-    const counters = new Map<string, { label: string; color: string; count: number }>();
-
-    transactions.forEach((transaction) => {
-      const key = transaction.category.groupLabel;
-      const current = counters.get(key);
-
-      if (current) {
-        current.count += 1;
-      } else {
-        counters.set(key, {
-          label: transaction.category.groupLabel,
-          color: transaction.category.groupColor,
-          count: 1,
-        });
-      }
-    });
-
-    categories.forEach((category) => {
-      if (!counters.has(category.groupLabel)) {
-        counters.set(category.groupLabel, {
-          label: category.groupLabel,
-          color: category.groupColor,
-          count: 0,
-        });
-      }
-    });
-
-    return Array.from(counters.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [categories, transactions]);
-
-  const filteredTransactions = useMemo(() => {
-    const normalizedSearch = normalizeText(search);
-
-    return transactions.filter((transaction) => {
-      const matchesType =
-        typeFilter === "all" ||
-        (typeFilter === "income" ? transaction.amount > 0 : transaction.amount < 0);
-      const matchesCategory =
-        categoryFilter === "all" || transaction.category.groupLabel === categoryFilter;
-      const matchesSearch =
-        !normalizedSearch ||
-        normalizeText(transaction.description).includes(normalizedSearch) ||
-        normalizeText(transaction.category.groupLabel).includes(normalizedSearch) ||
-        normalizeText(transaction.category.label).includes(normalizedSearch);
-
-      return matchesType && matchesCategory && matchesSearch;
-    });
-  }, [categoryFilter, search, transactions, typeFilter]);
+  const { filteredTransactions, summaryCardsData, categoryCounts } = useFilteredTransactionsData(transactions, categories, {
+    search,
+    typeFilter,
+    categoryFilter,
+    range: dateRange,
+  });
 
   const deleteTarget = transactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
   const isEditing = Boolean(transactionForm.id);
@@ -354,6 +297,16 @@ export default function TransactionsPage() {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
+  };
+
+  const handlePresetChange = (preset: Exclude<TransactionsDateFilterPreset, "custom">) => {
+    setDatePreset(preset);
+    setDateRange(resolvePresetRange(preset));
+  };
+
+  const handleCustomRangeApply = (range: { startDate: string; endDate: string }) => {
+    setDatePreset("custom");
+    setDateRange(range);
   };
 
   if (isLoading) {
@@ -568,20 +521,28 @@ export default function TransactionsPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="glass-card rounded-2xl border border-border/40 p-5">
           <p className="text-sm text-muted-foreground">Total Receitas</p>
-          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summary.totalIncomes)}</p>
+          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.totalIncomes)}</p>
         </div>
         <div className="glass-card rounded-2xl border border-border/40 p-5">
           <p className="text-sm text-muted-foreground">Total Despesas</p>
-          <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summary.totalExpenses)}</p>
+          <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summaryCardsData.totalExpenses)}</p>
         </div>
         <div className="glass-card rounded-2xl border border-border/40 p-5">
           <p className="text-sm text-muted-foreground">Saldo</p>
-          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summary.balance)}</p>
+          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.balance)}</p>
         </div>
       </div>
 
       <div className="glass-card rounded-2xl border border-border/40 p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+        <div className="flex flex-col gap-3">
+          <TransactionsDateFilter
+            preset={datePreset}
+            range={dateRange}
+            onSelectPreset={handlePresetChange}
+            onApplyCustomRange={handleCustomRangeApply}
+          />
+
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
           <div className="relative flex-1">
             <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -616,7 +577,7 @@ export default function TransactionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas categorias</SelectItem>
-                {groupedCategories.map((group) => (
+                {categoryCounts.map((group) => (
                   <SelectItem key={group.label} value={group.label}>
                     {group.label}
                   </SelectItem>
@@ -624,6 +585,7 @@ export default function TransactionsPage() {
               </SelectContent>
             </Select>
           </div>
+        </div>
         </div>
       </div>
 
@@ -689,7 +651,7 @@ export default function TransactionsPage() {
           </div>
 
           <div className="space-y-5">
-            {groupedCategories.map((group) => (
+            {categoryCounts.map((group) => (
               <div key={group.label} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className={cn("h-3 w-3 rounded-full", group.color)} />

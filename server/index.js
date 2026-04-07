@@ -8,6 +8,7 @@ import {
   createTransaction,
   deleteTransaction,
   getDashboardData,
+  getTransactionImportAiSuggestions,
   initializeDatabase,
   listBanks,
   listCategories,
@@ -89,6 +90,15 @@ app.post(
 app.post("/api/transactions/import/commit", async (request, response, next) => {
   try {
     const result = await commitTransactionImport(request.body ?? {});
+    response.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/transactions/import/ai-suggestions", async (request, response, next) => {
+  try {
+    const result = await getTransactionImportAiSuggestions(request.body ?? {});
     response.status(201).json(result);
   } catch (error) {
     next(error);
@@ -210,6 +220,9 @@ app.use((error, _request, response, _next) => {
     : lowerMessage.includes("required") ||
         lowerMessage.includes("invalid") ||
         lowerMessage.includes("expirou") ||
+        lowerMessage.includes("no maximo") ||
+        lowerMessage.includes("lista de linhas") ||
+        lowerMessage.includes("nao pertencem") ||
         lowerMessage.includes("nao foi possivel identificar")
       ? 400
       : 500;

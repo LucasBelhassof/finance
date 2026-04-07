@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   commitTransactionImport,
+  getImportAiSuggestions,
   deleteTransaction,
   getCategories,
   getTransactions,
@@ -25,6 +26,7 @@ import { dashboardQueryKey } from "@/hooks/use-dashboard";
 export const transactionsQueryKey = (limit?: number) => ["transactions", limit ?? "all"] as const;
 export const categoriesQueryKey = ["categories"] as const;
 export const transactionImportPreviewQueryKey = ["transactions", "import", "preview"] as const;
+export const transactionImportAiSuggestionsQueryKey = ["transactions", "import", "ai-suggestions"] as const;
 
 export function useTransactions(limit?: number) {
   return useQuery({
@@ -129,5 +131,12 @@ export function useCommitTransactionImport() {
       queryClient.invalidateQueries({ queryKey: insightsQueryKey });
       queryClient.removeQueries({ queryKey: transactionImportPreviewQueryKey });
     },
+  });
+}
+
+export function useImportAiSuggestions() {
+  return useMutation({
+    mutationFn: ({ previewToken, rowIndexes }: { previewToken: string; rowIndexes?: number[] }) =>
+      getImportAiSuggestions(previewToken, rowIndexes),
   });
 }

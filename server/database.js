@@ -5,11 +5,13 @@ import { runMigrations } from "./migrations.js";
 import {
   buildImportSeedKey,
   createImportPreview,
+  enrichPreviewSessionWithAi,
   getPreviewSession,
   normalizeDescription,
   validateCommitItemsShape,
   validateCommitLine,
 } from "./transaction-import.js";
+import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.js";
 
 dotenv.config();
 
@@ -594,6 +596,51 @@ export async function previewTransactionImport(fileBuffer) {
     fileBuffer,
     userId: user.id,
   });
+}
+
+export async function getTransactionImportAiSuggestions(input) {
+  const user = await getPrimaryUser();
+  const session = getPreviewSession(input.previewToken, user.id);
+  const categories = await listCategories();
+  const config = getImportAiConfig();
+
+  if (!config.enabled) {
+    return {
+      previewToken: String(input.previewToken),
+      status: "disabled",
+      autoApplyThreshold: config.autoApplyThreshold,
+      items: [],
+      summary: {
+        requestedRows: Array.isArray(input.rowIndexes) ? input.rowIndexes.length : 0,
+        suggestedRows: 0,
+        noMatchRows: 0,
+        failedRows: 0,
+      },
+    };
+  }
+
+  const result = await enrichPreviewSessionWithAi({
+    session,
+    categories,
+    rowIndexes: input.rowIndexes,
+    maxRows: config.maxRowsPerRequest,
+    suggestCategories: async ({ items, categories: allowedCategories }) => {
+      const response = await suggestImportCategories({
+        items,
+        categories: allowedCategories,
+      });
+
+      return response.items;
+    },
+  });
+
+  return {
+    previewToken: String(input.previewToken),
+    status: "completed",
+    autoApplyThreshold: config.autoApplyThreshold,
+    items: result.items,
+    summary: result.summary,
+  };
 }
 
 export async function commitTransactionImport(input) {

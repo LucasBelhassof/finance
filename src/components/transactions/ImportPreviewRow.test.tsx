@@ -41,7 +41,13 @@ const item: ImportPreviewItem = {
   type: "income",
   suggestedCategoryId: null,
   suggestedCategoryLabel: null,
+  suggestionSource: null,
   matchedRuleId: null,
+  aiSuggestedCategoryId: 1,
+  aiSuggestedCategoryLabel: "Receitas",
+  aiConfidence: 0.91,
+  aiReason: "Recebimento com padrao recorrente.",
+  aiStatus: "suggested",
   possibleDuplicate: true,
   duplicateReason: "Ja existe uma transacao importada com os mesmos dados.",
   canImport: false,
@@ -74,5 +80,24 @@ describe("ImportPreviewRow", () => {
     expect(incomeButton).toBeInTheDocument();
     expect(incomeButton.className).toContain("bg-income");
     expect(expenseButton.className).toContain("flex-1");
+  });
+
+  it("shows AI suggestion metadata when available", () => {
+    render(
+      <Table>
+        <TableBody>
+          <ImportPreviewRow
+            draft={draft}
+            item={item}
+            categories={categories}
+            onChange={vi.fn()}
+            onCreateCategory={vi.fn()}
+          />
+        </TableBody>
+      </Table>,
+    );
+
+    expect(screen.getByText(/Sugestao IA 91%/i)).toBeInTheDocument();
+    expect(screen.getByText(/Receitas: Recebimento com padrao recorrente\./i)).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { CircleHelp } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
 import {
+  mapImportAiSuggestionsResponse,
   mapImportCommitResponse,
   mapImportPreviewResponse,
   mapChatMessagesResponse,
@@ -131,7 +132,13 @@ describe("api mappers", () => {
           type: "expense",
           suggestedCategoryId: 12,
           suggestedCategoryLabel: "Restaurantes",
+          suggestionSource: "rule",
           matchedRuleId: "ifood",
+          aiSuggestedCategoryId: null,
+          aiSuggestedCategoryLabel: null,
+          aiConfidence: null,
+          aiReason: null,
+          aiStatus: "idle",
           possibleDuplicate: true,
           duplicateReason: "Ja existe uma transacao importada com os mesmos dados.",
           canImport: true,
@@ -172,9 +179,41 @@ describe("api mappers", () => {
     expect(preview.fileSummary.duplicateRows).toBe(1);
     expect(preview.items[0].matchedRuleId).toBe("ifood");
     expect(preview.items[0].possibleDuplicate).toBe(true);
+    expect(preview.items[0].suggestionSource).toBe("rule");
 
     expect(commit.importedCount).toBe(1);
     expect(commit.results[0].status).toBe("imported");
     expect(commit.results[0].transaction?.description).toBe("iFood");
+  });
+
+  it("maps import AI suggestion payloads", () => {
+    const result = mapImportAiSuggestionsResponse({
+      previewToken: "preview-1",
+      status: "completed",
+      autoApplyThreshold: 0.8,
+      summary: {
+        requestedRows: 2,
+        suggestedRows: 1,
+        noMatchRows: 1,
+        failedRows: 0,
+      },
+      items: [
+        {
+          rowIndex: 2,
+          aiSuggestedCategoryId: 3,
+          aiSuggestedCategoryLabel: "Salario",
+          aiConfidence: 0.88,
+          aiReason: "Recebimento recorrente.",
+          aiStatus: "suggested",
+          suggestionSource: "ai",
+        },
+      ],
+    });
+
+    expect(result.previewToken).toBe("preview-1");
+    expect(result.autoApplyThreshold).toBe(0.8);
+    expect(result.items[0].aiStatus).toBe("suggested");
+    expect(result.items[0].aiConfidence).toBe(0.88);
+    expect(result.items[0].suggestionSource).toBe("ai");
   });
 });

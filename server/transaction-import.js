@@ -3,6 +3,7 @@ import crypto from "crypto";
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 5000;
 export const PREVIEW_TTL_MS = 15 * 60 * 1000;
+export const IMPORT_AI_MAX_REASON_LENGTH = 160;
 const IMPORT_FINGERPRINT_VERSION = "v1";
 
 const previewSessions = new Map();
@@ -27,6 +28,8 @@ const categoryKeyResolvers = {
   salary: ["salario"],
   freelance: ["freelance"],
 };
+
+const categoryKeys = Object.keys(categoryKeyResolvers);
 
 const importRules = [
   { id: "salary", priority: 100, matchType: "contains", patterns: ["salario", "salary", "folha pag"], categoryKey: "salary", typeOverride: "income" },
@@ -327,6 +330,18 @@ function resolveCategoryForKey(categoryKey, categories) {
   return null;
 }
 
+export function listAllowedCategoryKeys(categories) {
+  return categoryKeys.filter((categoryKey) => Boolean(resolveCategoryForKey(categoryKey, categories)));
+}
+
+export function resolveAllowedCategoryMap(categories) {
+  return new Map(
+    listAllowedCategoryKeys(categories)
+      .map((categoryKey) => [categoryKey, resolveCategoryForKey(categoryKey, categories)])
+      .filter((entry) => entry[1]),
+  );
+}
+
 function suggestCategory(normalizedDescriptionValue, categories) {
   const rule = [...importRules]
     .sort((left, right) => right.priority - left.priority)
@@ -466,7 +481,13 @@ function buildPreviewItem({
     type,
     suggestedCategoryId: suggestion.category?.id ?? null,
     suggestedCategoryLabel: suggestion.category?.label ?? null,
+    suggestionSource: suggestion.category ? "rule" : null,
     matchedRuleId: suggestion.matchedRuleId,
+    aiSuggestedCategoryId: null,
+    aiSuggestedCategoryLabel: null,
+    aiConfidence: null,
+    aiReason: null,
+    aiStatus: "idle",
     possibleDuplicate,
     duplicateReason,
     canImport,
@@ -475,6 +496,286 @@ function buildPreviewItem({
     warnings,
     errors,
     sourceRow,
+  };
+}
+
+function normalizeRowIndexes(rowIndexes, session, maxRows) {
+  if (rowIndexes === undefined) {
+    const allIndexes = session.items.map((item) => item.rowIndex);
+
+    if (allIndexes.length > maxRows) {
+      throw new Error(`O enriquecimento permite no maximo ${maxRows} linhas por chamada.`);
+    }
+
+    return allIndexes;
+  }
+
+  if (!Array.isArray(rowIndexes)) {
+    throw new Error("rowIndexes precisa ser uma lista de linhas.");
+  }
+
+  if (rowIndexes.length === 0) {
+    return [];
+  }
+
+  if (rowIndexes.length > maxRows) {
+    throw new Error(`O enriquecimento permite no maximo ${maxRows} linhas por chamada.`);
+  }
+
+  const allowedIndexes = new Set(session.items.map((item) => item.rowIndex));
+  const seenIndexes = new Set();
+
+  return rowIndexes.map((rowIndex) => {
+    if (!Number.isInteger(rowIndex) || !allowedIndexes.has(rowIndex)) {
+      throw new Error("Uma ou mais linhas nao pertencem a esta previa.");
+    }
+
+    if (seenIndexes.has(rowIndex)) {
+      throw new Error("A mesma linha foi enviada mais de uma vez para sugestao por IA.");
+    }
+
+    seenIndexes.add(rowIndex);
+    return rowIndex;
+  });
+}
+
+function hasMeaningfulDescription(normalizedDescription) {
+  const tokens = String(normalizedDescription ?? "")
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  return tokens.length >= 2 || String(normalizedDescription ?? "").length >= 12;
+}
+
+export function isPreviewItemEligibleForAi(item) {
+  if (!item || item.errors.length > 0) {
+    return false;
+  }
+
+  if (item.suggestedCategoryId) {
+    return false;
+  }
+
+  return hasMeaningfulDescription(item.normalizedDescription);
+}
+
+function createAiSuggestionResult(rowIndex, patch) {
+  return {
+    rowIndex,
+    aiSuggestedCategoryId: patch.aiSuggestedCategoryId ?? null,
+    aiSuggestedCategoryLabel: patch.aiSuggestedCategoryLabel ?? null,
+    aiConfidence: patch.aiConfidence ?? null,
+    aiReason: patch.aiReason ?? null,
+    aiStatus: patch.aiStatus ?? "idle",
+    suggestionSource: patch.suggestionSource ?? null,
+  };
+}
+
+function applyAiSuggestionPatch(item, patch) {
+  item.aiSuggestedCategoryId = patch.aiSuggestedCategoryId ?? null;
+  item.aiSuggestedCategoryLabel = patch.aiSuggestedCategoryLabel ?? null;
+  item.aiConfidence = patch.aiConfidence ?? null;
+  item.aiReason = patch.aiReason ?? null;
+  item.aiStatus = patch.aiStatus ?? "idle";
+  item.suggestionSource = patch.suggestionSource ?? null;
+  item.requiresUserAction = Boolean(item.possibleDuplicate) || item.errors.length > 0 || item.requiresCategorySelection;
+  return item;
+}
+
+function buildCachedSuggestionFromOriginal(item) {
+  if (!isPreviewItemEligibleForAi(item.original)) {
+    return createAiSuggestionResult(item.rowIndex, {
+      aiStatus: "no_match",
+      suggestionSource: null,
+    });
+  }
+
+  return null;
+}
+
+function normalizeAiConfidence(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const confidence = Number(value);
+
+  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+    return null;
+  }
+
+  return confidence;
+}
+
+function normalizeAiReason(value) {
+  const reason = String(value ?? "").trim();
+
+  if (!reason) {
+    return null;
+  }
+
+  return reason.slice(0, IMPORT_AI_MAX_REASON_LENGTH);
+}
+
+export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
+  const rowIndex = Number(raw?.rowIndex);
+
+  if (!Number.isInteger(rowIndex)) {
+    throw new Error("Resultado de IA sem rowIndex valido.");
+  }
+
+  const status = raw?.status;
+  const confidence = normalizeAiConfidence(raw?.confidence);
+  const categoryKey = typeof raw?.categoryKey === "string" ? raw.categoryKey.trim() : "";
+  const reason = normalizeAiReason(raw?.reason);
+
+  if (status === "error" || status === "invalid") {
+    return {
+      rowIndex,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: confidence,
+      aiReason: reason,
+      aiStatus: status,
+      suggestionSource: null,
+    };
+  }
+
+  if (!categoryKey) {
+    return {
+      rowIndex,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: confidence,
+      aiReason: reason,
+      aiStatus: "no_match",
+      suggestionSource: null,
+    };
+  }
+
+  const category = allowedCategoryMap.get(categoryKey);
+
+  if (!category) {
+    return {
+      rowIndex,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: confidence,
+      aiReason: reason,
+      aiStatus: "invalid",
+      suggestionSource: null,
+    };
+  }
+
+  return {
+    rowIndex,
+    aiSuggestedCategoryId: category.id,
+    aiSuggestedCategoryLabel: category.label,
+    aiConfidence: confidence,
+    aiReason: reason,
+    aiStatus: "suggested",
+    suggestionSource: "ai",
+  };
+}
+
+export async function enrichPreviewSessionWithAi({
+  session,
+  categories,
+  rowIndexes,
+  maxRows,
+  suggestCategories,
+}) {
+  const requestedIndexes = normalizeRowIndexes(rowIndexes, session, maxRows);
+  const targetItems = session.items.filter((item) => requestedIndexes.includes(item.rowIndex));
+  const pendingItems = [];
+  const responseItems = [];
+
+  for (const sessionItem of targetItems) {
+    if (sessionItem.aiSuggestion) {
+      applyAiSuggestionPatch(sessionItem.original, sessionItem.aiSuggestion);
+      responseItems.push(createAiSuggestionResult(sessionItem.rowIndex, sessionItem.aiSuggestion));
+      continue;
+    }
+
+    const localResult = buildCachedSuggestionFromOriginal(sessionItem);
+
+    if (localResult) {
+      sessionItem.aiSuggestion = localResult;
+      applyAiSuggestionPatch(sessionItem.original, localResult);
+      responseItems.push(localResult);
+      continue;
+    }
+
+    pendingItems.push(sessionItem);
+  }
+
+  if (pendingItems.length > 0) {
+    const allowedCategoryMap = resolveAllowedCategoryMap(categories);
+
+    try {
+      const providerResults = await suggestCategories({
+        items: pendingItems.map((item) => ({
+          rowIndex: item.rowIndex,
+          description: item.original.description,
+          normalizedDescription: item.original.normalizedDescription,
+          type: item.original.type,
+        })),
+        categories: Array.from(allowedCategoryMap.entries()).map(([categoryKey, category]) => ({
+          categoryKey,
+          id: category.id,
+          label: category.label,
+        })),
+      });
+
+      const normalizedResults = new Map(
+        (providerResults ?? []).flatMap((result) => {
+          try {
+            const normalizedResult = normalizeAiCategorizationResult(result, allowedCategoryMap);
+            return [[normalizedResult.rowIndex, normalizedResult]];
+          } catch {
+            return [];
+          }
+        }),
+      );
+
+      for (const sessionItem of pendingItems) {
+        const suggestion =
+          normalizedResults.get(sessionItem.rowIndex) ??
+          createAiSuggestionResult(sessionItem.rowIndex, {
+            aiStatus: "no_match",
+            suggestionSource: null,
+          });
+        sessionItem.aiSuggestion = suggestion;
+        applyAiSuggestionPatch(sessionItem.original, suggestion);
+        responseItems.push(suggestion);
+      }
+    } catch (error) {
+      for (const sessionItem of pendingItems) {
+        const suggestion = createAiSuggestionResult(sessionItem.rowIndex, {
+          aiStatus: "error",
+          aiReason: normalizeAiReason(error?.message),
+          suggestionSource: null,
+        });
+        sessionItem.aiSuggestion = suggestion;
+        applyAiSuggestionPatch(sessionItem.original, suggestion);
+        responseItems.push(suggestion);
+      }
+    }
+  }
+
+  const items = targetItems
+    .map((item) => responseItems.find((result) => result.rowIndex === item.rowIndex))
+    .filter(Boolean);
+
+  return {
+    items,
+    summary: {
+      requestedRows: requestedIndexes.length,
+      suggestedRows: items.filter((item) => item.aiStatus === "suggested").length,
+      noMatchRows: items.filter((item) => item.aiStatus === "no_match").length,
+      failedRows: items.filter((item) => item.aiStatus === "error" || item.aiStatus === "invalid").length,
+    },
   };
 }
 
@@ -564,6 +865,7 @@ export function createImportPreview({ categories, existingFingerprints, fileBuff
     items: items.map((item) => ({
       rowIndex: item.rowIndex,
       original: item,
+      aiSuggestion: null,
     })),
   });
 

@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildImportSeedKey,
   createImportPreview,
+  enrichPreviewSessionWithAi,
+  getPreviewSession,
+  isPreviewItemEligibleForAi,
+  normalizeAiCategorizationResult,
+  resolveAllowedCategoryMap,
   parseAmountInput,
   parseOccurredOnInput,
   validateCommitLine,
@@ -69,5 +74,155 @@ describe("transaction import helpers", () => {
     expect(line.signedAmount).toBe(-67.9);
     expect(line.normalizedFinalDescription).toBe("ifood");
     expect(line.normalizedOccurredOn).toBe("2026-04-06");
+  });
+
+  it("keeps rows with local rule matches out of AI enrichment", async () => {
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;iFood;-67,90",
+      "06/04/2026;Transferencia recebida;396,00",
+    ].join("\n");
+
+    const preview = createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+    const session = getPreviewSession(preview.previewToken, 1);
+    const suggestCategories = async ({ items }) =>
+      items.map((item) => ({
+        rowIndex: item.rowIndex,
+        categoryKey: "salary",
+        confidence: 0.92,
+        reason: "Transferencia associada a recebimento.",
+        status: "suggested",
+      }));
+
+    const result = await enrichPreviewSessionWithAi({
+      session,
+      categories,
+      rowIndexes: [1, 2],
+      maxRows: 100,
+      suggestCategories,
+    });
+
+    expect(result.items[0].rowIndex).toBe(1);
+    expect(result.items[0].aiStatus).toBe("no_match");
+    expect(result.items[1].rowIndex).toBe(2);
+    expect(result.items[1].aiStatus).toBe("suggested");
+    expect(result.summary.suggestedRows).toBe(1);
+  });
+
+  it("rejects invalid AI categories outside the whitelist", () => {
+    const normalized = normalizeAiCategorizationResult(
+      {
+        rowIndex: 2,
+        categoryKey: "unknown",
+        confidence: 0.9,
+        reason: "Resposta invalida",
+        status: "suggested",
+      },
+      resolveAllowedCategoryMap(categories),
+    );
+
+    expect(normalized.aiStatus).toBe("invalid");
+    expect(normalized.aiSuggestedCategoryId).toBeNull();
+  });
+
+  it("treats out-of-range confidence as invalid metadata", () => {
+    const normalized = normalizeAiCategorizationResult(
+      {
+        rowIndex: 2,
+        categoryKey: "salary",
+        confidence: 1.2,
+        reason: "Confianca invalida",
+        status: "suggested",
+      },
+      resolveAllowedCategoryMap(categories),
+    );
+
+    expect(normalized.aiStatus).toBe("suggested");
+    expect(normalized.aiConfidence).toBeNull();
+  });
+
+  it("skips AI when the normalized description is too weak", () => {
+    expect(
+      isPreviewItemEligibleForAi({
+        errors: [],
+        suggestedCategoryId: null,
+        normalizedDescription: "pix",
+      }),
+    ).toBe(false);
+  });
+
+  it("caches AI suggestions inside the preview session", async () => {
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;Transferencia recebida;396,00",
+    ].join("\n");
+    const preview = createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+    const session = getPreviewSession(preview.previewToken, 1);
+    let callCount = 0;
+    const suggestCategories = async ({ items }) => {
+      callCount += 1;
+
+      return items.map((item) => ({
+        rowIndex: item.rowIndex,
+        categoryKey: "salary",
+        confidence: 0.94,
+        reason: "Recebimento com alta semelhanca.",
+        status: "suggested",
+      }));
+    };
+
+    const first = await enrichPreviewSessionWithAi({
+      session,
+      categories,
+      rowIndexes: [1],
+      maxRows: 100,
+      suggestCategories,
+    });
+    const second = await enrichPreviewSessionWithAi({
+      session,
+      categories,
+      rowIndexes: [1],
+      maxRows: 100,
+      suggestCategories,
+    });
+
+    expect(callCount).toBe(1);
+    expect(first.items[0].aiSuggestedCategoryId).toBe(3);
+    expect(second.items[0].aiSuggestedCategoryId).toBe(3);
+  });
+
+  it("rejects AI enrichment requests above the row limit", async () => {
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;Transferencia recebida;396,00",
+      "06/04/2026;Pagamento recebido;100,00",
+    ].join("\n");
+    const preview = createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+    const session = getPreviewSession(preview.previewToken, 1);
+
+    await expect(
+      enrichPreviewSessionWithAi({
+        session,
+        categories,
+        rowIndexes: [1, 2],
+        maxRows: 1,
+        suggestCategories: async () => [],
+      }),
+    ).rejects.toThrow("no maximo 1 linhas");
   });
 });

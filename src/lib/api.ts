@@ -13,6 +13,8 @@ import type {
   ApiErrorResponse,
   ApiHealthResponse,
   ApiImportCommitResponse,
+  ApiImportAiSuggestionsResponse,
+  ApiImportAiSuggestionItem,
   ApiImportPreviewItem,
   ApiImportPreviewResponse,
   ApiInsight,
@@ -33,6 +35,8 @@ import type {
   HealthStatus,
   ImportCommitData,
   ImportCommitItem,
+  ImportAiSuggestionsData,
+  ImportAiSuggestionItem,
   ImportPreviewData,
   ImportPreviewItem,
   InsightItem,
@@ -319,6 +323,15 @@ export function mapChatReplyResponse(response: ApiChatReplyResponse): ChatReply 
 }
 
 function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
+  const aiStatus =
+    item.aiStatus === "suggested" ||
+    item.aiStatus === "no_match" ||
+    item.aiStatus === "error" ||
+    item.aiStatus === "invalid" ||
+    item.aiStatus === "idle"
+      ? item.aiStatus
+      : "idle";
+
   return {
     rowIndex: safeNumber(item.rowIndex),
     description: safeString(item.description),
@@ -330,7 +343,13 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     type: normalizeImportType(item.type),
     suggestedCategoryId: item.suggestedCategoryId ?? null,
     suggestedCategoryLabel: item.suggestedCategoryLabel ?? null,
+    suggestionSource: item.suggestionSource === "rule" || item.suggestionSource === "ai" ? item.suggestionSource : null,
     matchedRuleId: item.matchedRuleId ?? null,
+    aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
+    aiSuggestedCategoryLabel: item.aiSuggestedCategoryLabel ?? null,
+    aiConfidence: typeof item.aiConfidence === "number" ? item.aiConfidence : null,
+    aiReason: safeString(item.aiReason),
+    aiStatus,
     possibleDuplicate: Boolean(item.possibleDuplicate),
     duplicateReason: safeString(item.duplicateReason),
     canImport: Boolean(item.canImport),
@@ -339,6 +358,25 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     warnings: Array.isArray(item.warnings) ? item.warnings.map((value) => safeString(value)).filter(Boolean) : [],
     errors: Array.isArray(item.errors) ? item.errors.map((value) => safeString(value)).filter(Boolean) : [],
     sourceRow: item.sourceRow,
+  };
+}
+
+function mapImportAiSuggestionItem(item: ApiImportAiSuggestionItem): ImportAiSuggestionItem {
+  return {
+    rowIndex: safeNumber(item.rowIndex),
+    aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
+    aiSuggestedCategoryLabel: item.aiSuggestedCategoryLabel ?? null,
+    aiConfidence: typeof item.aiConfidence === "number" ? item.aiConfidence : null,
+    aiReason: safeString(item.aiReason),
+    aiStatus:
+      item.aiStatus === "suggested" ||
+      item.aiStatus === "no_match" ||
+      item.aiStatus === "error" ||
+      item.aiStatus === "invalid" ||
+      item.aiStatus === "idle"
+        ? item.aiStatus
+        : "idle",
+    suggestionSource: item.suggestionSource === "ai" ? "ai" : null,
   };
 }
 
@@ -369,6 +407,24 @@ export function mapImportCommitResponse(response: ApiImportCommitResponse): Impo
       message: safeString(item.message),
       transaction: item.transaction ? mapTransaction(item.transaction) : undefined,
     })),
+  };
+}
+
+export function mapImportAiSuggestionsResponse(response: ApiImportAiSuggestionsResponse): ImportAiSuggestionsData {
+  return {
+    previewToken: safeString(response.previewToken),
+    status: response.status === "disabled" ? "disabled" : "completed",
+    autoApplyThreshold:
+      typeof response.autoApplyThreshold === "number" && response.autoApplyThreshold >= 0 && response.autoApplyThreshold <= 1
+        ? response.autoApplyThreshold
+        : 0.8,
+    summary: {
+      requestedRows: safeNumber(response.summary?.requestedRows),
+      suggestedRows: safeNumber(response.summary?.suggestedRows),
+      noMatchRows: safeNumber(response.summary?.noMatchRows),
+      failedRows: safeNumber(response.summary?.failedRows),
+    },
+    items: (response.items ?? []).map(mapImportAiSuggestionItem),
   };
 }
 
@@ -505,4 +561,16 @@ export async function commitTransactionImport(previewToken: string, items: Impor
   });
 
   return mapImportCommitResponse(response);
+}
+
+export async function getImportAiSuggestions(previewToken: string, rowIndexes?: number[]) {
+  const response = await request<ApiImportAiSuggestionsResponse>("/api/transactions/import/ai-suggestions", {
+    method: "POST",
+    body: JSON.stringify({
+      previewToken,
+      rowIndexes,
+    }),
+  });
+
+  return mapImportAiSuggestionsResponse(response);
 }

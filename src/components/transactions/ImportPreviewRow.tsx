@@ -32,6 +32,8 @@ export default function ImportPreviewRow({
 }: ImportPreviewRowProps) {
   const isInvalid = item.errors.length > 0;
   const needsCategory = !draft.categoryId;
+  const aiConfidencePercent =
+    typeof item.aiConfidence === "number" ? `${Math.round(Math.max(0, Math.min(1, item.aiConfidence)) * 100)}%` : null;
 
   return (
     <TableRow className={cn(draft.exclude && "opacity-55")}>
@@ -54,11 +56,22 @@ export default function ImportPreviewRow({
               Categoria obrigatoria
             </Badge>
           ) : null}
+          {item.aiStatus === "suggested" ? (
+            <Badge variant="secondary" className="bg-info/10 text-info">
+              Sugestao IA{aiConfidencePercent ? ` ${aiConfidencePercent}` : ""}
+            </Badge>
+          ) : null}
         </div>
-        {item.errors.length > 0 ? (
-          <p className="mt-2 text-xs text-destructive">{item.errors[0]}</p>
-        ) : item.warnings[0] ? (
-          <p className="mt-2 text-xs text-warning">{item.warnings[0]}</p>
+        {item.errors.length > 0 ? <p className="mt-2 text-xs text-destructive">{item.errors[0]}</p> : null}
+        {item.errors.length === 0 && item.warnings[0] ? <p className="mt-2 text-xs text-warning">{item.warnings[0]}</p> : null}
+        {item.errors.length === 0 && item.aiStatus === "error" ? (
+          <p className="mt-2 text-xs text-destructive">{item.aiReason || "A IA falhou ao sugerir uma categoria."}</p>
+        ) : null}
+        {item.errors.length === 0 && item.aiStatus === "suggested" && item.aiReason ? (
+          <p className="mt-2 text-xs text-info">
+            {item.aiSuggestedCategoryLabel ? `${item.aiSuggestedCategoryLabel}: ` : ""}
+            {item.aiReason}
+          </p>
         ) : null}
       </TableCell>
       <TableCell className="w-[132px] px-4 py-4 align-top">

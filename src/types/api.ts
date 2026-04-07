@@ -133,7 +133,13 @@ export interface ApiImportPreviewItem {
   type?: string;
   suggestedCategoryId?: number | string | null;
   suggestedCategoryLabel?: string | null;
+  suggestionSource?: string | null;
   matchedRuleId?: string | null;
+  aiSuggestedCategoryId?: number | string | null;
+  aiSuggestedCategoryLabel?: string | null;
+  aiConfidence?: number | null;
+  aiReason?: string | null;
+  aiStatus?: string | null;
   possibleDuplicate?: boolean;
   duplicateReason?: string;
   canImport?: boolean;
@@ -142,6 +148,29 @@ export interface ApiImportPreviewItem {
   warnings?: string[];
   errors?: string[];
   sourceRow?: Record<string, string>;
+}
+
+export interface ApiImportAiSuggestionItem {
+  rowIndex?: number;
+  aiSuggestedCategoryId?: number | string | null;
+  aiSuggestedCategoryLabel?: string | null;
+  aiConfidence?: number | null;
+  aiReason?: string | null;
+  aiStatus?: string | null;
+  suggestionSource?: string | null;
+}
+
+export interface ApiImportAiSuggestionsResponse {
+  previewToken?: string;
+  status?: string;
+  autoApplyThreshold?: number;
+  summary?: {
+    requestedRows?: number;
+    suggestedRows?: number;
+    noMatchRows?: number;
+    failedRows?: number;
+  };
+  items?: ApiImportAiSuggestionItem[];
 }
 
 export interface ApiImportPreviewResponse {
@@ -257,7 +286,13 @@ export interface ImportPreviewItem {
   type: "income" | "expense";
   suggestedCategoryId: number | string | null;
   suggestedCategoryLabel: string | null;
+  suggestionSource: "rule" | "ai" | null;
   matchedRuleId: string | null;
+  aiSuggestedCategoryId: number | string | null;
+  aiSuggestedCategoryLabel: string | null;
+  aiConfidence: number | null;
+  aiReason: string | null;
+  aiStatus: "idle" | "suggested" | "no_match" | "error" | "invalid";
   possibleDuplicate: boolean;
   duplicateReason: string;
   canImport: boolean;
@@ -281,6 +316,29 @@ export interface ImportPreviewData {
   expiresAt: string;
   fileSummary: ImportPreviewSummary;
   items: ImportPreviewItem[];
+}
+
+export interface ImportAiSuggestionItem {
+  rowIndex: number;
+  aiSuggestedCategoryId: number | string | null;
+  aiSuggestedCategoryLabel: string | null;
+  aiConfidence: number | null;
+  aiReason: string | null;
+  aiStatus: "idle" | "suggested" | "no_match" | "error" | "invalid";
+  suggestionSource: "ai" | null;
+}
+
+export interface ImportAiSuggestionsData {
+  previewToken: string;
+  status: "completed" | "disabled";
+  autoApplyThreshold: number;
+  summary: {
+    requestedRows: number;
+    suggestedRows: number;
+    noMatchRows: number;
+    failedRows: number;
+  };
+  items: ImportAiSuggestionItem[];
 }
 
 export interface ImportCommitItem {

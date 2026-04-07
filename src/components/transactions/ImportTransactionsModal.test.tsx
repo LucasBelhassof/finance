@@ -5,6 +5,7 @@ import ImportTransactionsModal from "@/components/transactions/ImportTransaction
 import type { ImportPreviewData } from "@/types/api";
 
 const previewMutateAsync = vi.fn();
+const aiSuggestionsMutateAsync = vi.fn();
 const commitMutateAsync = vi.fn();
 const createCategoryMutateAsync = vi.fn();
 
@@ -15,6 +16,10 @@ vi.mock("@/hooks/use-transactions", () => ({
   }),
   useCommitTransactionImport: () => ({
     mutateAsync: commitMutateAsync,
+    isPending: false,
+  }),
+  useImportAiSuggestions: () => ({
+    mutateAsync: aiSuggestionsMutateAsync,
     isPending: false,
   }),
   useCreateCategory: () => ({
@@ -56,7 +61,13 @@ const previewData: ImportPreviewData = {
       type: "income",
       suggestedCategoryId: null,
       suggestedCategoryLabel: null,
+      suggestionSource: null,
       matchedRuleId: null,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: null,
+      aiReason: null,
+      aiStatus: "idle",
       possibleDuplicate: true,
       duplicateReason: "Ja existe uma transacao importada com os mesmos dados.",
       canImport: false,
@@ -71,9 +82,38 @@ const previewData: ImportPreviewData = {
 describe("ImportTransactionsModal", () => {
   beforeEach(() => {
     previewMutateAsync.mockReset();
+    aiSuggestionsMutateAsync.mockReset();
     commitMutateAsync.mockReset();
     createCategoryMutateAsync.mockReset();
     previewMutateAsync.mockResolvedValue(previewData);
+    aiSuggestionsMutateAsync.mockResolvedValue({
+      previewToken: "preview-1",
+      status: "completed",
+      autoApplyThreshold: 0.8,
+      summary: {
+        requestedRows: 1,
+        suggestedRows: 1,
+        noMatchRows: 0,
+        failedRows: 0,
+      },
+      items: [
+        {
+          rowIndex: 15,
+          aiSuggestedCategoryId: 1,
+          aiSuggestedCategoryLabel: "Alimentacao",
+          aiConfidence: 0.92,
+          aiReason: "Recebimento classificado automaticamente.",
+          aiStatus: "suggested",
+          suggestionSource: "ai",
+        },
+      ],
+    });
+    commitMutateAsync.mockResolvedValue({
+      importedCount: 1,
+      skippedCount: 0,
+      failedCount: 0,
+      results: [],
+    });
   });
 
   it("keeps the footer accessible and the preview body scrollable after generating preview", async () => {
@@ -122,5 +162,57 @@ describe("ImportTransactionsModal", () => {
     expect(body.className).toContain("overflow-y-auto");
     expect(screen.getByRole("button", { name: /Confirmar importacao/i })).toBeInTheDocument();
     expect(footer).toContainElement(screen.getByRole("button", { name: /Confirmar importacao/i }));
+    expect(aiSuggestionsMutateAsync).toHaveBeenCalledWith({
+      previewToken: "preview-1",
+      rowIndexes: [15],
+    });
+  });
+
+  it("auto-applies high-confidence AI suggestions only into empty drafts", async () => {
+    render(
+      <ImportTransactionsModal
+        open
+        onOpenChange={vi.fn()}
+        categories={[
+          {
+            id: 1,
+            slug: "alimentacao",
+            label: "Alimentacao",
+            iconName: "Wallet",
+            icon: (() => null) as never,
+            color: "text-warning",
+            groupSlug: "alimentacao",
+            groupLabel: "Alimentacao",
+            groupColor: "bg-warning",
+          },
+        ]}
+      />,
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
+
+    await waitFor(() => {
+      expect(aiSuggestionsMutateAsync).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar importacao/i }));
+
+    await waitFor(() => {
+      expect(commitMutateAsync).toHaveBeenCalledWith({
+        previewToken: "preview-1",
+        items: [
+          expect.objectContaining({
+            rowIndex: 15,
+            categoryId: "1",
+          }),
+        ],
+      });
+    });
   });
 });

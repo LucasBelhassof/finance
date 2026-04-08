@@ -1,11 +1,20 @@
+import { useMemo, useState } from "react";
 import { Pie, PieChart, Cell } from "recharts";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import type { SpendingItem } from "@/types/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { BankItem, TransactionItem } from "@/types/api";
 
 interface SpendingChartProps {
-  spending?: SpendingItem[];
+  transactions?: TransactionItem[];
+  banks?: BankItem[];
   isLoading?: boolean;
   isError?: boolean;
 }
@@ -14,7 +23,7 @@ function SpendingChartSkeleton() {
   return (
     <div className="glass-card p-5 animate-fade-in">
       <h3 className="mb-4 font-semibold text-foreground">Gastos por Categoria</h3>
-      <Skeleton className="mb-5 h-44 w-full rounded-2xl" />
+      <Skeleton className="mb-5 h-56 w-full rounded-2xl" />
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, index) => (
           <div key={index} className="flex items-center gap-3">
@@ -44,15 +53,63 @@ function resolveChartColor(colorClass: string) {
   return tailwindColorToCss[colorClass] ?? "hsl(var(--muted-foreground))";
 }
 
-export default function SpendingChart({ spending = [], isLoading, isError }: SpendingChartProps) {
-  if (isLoading) {
-    return <SpendingChartSkeleton />;
-  }
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
 
-  const chartData = spending.map((item) => ({
-    ...item,
-    fill: resolveChartColor(item.color),
-  }));
+type SpendingChartItem = {
+  slug: string;
+  label: string;
+  color: string;
+  total: number;
+  formattedTotal: string;
+  percentage: number;
+  fill: string;
+};
+
+export default function SpendingChart({ transactions = [], banks = [], isLoading, isError }: SpendingChartProps) {
+  const [selectedBankId, setSelectedBankId] = useState("all");
+  const chartData = useMemo<SpendingChartItem[]>(() => {
+    const filteredExpenses = transactions.filter((transaction) => {
+      if (transaction.amount >= 0) {
+        return false;
+      }
+
+      if (selectedBankId === "all") {
+        return true;
+      }
+
+      return String(transaction.account.id) === selectedBankId;
+    });
+
+    const totalExpenses = filteredExpenses.reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
+    const grouped = new Map<string, Omit<SpendingChartItem, "percentage" | "formattedTotal" | "fill">>();
+
+    filteredExpenses.forEach((transaction) => {
+      const key = transaction.category.groupSlug || transaction.category.slug;
+      const current = grouped.get(key);
+      const nextTotal = (current?.total ?? 0) + Math.abs(transaction.amount);
+
+      grouped.set(key, {
+        slug: key,
+        label: transaction.category.groupLabel || transaction.category.label,
+        color: transaction.category.groupColor || "bg-muted-foreground",
+        total: nextTotal,
+      });
+    });
+
+    return Array.from(grouped.values())
+      .sort((left, right) => right.total - left.total)
+      .map((item) => ({
+        ...item,
+        formattedTotal: formatCurrency(item.total),
+        percentage: totalExpenses > 0 ? Math.round((item.total / totalExpenses) * 100) : 0,
+        fill: resolveChartColor(item.color),
+      }));
+  }, [selectedBankId, transactions]);
 
   const chartConfig = chartData.reduce<ChartConfig>((config, item) => {
     config[item.slug] = {
@@ -63,26 +120,47 @@ export default function SpendingChart({ spending = [], isLoading, isError }: Spe
     return config;
   }, {});
 
+  if (isLoading) {
+    return <SpendingChartSkeleton />;
+  }
+
   return (
     <div className="glass-card p-5 animate-fade-in">
-      <h3 className="mb-4 font-semibold text-foreground">Gastos por Categoria</h3>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="font-semibold text-foreground">Gastos por Categoria</h3>
+        <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+          <SelectTrigger className="h-9 w-[180px] rounded-xl border-border/60 bg-secondary/35 text-xs">
+            <SelectValue placeholder="Todas as contas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as contas</SelectItem>
+            {banks.map((bank) => (
+              <SelectItem key={bank.id} value={String(bank.id)}>
+                {bank.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      {!spending.length ? (
+      {!chartData.length ? (
         <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
           {isError
             ? "Nao foi possivel carregar o consolidado por categoria."
-            : "Ainda nao existem gastos categorizados para exibir."}
+            : selectedBankId === "all"
+              ? "Ainda nao existem gastos categorizados para exibir."
+              : "Nao ha despesas categorizadas para a conta selecionada."}
         </div>
       ) : (
         <>
-          <ChartContainer config={chartConfig} className="mb-5 h-44 w-full">
+          <ChartContainer config={chartConfig} className="mb-5 h-56 w-full">
             <PieChart>
               <ChartTooltip
                 cursor={false}
                 content={
                   <ChartTooltipContent
                     formatter={(_, __, item) => {
-                      const payload = item.payload as SpendingItem & { fill: string };
+                      const payload = item.payload as SpendingChartItem;
 
                       return (
                         <div className="flex min-w-[12rem] items-center justify-between gap-3">
@@ -104,8 +182,8 @@ export default function SpendingChart({ spending = [], isLoading, isError }: Spe
                 data={chartData}
                 dataKey="total"
                 nameKey="slug"
-                innerRadius={44}
-                outerRadius={76}
+                innerRadius={54}
+                outerRadius={96}
                 paddingAngle={3}
                 strokeWidth={0}
               >

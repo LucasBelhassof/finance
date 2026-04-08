@@ -1,6 +1,8 @@
-import { Building2, CheckCircle2, Link2, Plus } from "lucide-react";
+import { Building2, CreditCard, Landmark, Plus, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { appRoutes } from "@/lib/routes";
 import type { BankItem } from "@/types/api";
 
 interface BankConnectionProps {
@@ -15,9 +17,9 @@ function BankConnectionSkeleton() {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-            <Link2 size={14} className="text-primary" />
+            <Landmark size={14} className="text-primary" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">Open Finance</h3>
+          <h3 className="text-sm font-semibold text-foreground">Contas</h3>
         </div>
         <Skeleton className="h-4 w-16" />
       </div>
@@ -38,6 +40,30 @@ function BankConnectionSkeleton() {
   );
 }
 
+function AccountTypeIcon({ accountType }: { accountType: BankItem["accountType"] }) {
+  if (accountType === "credit_card") {
+    return <CreditCard size={14} className="text-foreground" />;
+  }
+
+  if (accountType === "cash") {
+    return <Wallet size={14} className="text-foreground" />;
+  }
+
+  return <Building2 size={14} className="text-foreground" />;
+}
+
+function AccountTypeLabel({ accountType }: { accountType: BankItem["accountType"] }) {
+  if (accountType === "credit_card") {
+    return <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">Cartao</span>;
+  }
+
+  if (accountType === "cash") {
+    return <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-500">Caixa</span>;
+  }
+
+  return <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">Conta</span>;
+}
+
 export default function BankConnection({ banks = [], isLoading, isError }: BankConnectionProps) {
   if (isLoading) {
     return <BankConnectionSkeleton />;
@@ -48,43 +74,39 @@ export default function BankConnection({ banks = [], isLoading, isError }: BankC
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-            <Link2 size={14} className="text-primary" />
+            <Landmark size={14} className="text-primary" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">Open Finance</h3>
+          <h3 className="text-sm font-semibold text-foreground">Contas</h3>
         </div>
-        <button type="button" className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+        <Link to={appRoutes.accounts} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
           <Plus size={12} />
-          Conectar
-        </button>
+          Adicionar
+        </Link>
       </div>
 
       {!banks.length ? (
         <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
-          {isError ? "Nao foi possivel carregar as conexoes bancarias." : "Nenhum banco conectado ate o momento."}
+          {isError
+            ? "Nao foi possivel carregar as contas."
+            : "Nenhuma conta vinculada ainda. Adicione sua primeira conta para acompanhar o saldo e os lancamentos."}
         </div>
       ) : (
         <div className="space-y-2.5">
           {banks.map((bank) => (
             <div key={bank.id} className="flex items-center gap-3 rounded-lg bg-secondary/40 p-2.5">
               <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${bank.color}`}>
-                <Building2 size={14} className="text-foreground" />
+                <AccountTypeIcon accountType={bank.accountType} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{bank.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {bank.connected ? bank.formattedBalance : "Saldo indisponivel"}
-                </p>
-              </div>
-              {bank.connected ? (
-                <div className="flex items-center gap-1">
-                  <CheckCircle2 size={14} className="text-income" />
-                  <span className="text-xs text-income">Conectado</span>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-foreground">{bank.name}</p>
+                  <AccountTypeLabel accountType={bank.accountType} />
                 </div>
-              ) : (
-                <button type="button" className="text-xs text-primary hover:underline">
-                  Conectar
-                </button>
-              )}
+                <p className="text-xs text-muted-foreground">{bank.formattedBalance}</p>
+              </div>
+              <Link to={appRoutes.accounts} className="text-xs text-primary hover:underline">
+                Gerenciar
+              </Link>
             </div>
           ))}
         </div>

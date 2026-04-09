@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import pg from "pg";
 
 import { runMigrations } from "./migrations.js";
+import { runSeedData } from "./seed-data.js";
 import {
   buildInstallmentPurchaseSeedKey,
   buildInstallmentTransactionSeedKey,
@@ -213,6 +214,7 @@ async function getPrimaryUserRecord(client = pool) {
 
 async function doInitializeDatabase() {
   await runMigrations(pool);
+  await runSeedData(pool);
   cachedUser = await getPrimaryUserRecord();
 
   if (!cachedUser) {

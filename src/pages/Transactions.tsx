@@ -748,6 +748,11 @@ export default function TransactionsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="truncate text-[1.15rem] font-medium text-foreground">{transaction.description}</p>
+                        {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount ? (
+                          <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
+                            {transaction.installmentNumber}/{transaction.installmentCount}
+                          </span>
+                        ) : null}
                         <Pencil size={14} className="opacity-0 transition-opacity text-muted-foreground group-hover:opacity-100" />
                       </div>
                       <div className="mt-1 flex items-center gap-3 text-sm">
@@ -801,6 +806,11 @@ export default function TransactionsPage() {
                         )}
                         <span className="text-muted-foreground">{transaction.account.name}</span>
                         <span className="text-muted-foreground">{transaction.occurredOn.split("-").reverse().join("/")}</span>
+                        {transaction.isInstallment && transaction.purchaseOccurredOn ? (
+                          <span className="text-muted-foreground">
+                            Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <div className={cn("text-lg font-semibold", accentColor)}>

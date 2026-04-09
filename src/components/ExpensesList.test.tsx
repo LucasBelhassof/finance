@@ -14,6 +14,11 @@ const transactions: TransactionItem[] = [
     formattedAmount: "-R$ 230,50",
     occurredOn: "2026-04-05",
     relativeDate: "Hoje",
+    isInstallment: false,
+    installmentPurchaseId: null,
+    installmentNumber: null,
+    installmentCount: null,
+    purchaseOccurredOn: null,
     category: {
       id: 11,
       slug: "mercado",

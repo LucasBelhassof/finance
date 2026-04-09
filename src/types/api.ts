@@ -39,6 +39,11 @@ export interface ApiTransaction {
   formattedAmount?: string;
   occurredOn?: string;
   relativeDate?: string;
+  isInstallment?: boolean;
+  installmentPurchaseId?: number | string | null;
+  installmentNumber?: number | null;
+  installmentCount?: number | null;
+  purchaseOccurredOn?: string | null;
   category?: ApiTransactionCategory;
   account?: ApiTransactionAccount;
 }
@@ -141,10 +146,13 @@ export interface ApiImportPreviewItem {
   rowIndex?: number;
   description?: string;
   normalizedDescription?: string;
+  purchaseDescriptionBase?: string | null;
+  normalizedPurchaseDescriptionBase?: string | null;
   amount?: string;
   normalizedAmount?: string;
   occurredOn?: string;
   normalizedOccurredOn?: string;
+  purchaseOccurredOn?: string | null;
   isInstallment?: boolean;
   installmentIndex?: number | null;
   installmentCount?: number | null;
@@ -275,6 +283,11 @@ export interface TransactionItem {
   formattedAmount: string;
   occurredOn: string;
   relativeDate: string;
+  isInstallment: boolean;
+  installmentPurchaseId: number | string | null;
+  installmentNumber: number | null;
+  installmentCount: number | null;
+  purchaseOccurredOn: string | null;
   category: TransactionCategory;
   account: TransactionAccount;
 }
@@ -321,10 +334,13 @@ export interface ImportPreviewItem {
   rowIndex: number;
   description: string;
   normalizedDescription: string;
+  purchaseDescriptionBase: string | null;
+  normalizedPurchaseDescriptionBase: string | null;
   amount: string;
   normalizedAmount: string;
   occurredOn: string;
   normalizedOccurredOn: string;
+  purchaseOccurredOn: string | null;
   isInstallment: boolean;
   installmentIndex: number | null;
   installmentCount: number | null;

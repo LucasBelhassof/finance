@@ -9,6 +9,7 @@ import ChatPage from "./pages/Chat.tsx";
 import Index from "./pages/Index.tsx";
 import InsightsPage from "./pages/Insights.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ProfilePage from "./pages/Profile.tsx";
 import SettingsPage from "./pages/Settings.tsx";
 import TransactionsPage from "./pages/Transactions.tsx";
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path={appRoutes.chat} element={<ChatPage />} />
           <Route path={appRoutes.insights} element={<InsightsPage />} />
           <Route path={appRoutes.accounts} element={<AccountsPage />} />
+          <Route path={appRoutes.profile} element={<ProfilePage />} />
           <Route path={appRoutes.settings} element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

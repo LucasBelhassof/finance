@@ -3,6 +3,9 @@ import pg from "pg";
 
 import { runMigrations } from "./migrations.js";
 import {
+  buildInstallmentPurchaseSeedKey,
+  buildInstallmentTransactionSeedKey,
+  buildImportedTransactionEntries,
   buildImportSeedKey,
   createImportPreview,
   extractCategorizationMatchKey,
@@ -158,6 +161,11 @@ function mapTransactionRow(row, referenceDate) {
     formattedAmount: `${amount < 0 ? "- " : "+ "}${formatCurrency(Math.abs(amount))}`,
     occurredOn: normalizeDateValue(row.occurred_on),
     relativeDate: referenceDate ? formatRelativeDate(row.occurred_on, referenceDate) : normalizeDateValue(row.occurred_on),
+    isInstallment: Boolean(row.installment_purchase_id),
+    installmentPurchaseId: row.installment_purchase_id ?? null,
+    installmentNumber: Number.isInteger(Number(row.installment_number)) ? Number(row.installment_number) : null,
+    installmentCount: Number.isInteger(Number(row.installment_count)) ? Number(row.installment_count) : null,
+    purchaseOccurredOn: normalizeDateValue(row.purchase_occurred_on),
     category: {
       id: row.category_id,
       slug: row.category_slug,
@@ -486,6 +494,8 @@ export async function listRecentTransactions(limit = 8) {
         t.description,
         t.amount,
         t.occurred_on,
+        t.installment_purchase_id,
+        t.installment_number,
         b.id AS bank_connection_id,
         b.slug AS bank_slug,
         b.name AS bank_name,
@@ -498,10 +508,13 @@ export async function listRecentTransactions(limit = 8) {
         c.color AS category_color,
         c.group_slug,
         c.group_label,
-        c.group_color
+        c.group_color,
+        ip.installment_count,
+        ip.purchase_occurred_on
       FROM transactions t
       INNER JOIN bank_connections b ON b.id = t.bank_connection_id
       INNER JOIN categories c ON c.id = t.category_id
+      LEFT JOIN installment_purchases ip ON ip.id = t.installment_purchase_id
       WHERE t.user_id = $1
       ORDER BY t.occurred_on DESC, t.id DESC
       LIMIT $2
@@ -524,6 +537,8 @@ export async function listTransactions(limit) {
         t.description,
         t.amount,
         t.occurred_on,
+        t.installment_purchase_id,
+        t.installment_number,
         b.id AS bank_connection_id,
         b.slug AS bank_slug,
         b.name AS bank_name,
@@ -536,10 +551,13 @@ export async function listTransactions(limit) {
         c.color AS category_color,
         c.group_slug,
         c.group_label,
-        c.group_color
+        c.group_color,
+        ip.installment_count,
+        ip.purchase_occurred_on
       FROM transactions t
       INNER JOIN bank_connections b ON b.id = t.bank_connection_id
       INNER JOIN categories c ON c.id = t.category_id
+      LEFT JOIN installment_purchases ip ON ip.id = t.installment_purchase_id
       WHERE t.user_id = $1
       ORDER BY t.occurred_on DESC, t.id DESC
       LIMIT COALESCE($2, 1000)
@@ -904,7 +922,7 @@ async function validateBankConnectionInput(userId, input, currentId = null) {
 async function listTransactionFingerprintRows(userId) {
   const result = await pool.query(
     `
-      SELECT occurred_on, amount, description
+      SELECT occurred_on, amount, description, seed_key
       FROM transactions
       WHERE user_id = $1
     `,
@@ -999,33 +1017,126 @@ async function upsertTransactionCategorizationRule({ categoryId, matchKey, type,
   );
 }
 
-async function createImportedTransaction({ userId, bankConnectionId, categoryId, description, amount, occurredOn, seedKey }) {
-  const result = await pool.query(
+async function findInstallmentPurchaseBySeedKey(userId, seedKey, client = pool) {
+  const result = await client.query(
     `
-      INSERT INTO transactions (user_id, bank_connection_id, category_id, description, amount, occurred_on, seed_key)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      SELECT id, installment_count, purchase_occurred_on
+      FROM installment_purchases
+      WHERE user_id = $1
+        AND seed_key = $2
+      LIMIT 1
+    `,
+    [userId, seedKey],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+async function createInstallmentPurchase(
+  {
+    userId,
+    bankConnectionId,
+    categoryId,
+    seedKey,
+    descriptionBase,
+    normalizedDescriptionBase,
+    purchaseOccurredOn,
+    installmentCount,
+    amountPerInstallment,
+  },
+  client = pool,
+) {
+  const result = await client.query(
+    `
+      INSERT INTO installment_purchases (
+        user_id,
+        bank_connection_id,
+        category_id,
+        seed_key,
+        description_base,
+        normalized_description_base,
+        purchase_occurred_on,
+        installment_count,
+        amount_per_installment
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (user_id, seed_key) DO UPDATE
+      SET category_id = EXCLUDED.category_id,
+          updated_at = NOW()
+      RETURNING id, installment_count, purchase_occurred_on
+    `,
+    [
+      userId,
+      bankConnectionId,
+      categoryId,
+      seedKey,
+      descriptionBase,
+      normalizedDescriptionBase,
+      purchaseOccurredOn,
+      installmentCount,
+      Math.abs(Number(amountPerInstallment)),
+    ],
+  );
+
+  return result.rows[0];
+}
+
+async function getOrCreateInstallmentPurchase(input, client = pool) {
+  const existing = await findInstallmentPurchaseBySeedKey(input.userId, input.seedKey, client);
+
+  if (existing) {
+    return existing;
+  }
+
+  return createInstallmentPurchase(input, client);
+}
+
+async function createImportedTransaction(
+  { userId, bankConnectionId, categoryId, description, amount, occurredOn, seedKey, installmentPurchaseId = null, installmentNumber = null },
+  client = pool,
+) {
+  const result = await client.query(
+    `
+      INSERT INTO transactions (
+        user_id,
+        bank_connection_id,
+        category_id,
+        description,
+        amount,
+        occurred_on,
+        seed_key,
+        installment_purchase_id,
+        installment_number
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT (user_id, seed_key) DO NOTHING
       RETURNING id
     `,
-    [userId, bankConnectionId, categoryId, description, amount, occurredOn, seedKey],
+    [userId, bankConnectionId, categoryId, description, amount, occurredOn, seedKey, installmentPurchaseId, installmentNumber],
   );
 
   if (!result.rowCount) {
     return null;
   }
 
-  const row = await getTransactionById(userId, result.rows[0].id);
+  const row = await getTransactionById(userId, result.rows[0].id, client);
   return mapTransactionRow(row, occurredOn);
 }
 
-async function getTransactionById(userId, transactionId) {
-  const result = await pool.query(
+function formatImportEntryCount(count, singularLabel, pluralLabel = `${singularLabel}s`) {
+  return `${count} ${count === 1 ? singularLabel : pluralLabel}`;
+}
+
+async function getTransactionById(userId, transactionId, client = pool) {
+  const result = await client.query(
     `
       SELECT
         t.id,
         t.description,
         t.amount,
         t.occurred_on,
+        t.installment_purchase_id,
+        t.installment_number,
         b.id AS bank_connection_id,
         b.slug AS bank_slug,
         b.name AS bank_name,
@@ -1038,10 +1149,13 @@ async function getTransactionById(userId, transactionId) {
         c.color AS category_color,
         c.group_slug,
         c.group_label,
-        c.group_color
+        c.group_color,
+        ip.installment_count,
+        ip.purchase_occurred_on
       FROM transactions t
       INNER JOIN bank_connections b ON b.id = t.bank_connection_id
       INNER JOIN categories c ON c.id = t.category_id
+      LEFT JOIN installment_purchases ip ON ip.id = t.installment_purchase_id
       WHERE t.user_id = $1
         AND t.id = $2
       LIMIT 1
@@ -1173,7 +1287,10 @@ export async function previewTransactionImport(fileBuffer, importSource = "bank_
 
   const existingFingerprints = new Set(
     fingerprintRows.map((row) =>
-      buildImportSeedKey(user.id, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+      String(
+        row.seed_key ??
+          buildImportSeedKey(user.id, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+      ),
     ),
   );
 
@@ -1241,11 +1358,15 @@ export async function commitTransactionImport(input) {
   const user = await getPrimaryUser();
   const session = getPreviewSession(input.previewToken, user.id);
   validateCommitItemsShape(input.items, session);
+  const sessionItemsByRowIndex = new Map(session.items.map((item) => [item.rowIndex, item.original]));
 
   const [categories, fingerprintRows] = await Promise.all([listCategories(), listTransactionFingerprintRows(user.id)]);
   const existingFingerprints = new Set(
     fingerprintRows.map((row) =>
-      buildImportSeedKey(user.id, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+      String(
+        row.seed_key ??
+          buildImportSeedKey(user.id, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+      ),
     ),
   );
   const commitFingerprints = new Set(existingFingerprints);
@@ -1257,72 +1378,160 @@ export async function commitTransactionImport(input) {
   for (const item of input.items) {
     try {
       const normalized = validateCommitLine(item, categories);
+      const previewItem = sessionItemsByRowIndex.get(item.rowIndex) ?? null;
+      const entriesToImport = buildImportedTransactionEntries({
+        normalizedLine: normalized,
+        previewItem,
+      });
+      const entryLabelSingular = previewItem?.isInstallment ? "parcela" : "transacao";
+      const entryLabelPlural = previewItem?.isInstallment ? "parcelas" : "transacoes";
 
       if (normalized.exclude) {
-        skippedCount += 1;
+        skippedCount += entriesToImport.length;
         results.push({
           rowIndex: item.rowIndex,
           status: "skipped",
           reason: "excluded",
-          message: "Linha removida pelo usuario.",
+          message: `${formatImportEntryCount(entriesToImport.length, entryLabelSingular, entryLabelPlural)} removida${
+            entriesToImport.length === 1 ? "" : "s"
+          } pelo usuario.`,
         });
         continue;
       }
 
-      const seedKey = buildImportSeedKey(
-        user.id,
-        normalized.normalizedOccurredOn,
-        normalized.signedAmount,
-        normalized.normalizedFinalDescription,
-      );
+      const isInstallmentEntry =
+        Boolean(previewItem?.isInstallment) &&
+        Boolean(previewItem?.purchaseOccurredOn) &&
+        Boolean(previewItem?.normalizedPurchaseDescriptionBase) &&
+        Number.isInteger(previewItem?.installmentCount);
 
-      if (commitFingerprints.has(seedKey) && !normalized.ignoreDuplicate) {
-        skippedCount += 1;
+      const installmentPurchaseSeedKey = isInstallmentEntry
+        ? buildInstallmentPurchaseSeedKey(
+            user.id,
+            session.bankConnectionId,
+            previewItem.purchaseOccurredOn,
+            previewItem.normalizedPurchaseDescriptionBase,
+            Math.abs(normalized.signedAmount),
+            Number(previewItem.installmentCount),
+          )
+        : null;
+      const importedTransactions = [];
+      let duplicateEntries = 0;
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        let installmentPurchase = null;
+
+        if (installmentPurchaseSeedKey) {
+          installmentPurchase = await getOrCreateInstallmentPurchase(
+            {
+              userId: user.id,
+              bankConnectionId: session.bankConnectionId,
+              categoryId: normalized.categoryId,
+              seedKey: installmentPurchaseSeedKey,
+              descriptionBase: previewItem.purchaseDescriptionBase,
+              normalizedDescriptionBase: previewItem.normalizedPurchaseDescriptionBase,
+              purchaseOccurredOn: previewItem.purchaseOccurredOn,
+              installmentCount: Number(previewItem.installmentCount),
+              amountPerInstallment: Math.abs(normalized.signedAmount),
+            },
+            client,
+          );
+        }
+
+        for (const entry of entriesToImport) {
+          const seedKey =
+            installmentPurchaseSeedKey && Number.isInteger(entry.installmentNumber)
+              ? buildInstallmentTransactionSeedKey(user.id, installmentPurchaseSeedKey, entry.installmentNumber)
+              : buildImportSeedKey(
+                  user.id,
+                  entry.occurredOn,
+                  entry.amount,
+                  normalized.normalizedFinalDescription,
+                );
+
+          if (commitFingerprints.has(seedKey) && !normalized.ignoreDuplicate) {
+            duplicateEntries += 1;
+            continue;
+          }
+
+          const transaction = await createImportedTransaction(
+            {
+              userId: user.id,
+              bankConnectionId: session.bankConnectionId,
+              categoryId: entry.categoryId,
+              description: entry.description,
+              amount: entry.amount,
+              occurredOn: entry.occurredOn,
+              seedKey,
+              installmentPurchaseId: installmentPurchase?.id ?? null,
+              installmentNumber: entry.installmentNumber,
+            },
+            client,
+          );
+
+          commitFingerprints.add(seedKey);
+
+          if (!transaction) {
+            duplicateEntries += 1;
+            continue;
+          }
+
+          importedTransactions.push(transaction);
+        }
+
+        if (importedTransactions.length > 0) {
+          await upsertTransactionCategorizationRule({
+            userId: user.id,
+            matchKey: extractCategorizationMatchKey(normalized.description),
+            type: normalized.type,
+            categoryId: normalized.categoryId,
+          }, client);
+        }
+
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      if (!importedTransactions.length) {
+        skippedCount += duplicateEntries;
         results.push({
           rowIndex: item.rowIndex,
           status: "skipped",
           reason: "duplicate",
-          message: "Linha pulada por duplicata provavel.",
+          message:
+            duplicateEntries > 0
+              ? `${formatImportEntryCount(duplicateEntries, entryLabelSingular, entryLabelPlural)} pulada${
+                  duplicateEntries === 1 ? "" : "s"
+                } por duplicata provavel.`
+              : "Linha ja importada anteriormente.",
         });
         continue;
       }
 
-      const transaction = await createImportedTransaction({
-        userId: user.id,
-        bankConnectionId: session.bankConnectionId,
-        categoryId: normalized.categoryId,
-        description: normalized.description,
-        amount: normalized.signedAmount,
-        occurredOn: normalized.normalizedOccurredOn,
-        seedKey,
-      });
-
-      commitFingerprints.add(seedKey);
-
-      if (!transaction) {
-        skippedCount += 1;
-        results.push({
-          rowIndex: item.rowIndex,
-          status: "skipped",
-          reason: "already_imported",
-          message: "Linha ja importada anteriormente.",
-        });
-        continue;
-      }
-
-      importedCount += 1;
-      await upsertTransactionCategorizationRule({
-        userId: user.id,
-        matchKey: extractCategorizationMatchKey(normalized.description),
-        type: normalized.type,
-        categoryId: normalized.categoryId,
-      });
+      importedCount += importedTransactions.length;
+      skippedCount += duplicateEntries;
       results.push({
         rowIndex: item.rowIndex,
         status: "imported",
-        reason: "success",
-        message: "Linha importada com sucesso.",
-        transaction,
+        reason: duplicateEntries > 0 ? "partial_success" : "success",
+        message:
+          duplicateEntries > 0
+            ? `${formatImportEntryCount(importedTransactions.length, entryLabelSingular, entryLabelPlural)} importada${
+                importedTransactions.length === 1 ? "" : "s"
+              } e ${formatImportEntryCount(duplicateEntries, entryLabelSingular, entryLabelPlural)} ignorada${
+                duplicateEntries === 1 ? "" : "s"
+              } por duplicata.`
+            : `${formatImportEntryCount(importedTransactions.length, entryLabelSingular, entryLabelPlural)} importada${
+                importedTransactions.length === 1 ? "" : "s"
+              } com sucesso.`,
+        transaction: importedTransactions[0],
       });
     } catch (error) {
       failedCount += 1;

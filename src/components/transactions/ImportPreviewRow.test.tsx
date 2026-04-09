@@ -47,10 +47,17 @@ const baseItem: ImportPreviewItem = {
   rowIndex: 1,
   description: "Transferencia recebida",
   normalizedDescription: "transferencia recebida",
+  purchaseDescriptionBase: null,
+  normalizedPurchaseDescriptionBase: null,
   amount: "396.00",
   normalizedAmount: "396.00",
   occurredOn: "2026-03-28",
   normalizedOccurredOn: "2026-03-28",
+  purchaseOccurredOn: null,
+  isInstallment: false,
+  installmentIndex: null,
+  installmentCount: null,
+  generatedInstallmentCount: null,
   type: "income",
   suggestedCategoryId: null,
   suggestedCategoryLabel: null,
@@ -148,5 +155,34 @@ describe("ImportPreviewRow", () => {
     expect(screen.getByText("Recorrencia")).toBeInTheDocument();
     expect(screen.getByText(/Historico do usuario: Receita - Salario/i)).toBeInTheDocument();
     expect(screen.getByText(/Regra recorrente: Receita - Salario/i)).toBeInTheDocument();
+  });
+
+  it("shows installment expansion details when the row is parcelled", () => {
+    render(
+      <Table>
+        <TableBody>
+          <ImportPreviewRow
+            draft={{ ...incomeDraft, type: "expense", categoryId: 2 }}
+            item={{
+              ...baseItem,
+              type: "expense",
+              isInstallment: true,
+              installmentIndex: 3,
+              installmentCount: 10,
+              generatedInstallmentCount: 8,
+              canImport: true,
+              requiresCategorySelection: false,
+              requiresUserAction: false,
+            }}
+            categories={categories}
+            onChange={vi.fn()}
+            onCreateCategory={vi.fn()}
+          />
+        </TableBody>
+      </Table>,
+    );
+
+    expect(screen.getByText("3/10 parcelas")).toBeInTheDocument();
+    expect(screen.getByText(/expandida em 8 despesas mensais/i)).toBeInTheDocument();
   });
 });

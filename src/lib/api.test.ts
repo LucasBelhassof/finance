@@ -41,6 +41,7 @@ describe("api mappers", () => {
     expect(transaction.category.color).toBe("text-primary");
     expect(transaction.account.name).toBe("Caixa/Dinheiro");
     expect(transaction.account.accountType).toBe("cash");
+    expect(transaction.isInstallment).toBe(false);
   });
 
   it("maps spending payloads with sane defaults", () => {
@@ -143,10 +144,13 @@ describe("api mappers", () => {
           rowIndex: 1,
           description: "iFood",
           normalizedDescription: "ifood",
+          purchaseDescriptionBase: null,
+          normalizedPurchaseDescriptionBase: null,
           amount: "67.90",
           normalizedAmount: "67.90",
           occurredOn: "2026-04-06",
           normalizedOccurredOn: "2026-04-06",
+          purchaseOccurredOn: null,
           type: "expense",
           bankConnectionId: 9,
           bankConnectionName: "Nubank",
@@ -188,6 +192,11 @@ describe("api mappers", () => {
             description: "iFood",
             amount: -67.9,
             occurredOn: "2026-04-06",
+            installmentPurchaseId: 51,
+            installmentNumber: 2,
+            installmentCount: 10,
+            purchaseOccurredOn: "2026-03-15",
+            isInstallment: true,
             account: {
               id: 9,
               slug: "nubank",
@@ -220,6 +229,8 @@ describe("api mappers", () => {
     expect(commit.results[0].status).toBe("imported");
     expect(commit.results[0].transaction?.description).toBe("iFood");
     expect(commit.results[0].transaction?.account.name).toBe("Nubank");
+    expect(commit.results[0].transaction?.installmentNumber).toBe(2);
+    expect(commit.results[0].transaction?.purchaseOccurredOn).toBe("2026-03-15");
   });
 
   it("maps preview suggestion sources from history and recurring rules", () => {
@@ -240,10 +251,13 @@ describe("api mappers", () => {
           rowIndex: 1,
           description: "PIX Levi",
           normalizedDescription: "pix levi",
+          purchaseDescriptionBase: null,
+          normalizedPurchaseDescriptionBase: null,
           amount: "396.00",
           normalizedAmount: "396.00",
           occurredOn: "2026-04-06",
           normalizedOccurredOn: "2026-04-06",
+          purchaseOccurredOn: null,
           type: "income",
           bankConnectionId: 1,
           bankConnectionName: "Itau",
@@ -263,10 +277,13 @@ describe("api mappers", () => {
           rowIndex: 2,
           description: "PIX Levi",
           normalizedDescription: "pix levi",
+          purchaseDescriptionBase: null,
+          normalizedPurchaseDescriptionBase: null,
           amount: "396.00",
           normalizedAmount: "396.00",
           occurredOn: "2026-04-06",
           normalizedOccurredOn: "2026-04-06",
+          purchaseOccurredOn: null,
           type: "income",
           bankConnectionId: 1,
           bankConnectionName: "Itau",

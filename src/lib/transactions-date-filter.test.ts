@@ -13,16 +13,16 @@ describe("transactions date filter utils", () => {
     const referenceDate = new Date(2026, 3, 6, 10, 0, 0);
 
     expect(resolvePresetRange("week", referenceDate)).toEqual({
-      startDate: "2026-03-31",
-      endDate: "2026-04-06",
+      startDate: "2026-04-06",
+      endDate: "2026-04-12",
     });
     expect(resolvePresetRange("fifteen_days", referenceDate)).toEqual({
-      startDate: "2026-03-23",
-      endDate: "2026-04-06",
+      startDate: "2026-04-06",
+      endDate: "2026-04-20",
     });
     expect(resolvePresetRange("month", referenceDate)).toEqual({
       startDate: "2026-04-01",
-      endDate: "2026-04-06",
+      endDate: "2026-04-30",
     });
     expect(resolvePresetRange("year", referenceDate)).toEqual({
       startDate: "2026-01-01",
@@ -32,13 +32,13 @@ describe("transactions date filter utils", () => {
 
   it("compares dates inclusively", () => {
     const range = {
-      startDate: "2026-04-01",
-      endDate: "2026-04-06",
+      startDate: "2026-04-06",
+      endDate: "2026-04-20",
     };
 
-    expect(isDateInRange("2026-04-01", range)).toBe(true);
     expect(isDateInRange("2026-04-06", range)).toBe(true);
-    expect(isDateInRange("2026-03-31", range)).toBe(false);
+    expect(isDateInRange("2026-04-20", range)).toBe(true);
+    expect(isDateInRange("2026-04-21", range)).toBe(false);
   });
 
   it("formats labels and validates custom ranges", () => {

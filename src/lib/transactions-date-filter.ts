@@ -33,25 +33,41 @@ export function shiftDateKey(value: string, amountInDays: number) {
   return getLocalDateKey(date);
 }
 
+function getStartOfWeek(now: Date) {
+  const currentDay = now.getDay();
+  const offsetToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+  const startOfWeek = createLocalDate(now.getFullYear(), now.getMonth(), now.getDate());
+  startOfWeek.setDate(startOfWeek.getDate() + offsetToMonday);
+  return startOfWeek;
+}
+
 export function resolvePresetRange(preset: TransactionsDateFilterPreset, now = new Date()): TransactionsDateRange {
   const today = getLocalDateKey(now);
 
   switch (preset) {
     case "week":
-      return {
-        startDate: shiftDateKey(today, -6),
-        endDate: today,
-      };
+      {
+        const startOfWeek = getStartOfWeek(now);
+
+        return {
+          startDate: getLocalDateKey(startOfWeek),
+          endDate: getLocalDateKey(createLocalDate(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6)),
+        };
+      }
     case "fifteen_days":
       return {
-        startDate: shiftDateKey(today, -14),
-        endDate: today,
+        startDate: today,
+        endDate: shiftDateKey(today, 14),
       };
     case "month":
-      return {
-        startDate: getLocalDateKey(createLocalDate(now.getFullYear(), now.getMonth(), 1)),
-        endDate: today,
-      };
+      {
+        const lastDayOfMonth = createLocalDate(now.getFullYear(), now.getMonth() + 1, 0);
+
+        return {
+          startDate: getLocalDateKey(createLocalDate(now.getFullYear(), now.getMonth(), 1)),
+          endDate: getLocalDateKey(lastDayOfMonth),
+        };
+      }
     case "year":
       return {
         startDate: getLocalDateKey(createLocalDate(now.getFullYear(), 0, 1)),

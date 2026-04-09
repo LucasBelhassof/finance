@@ -232,6 +232,140 @@ export function normalizeOccurredOnToStatementMonth(occurredOn, fileMetadata) {
   return `${String(statementYear).padStart(4, "0")}-${String(statementMonth).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`;
 }
 
+export function addMonthsToOccurredOn(occurredOn, monthsToAdd) {
+  if (!occurredOn || !/^\d{4}-\d{2}-\d{2}$/.test(occurredOn) || !Number.isInteger(monthsToAdd)) {
+    throw new Error("Data base invalida para calcular parcelas.");
+  }
+
+  const [year, month, day] = occurredOn.split("-").map(Number);
+  const nextMonthIndex = month - 1 + monthsToAdd;
+  const nextYear = year + Math.floor(nextMonthIndex / 12);
+  const normalizedMonthIndex = ((nextMonthIndex % 12) + 12) % 12;
+  const nextMonth = normalizedMonthIndex + 1;
+  const clampedDay = Math.min(day, getDaysInMonth(nextYear, nextMonth));
+
+  return `${String(nextYear).padStart(4, "0")}-${String(nextMonth).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`;
+}
+
+export function extractInstallmentMetadata(description) {
+  const normalizedDescription = String(description ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalizedDescription) {
+    return {
+      isInstallment: false,
+      installmentIndex: null,
+      installmentCount: null,
+      generatedInstallmentCount: null,
+    };
+  }
+
+  const patterns = [
+    /\bparcela\s+(\d{1,2})\s*(?:de|\/)\s*(\d{1,2})\b/i,
+    /\b(\d{1,2})\/(\d{1,2})\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalizedDescription.match(pattern);
+
+    if (!match) {
+      continue;
+    }
+
+    const installmentIndex = Number(match[1]);
+    const installmentCount = Number(match[2]);
+
+    if (
+      !Number.isInteger(installmentIndex) ||
+      !Number.isInteger(installmentCount) ||
+      installmentIndex < 1 ||
+      installmentCount < 2 ||
+      installmentIndex > installmentCount
+    ) {
+      continue;
+    }
+
+    return {
+      isInstallment: true,
+      installmentIndex,
+      installmentCount,
+      generatedInstallmentCount: installmentCount - installmentIndex + 1,
+    };
+  }
+
+  return {
+    isInstallment: false,
+    installmentIndex: null,
+    installmentCount: null,
+    generatedInstallmentCount: null,
+  };
+}
+
+export function stripInstallmentMarker(description) {
+  const rawDescription = String(description ?? "").trim();
+
+  if (!rawDescription) {
+    return "";
+  }
+
+  const withoutParenthesizedMarker = rawDescription
+    .replace(/\(\s*parcela\s+\d{1,2}\s*(?:de|\/)\s*\d{1,2}\s*\)/i, "")
+    .trim();
+  const withoutInlineMarker = withoutParenthesizedMarker
+    .replace(/\bparcela\s+\d{1,2}\s*(?:de|\/)\s*\d{1,2}\b/i, "")
+    .replace(/\b\d{1,2}\/\d{1,2}\b/, "")
+    .replace(/\s+-\s*$/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return withoutInlineMarker || rawDescription;
+}
+
+export function formatInstallmentDescription(descriptionBase, installmentNumber, installmentCount) {
+  const base = String(descriptionBase ?? "").trim();
+
+  if (!base || !Number.isInteger(installmentNumber) || !Number.isInteger(installmentCount)) {
+    return base;
+  }
+
+  return `${base} ${installmentNumber}/${installmentCount}`.trim();
+}
+
+export function buildInstallmentPurchaseSeedKey(
+  userId,
+  bankConnectionId,
+  purchaseOccurredOn,
+  normalizedDescriptionBase,
+  amountPerInstallment,
+  installmentCount,
+) {
+  return crypto
+    .createHash("sha256")
+    .update(
+      [
+        String(userId),
+        String(bankConnectionId),
+        String(purchaseOccurredOn),
+        String(normalizedDescriptionBase),
+        normalizeAmountString(Math.abs(Number(amountPerInstallment))),
+        String(installmentCount),
+        "installment_purchase_v1",
+      ].join("|"),
+    )
+    .digest("hex");
+}
+
+export function buildInstallmentTransactionSeedKey(userId, installmentPurchaseSeedKey, installmentNumber) {
+  return crypto
+    .createHash("sha256")
+    .update([String(userId), String(installmentPurchaseSeedKey), String(installmentNumber), "installment_transaction_v1"].join("|"))
+    .digest("hex");
+}
+
 export function extractImportFileMetadata(filename) {
   const rawFilename = String(filename ?? "").trim();
   const basename = rawFilename.replace(/\.[^.]+$/, "");
@@ -1010,6 +1144,7 @@ function buildRowSource(headerRow, rowValues) {
 function buildPreviewItem({
   importLayout,
   fileMetadata,
+  bankConnectionId,
   rowIndex,
   rowValues,
   headerRow,
@@ -1030,14 +1165,24 @@ function buildPreviewItem({
   let type = "expense";
   let absoluteAmount = null;
   let occurredOn = "";
+  let purchaseOccurredOn = null;
   let defaultExclude = false;
+  let installmentMetadata = {
+    purchaseDescriptionBase: null,
+    normalizedPurchaseDescriptionBase: null,
+    isInstallment: false,
+    installmentIndex: null,
+    installmentCount: null,
+    generatedInstallmentCount: null,
+  };
 
   if (!rawDescription) {
     errors.push("Descricao ausente.");
   }
 
   try {
-    occurredOn = parseOccurredOnInput(rowValues[headerIndexes.date]);
+    purchaseOccurredOn = parseOccurredOnInput(rowValues[headerIndexes.date]);
+    occurredOn = purchaseOccurredOn;
     if (importLayout === "credit_card_statement") {
       occurredOn = normalizeOccurredOnToStatementMonth(occurredOn, fileMetadata);
     }
@@ -1095,6 +1240,23 @@ function buildPreviewItem({
     warnings.push("Pagamento recebido de fatura sera ignorado por padrao.");
   }
 
+  if (importLayout === "credit_card_statement" && type === "expense") {
+    const parsedInstallmentMetadata = extractInstallmentMetadata(rawDescription);
+    const purchaseDescriptionBase = stripInstallmentMarker(rawDescription);
+    const normalizedPurchaseDescriptionBase = normalizeDescription(purchaseDescriptionBase);
+    installmentMetadata = {
+      purchaseDescriptionBase,
+      normalizedPurchaseDescriptionBase,
+      ...parsedInstallmentMetadata,
+    };
+
+    if (installmentMetadata.isInstallment && installmentMetadata.generatedInstallmentCount) {
+      warnings.push(
+        `Compra parcelada detectada: ${installmentMetadata.generatedInstallmentCount} despesas mensais serao geradas ao importar.`,
+      );
+    }
+  }
+
   let normalizedAmount = absoluteAmount !== null ? normalizeAmountString(absoluteAmount) : "";
   let signedAmount = absoluteAmount !== null ? signedAmountFromType(type, absoluteAmount) : null;
 
@@ -1102,7 +1264,25 @@ function buildPreviewItem({
   let duplicateReason = "";
 
   if (occurredOn && signedAmount !== null && normalizedDescriptionValue) {
-    const fingerprint = buildFingerprint(userId, occurredOn, signedAmount, normalizedDescriptionValue);
+    const fingerprint =
+      installmentMetadata.isInstallment &&
+      purchaseOccurredOn &&
+      installmentMetadata.normalizedPurchaseDescriptionBase &&
+      Number.isInteger(installmentMetadata.installmentIndex) &&
+      Number.isInteger(installmentMetadata.installmentCount)
+        ? buildInstallmentTransactionSeedKey(
+            userId,
+            buildInstallmentPurchaseSeedKey(
+              userId,
+              bankConnectionId,
+              purchaseOccurredOn,
+              installmentMetadata.normalizedPurchaseDescriptionBase,
+              absoluteAmount,
+              installmentMetadata.installmentCount,
+            ),
+            installmentMetadata.installmentIndex,
+          )
+        : buildFingerprint(userId, occurredOn, signedAmount, normalizedDescriptionValue);
 
     if (existingFingerprints.has(fingerprint)) {
       possibleDuplicate = true;
@@ -1133,10 +1313,17 @@ function buildPreviewItem({
     rowIndex,
     description: rawDescription,
     normalizedDescription: normalizedDescriptionValue,
+    purchaseDescriptionBase: installmentMetadata.purchaseDescriptionBase,
+    normalizedPurchaseDescriptionBase: installmentMetadata.normalizedPurchaseDescriptionBase,
     amount: normalizedAmount,
     normalizedAmount,
     occurredOn,
     normalizedOccurredOn: occurredOn,
+    purchaseOccurredOn,
+    isInstallment: installmentMetadata.isInstallment,
+    installmentIndex: installmentMetadata.installmentIndex,
+    installmentCount: installmentMetadata.installmentCount,
+    generatedInstallmentCount: installmentMetadata.generatedInstallmentCount,
     type,
     suggestedCategoryId: finalSuggestedCategory?.id ?? null,
     suggestedCategoryLabel: finalSuggestedCategory?.label ?? null,
@@ -1231,6 +1418,7 @@ function buildRecurringRuleMatches(rows) {
 }
 
 function buildPreviewItems({
+  bankConnectionId,
   categories,
   existingFingerprints,
   fileMetadata,
@@ -1251,6 +1439,7 @@ function buildPreviewItems({
     buildPreviewItem({
       importLayout,
       fileMetadata,
+      bankConnectionId,
       rowIndex: index + 1,
       rowValues,
       headerRow,
@@ -1670,6 +1859,7 @@ export async function createImportPreview({
   const headerRow = extracted.headerRow;
   const headerIndexes = resolveHeaderIndexes(headerRow);
   const items = buildPreviewItems({
+    bankConnectionId,
     categories,
     existingFingerprints,
     fileMetadata: extracted.fileMetadata,
@@ -1831,6 +2021,49 @@ export function validateCommitLine(input, categories) {
     exclude: Boolean(input.exclude),
     ignoreDuplicate: Boolean(input.ignoreDuplicate),
   };
+}
+
+export function buildImportedTransactionEntries({ normalizedLine, previewItem }) {
+  const generatedInstallmentCount =
+    previewItem?.importSource === "credit_card_statement" &&
+    previewItem?.isInstallment &&
+    Number.isInteger(previewItem.generatedInstallmentCount) &&
+    Number(previewItem.generatedInstallmentCount) > 0
+      ? Number(previewItem.generatedInstallmentCount)
+      : 1;
+
+  return Array.from({ length: generatedInstallmentCount }, (_, index) => ({
+    description:
+      previewItem?.isInstallment &&
+      previewItem?.purchaseDescriptionBase &&
+      Number.isInteger(previewItem.installmentCount) &&
+      Number.isInteger(previewItem.installmentIndex)
+        ? formatInstallmentDescription(
+            previewItem.purchaseDescriptionBase,
+            Number(previewItem.installmentIndex) + index,
+            Number(previewItem.installmentCount),
+          )
+        : normalizedLine.description,
+    descriptionBase:
+      previewItem?.purchaseDescriptionBase && previewItem?.normalizedPurchaseDescriptionBase
+        ? previewItem.purchaseDescriptionBase
+        : normalizedLine.description,
+    normalizedDescriptionBase:
+      previewItem?.normalizedPurchaseDescriptionBase && previewItem?.purchaseDescriptionBase
+        ? previewItem.normalizedPurchaseDescriptionBase
+        : normalizedLine.normalizedFinalDescription,
+    categoryId: normalizedLine.categoryId,
+    amount: normalizedLine.signedAmount,
+    occurredOn: addMonthsToOccurredOn(normalizedLine.normalizedOccurredOn, index),
+    purchaseOccurredOn: previewItem?.purchaseOccurredOn ?? normalizedLine.normalizedOccurredOn,
+    type: normalizedLine.type,
+    installmentCount:
+      previewItem?.isInstallment && Number.isInteger(previewItem.installmentCount) ? Number(previewItem.installmentCount) : null,
+    installmentNumber:
+      previewItem?.isInstallment && Number.isInteger(previewItem.installmentIndex)
+        ? Number(previewItem.installmentIndex) + index
+        : null,
+  }));
 }
 
 export function buildImportSeedKey(userId, occurredOn, signedAmount, normalizedFinalDescription) {

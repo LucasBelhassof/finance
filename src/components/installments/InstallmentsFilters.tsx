@@ -1,7 +1,7 @@
 import { Download, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { DateRangePickerInput } from "@/components/ui/date-picker-input";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { InstallmentSortBy, InstallmentSortOrder, InstallmentsOverview, InstallmentsOverviewFilters } from "@/types/api";
@@ -154,23 +154,20 @@ export default function InstallmentsFilters({ filters, overview, onChange, onExp
           />
         </label>
 
-        <label className="space-y-1 text-sm text-muted-foreground">
-          <span>Compra de</span>
-          <DatePickerInput
-            value={filters.purchaseStart ?? ""}
-            onChange={(value) => update("purchaseStart", value || null)}
+        <label className="space-y-1 text-sm text-muted-foreground lg:col-span-2 2xl:col-span-2">
+          <span>Periodo da compra</span>
+          <DateRangePickerInput
+            startValue={filters.purchaseStart}
+            endValue={filters.purchaseEnd}
+            onChange={({ startValue, endValue }) => {
+              onChange({
+                ...filters,
+                purchaseStart: startValue,
+                purchaseEnd: endValue,
+              });
+            }}
             className="h-11"
-            placeholder="Selecione a data inicial"
-          />
-        </label>
-
-        <label className="space-y-1 text-sm text-muted-foreground">
-          <span>Compra ate</span>
-          <DatePickerInput
-            value={filters.purchaseEnd ?? ""}
-            onChange={(value) => update("purchaseEnd", value || null)}
-            className="h-11"
-            placeholder="Selecione a data final"
+            placeholder="Selecione a data inicial e final"
           />
         </label>
       </div>

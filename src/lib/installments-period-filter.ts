@@ -1,4 +1,5 @@
 export type InstallmentsPeriodPreset = "current_month" | "next_month" | "custom";
+export type InstallmentsChartPeriodPreset = "next_6_months" | "current_year" | "custom";
 
 export type InstallmentsPeriodRange = {
   startDate: string;
@@ -27,5 +28,22 @@ export function resolveInstallmentsPeriodRange(preset: Exclude<InstallmentsPerio
   return {
     startDate: getLocalDateKey(startDate),
     endDate: getLocalDateKey(endDate),
+  };
+}
+
+export function resolveInstallmentsChartPeriodRange(
+  preset: Exclude<InstallmentsChartPeriodPreset, "custom">,
+  now = new Date(),
+): InstallmentsPeriodRange {
+  if (preset === "current_year") {
+    return {
+      startDate: getLocalDateKey(createLocalDate(now.getFullYear(), 0, 1)),
+      endDate: getLocalDateKey(createLocalDate(now.getFullYear(), 12, 0)),
+    };
+  }
+
+  return {
+    startDate: getLocalDateKey(createLocalDate(now.getFullYear(), now.getMonth(), 1)),
+    endDate: getLocalDateKey(createLocalDate(now.getFullYear(), now.getMonth() + 6, 0)),
   };
 }

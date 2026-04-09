@@ -157,6 +157,94 @@ function createOverview(overrides: Partial<InstallmentsOverview> = {}): Installm
   };
 }
 
+function createOverviewForFilters(filters: { purchaseStart?: string | null; purchaseEnd?: string | null; status?: string } = {}) {
+  if (filters.status === "paid") {
+    return createOverview({
+      activeInstallmentsCount: 0,
+      monthlyCommitment: 0,
+      remainingBalanceTotal: 0,
+      items: [],
+      charts: {
+        next3MonthsProjection: [
+          { month: "2026-04", amount: 0 },
+          { month: "2026-05", amount: 0 },
+          { month: "2026-06", amount: 0 },
+        ],
+        monthlyCommitmentEvolution: [],
+        cardDistribution: [],
+        topCategories: [],
+      },
+    });
+  }
+
+  if (filters.purchaseStart === "2026-04-01" && filters.purchaseEnd === "2026-09-30") {
+    return createOverview({
+      charts: {
+        ...createOverview().charts,
+        monthlyCommitmentEvolution: [
+          { month: "2026-04", amount: 450 },
+          { month: "2026-05", amount: 420 },
+          { month: "2026-06", amount: 390 },
+          { month: "2026-07", amount: 360 },
+          { month: "2026-08", amount: 330 },
+          { month: "2026-09", amount: 300 },
+        ],
+      },
+    });
+  }
+
+  if (filters.purchaseStart === "2026-01-01" && filters.purchaseEnd === "2026-12-31") {
+    return createOverview({
+      charts: {
+        ...createOverview().charts,
+        monthlyCommitmentEvolution: [
+          { month: "2026-01", amount: 600 },
+          { month: "2026-02", amount: 560 },
+          { month: "2026-03", amount: 510 },
+          { month: "2026-04", amount: 450 },
+          { month: "2026-05", amount: 420 },
+          { month: "2026-06", amount: 390 },
+        ],
+      },
+    });
+  }
+
+  if (filters.purchaseStart === "2026-06-01" && filters.purchaseEnd === "2026-06-30") {
+    return createOverview({
+      items: [
+        {
+          transactionId: 103,
+          installmentTransactionId: 103,
+          installmentPurchaseId: 10,
+          description: "Notebook",
+          category: "Eletronicos",
+          categoryId: 1,
+          cardId: 2,
+          cardName: "Nubank",
+          purchaseDate: "2026-02-15",
+          totalAmount: 1200,
+          installmentAmount: 150,
+          installmentCount: 8,
+          currentInstallment: 6,
+          displayInstallmentNumber: 6,
+          remainingInstallments: 3,
+          remainingBalance: 450,
+          nextDueDate: "2026-06-15",
+          installmentDueDate: "2026-06-15",
+          installmentMonth: "2026-06",
+          status: "active",
+        },
+      ],
+      charts: {
+        ...createOverview().charts,
+        monthlyCommitmentEvolution: [{ month: "2026-06", amount: 150 }],
+      },
+    });
+  }
+
+  return createOverview();
+}
+
 describe("InstallmentsPage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -185,12 +273,12 @@ describe("InstallmentsPage", () => {
   });
 
   it("renders cards and detailed table from API data", () => {
-    mockUseInstallmentsOverview.mockReturnValue({
-      data: createOverview(),
+    mockUseInstallmentsOverview.mockImplementation((filters) => ({
+      data: createOverviewForFilters(filters),
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
-    });
+    }));
 
     render(<InstallmentsPage />);
 
@@ -201,66 +289,12 @@ describe("InstallmentsPage", () => {
   });
 
   it("updates the view when filters change and shows empty state", () => {
-    mockUseInstallmentsOverview.mockImplementation((filters) => {
-      if (filters.status === "paid") {
-        return {
-          data: createOverview({
-            activeInstallmentsCount: 0,
-            monthlyCommitment: 0,
-            remainingBalanceTotal: 0,
-            items: [],
-            charts: {
-              next3MonthsProjection: [
-                { month: "2026-04", amount: 0 },
-                { month: "2026-05", amount: 0 },
-                { month: "2026-06", amount: 0 },
-              ],
-              monthlyCommitmentEvolution: [],
-              cardDistribution: [],
-              topCategories: [],
-            },
-          }),
-          isLoading: false,
-          isError: false,
-          refetch: vi.fn(),
-        };
-      }
-
-      return {
-        data: createOverview({
-          items:
-            filters.purchaseStart === "2026-06-01" && filters.purchaseEnd === "2026-06-30"
-              ? [
-                  {
-                    transactionId: 103,
-                    installmentTransactionId: 103,
-                    installmentPurchaseId: 10,
-                    description: "Notebook",
-                    category: "Eletronicos",
-                    categoryId: 1,
-                    cardId: 2,
-                    cardName: "Nubank",
-                    purchaseDate: "2026-02-15",
-                    totalAmount: 1200,
-                    installmentAmount: 150,
-                    installmentCount: 8,
-                    currentInstallment: 6,
-                    displayInstallmentNumber: 6,
-                    remainingInstallments: 3,
-                    remainingBalance: 450,
-                    nextDueDate: "2026-06-15",
-                    installmentDueDate: "2026-06-15",
-                    installmentMonth: "2026-06",
-                    status: "active",
-                  },
-                ]
-              : createOverview().items,
-        }),
-        isLoading: false,
-        isError: false,
-        refetch: vi.fn(),
-      };
-    });
+    mockUseInstallmentsOverview.mockImplementation((filters) => ({
+      data: createOverviewForFilters(filters),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }));
 
     render(<InstallmentsPage />);
 
@@ -273,53 +307,80 @@ describe("InstallmentsPage", () => {
   });
 
   it("uses period presets and only shows the custom calendar when needed", () => {
-    mockUseInstallmentsOverview.mockReturnValue({
-      data: createOverview(),
+    mockUseInstallmentsOverview.mockImplementation((filters) => ({
+      data: createOverviewForFilters(filters),
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
-    });
+    }));
 
     render(<InstallmentsPage />);
 
-    expect(mockUseInstallmentsOverview).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(mockUseInstallmentsOverview).toHaveBeenCalledWith(expect.objectContaining({
       purchaseStart: "2026-04-01",
       purchaseEnd: "2026-04-30",
     }));
+    expect(mockUseInstallmentsOverview).toHaveBeenCalledWith(expect.objectContaining({
+      purchaseStart: "2026-04-01",
+      purchaseEnd: "2026-09-30",
+    }));
     expect(screen.queryByText("mock-range-picker")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("combobox").at(-1)!);
+    fireEvent.click(screen.getByTestId("installments-period-preset-trigger"));
     fireEvent.click(screen.getByRole("option", { name: "Proximo Mes" }));
 
-    expect(mockUseInstallmentsOverview).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(mockUseInstallmentsOverview).toHaveBeenCalledWith(expect.objectContaining({
       purchaseStart: "2026-04-01",
       purchaseEnd: "2026-04-30",
     }));
     fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
 
-    expect(mockUseInstallmentsOverview).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(mockUseInstallmentsOverview).toHaveBeenCalledWith(expect.objectContaining({
       purchaseStart: "2026-05-01",
       purchaseEnd: "2026-05-31",
     }));
     expect(screen.queryByText("mock-range-picker")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("combobox").at(-1)!);
+    fireEvent.click(screen.getByTestId("installments-period-preset-trigger"));
     fireEvent.click(screen.getByRole("option", { name: "Personalizado" }));
 
     expect(screen.getByText("2026-05-01:2026-05-31")).toBeInTheDocument();
     fireEvent.click(screen.getByText("2026-05-01:2026-05-31"));
 
-    expect(mockUseInstallmentsOverview).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(mockUseInstallmentsOverview).toHaveBeenCalledWith(expect.objectContaining({
       purchaseStart: "2026-06-01",
       purchaseEnd: "2026-06-30",
     }));
 
-    fireEvent.click(screen.getAllByRole("combobox").at(-1)!);
+    fireEvent.click(screen.getByTestId("installments-period-preset-trigger"));
     fireEvent.click(screen.getByRole("option", { name: "Mes Atual" }));
-    fireEvent.click(screen.getAllByRole("combobox").at(-1)!);
+    fireEvent.click(screen.getByTestId("installments-period-preset-trigger"));
     fireEvent.click(screen.getByRole("option", { name: "Personalizado" }));
 
     expect(screen.getByText("2026-06-01:2026-06-30")).toBeInTheDocument();
+  });
+
+  it("updates only the evolution chart when the chart period filter changes", () => {
+    mockUseInstallmentsOverview.mockImplementation((filters) => ({
+      data: createOverviewForFilters(filters),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }));
+
+    render(<InstallmentsPage />);
+
+    expect(screen.getAllByText("R$ 450,00").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByTestId("installments-chart-period-preset-trigger"));
+    fireEvent.click(screen.getByRole("option", { name: "Ano atual" }));
+
+    expect(mockUseInstallmentsOverview).toHaveBeenCalledWith(expect.objectContaining({
+      purchaseStart: "2026-01-01",
+      purchaseEnd: "2026-12-31",
+    }));
+    expect(screen.getAllByText("R$ 450,00").length).toBeGreaterThan(0);
+    expect(screen.getByText("Notebook")).toBeInTheDocument();
   });
 
   it("renders error state with retry action", () => {

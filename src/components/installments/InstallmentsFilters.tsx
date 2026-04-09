@@ -225,7 +225,10 @@ export default function InstallmentsFilters({
               value={periodPreset}
               onValueChange={(value) => onPeriodPresetChange(value as InstallmentsPeriodPreset)}
             >
-              <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
+              <SelectTrigger
+                data-testid="installments-period-preset-trigger"
+                className="h-11 rounded-xl border-border/60 bg-secondary/35"
+              >
                 <SelectValue placeholder="Mes atual" />
               </SelectTrigger>
               <SelectContent>

@@ -69,7 +69,7 @@ function buildCalendarClassNames() {
     head_cell: "w-[30px] rounded-md text-[0.72rem] font-normal text-muted-foreground",
     row: "mt-1 flex w-full justify-center",
     cell: "relative h-[30px] w-[30px] p-0 text-center text-sm focus-within:relative focus-within:z-20",
-    day: "h-[30px] w-[30px] rounded-md p-0 text-[0.92rem] font-normal hover:bg-primary/10 hover:text-foreground aria-selected:opacity-100",
+    day: "h-[30px] w-[30px] rounded-md p-0 text-[0.92rem] font-normal text-foreground hover:bg-primary/10 hover:text-foreground focus:text-foreground aria-selected:opacity-100",
     day_range_middle: "aria-selected:bg-primary/15 aria-selected:text-foreground",
   };
 }
@@ -106,7 +106,7 @@ export function DatePickerInput({
           variant="outline"
           disabled={disabled}
           className={cn(
-            "h-11 w-full justify-between rounded-xl border-border/60 bg-secondary/35 px-3 text-left font-normal text-foreground hover:bg-secondary/45",
+            "h-11 w-full justify-between rounded-xl border-border/60 bg-secondary/35 px-3 text-left font-normal text-foreground hover:bg-secondary/45 hover:text-foreground",
             !value && "text-muted-foreground",
             className,
           )}
@@ -260,7 +260,7 @@ export function DateRangePickerInput({
           variant="outline"
           disabled={disabled}
           className={cn(
-            "h-11 w-full justify-between rounded-xl border-border/60 bg-secondary/35 px-3 text-left font-normal text-foreground hover:bg-secondary/45",
+            "h-11 w-full justify-between rounded-xl border-border/60 bg-secondary/35 px-3 text-left font-normal text-foreground hover:bg-secondary/45 hover:text-foreground",
             !startValue && !endValue && "text-muted-foreground",
             className,
           )}

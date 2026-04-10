@@ -26,6 +26,7 @@ import {
   useCreateCategory,
   usePreviewTransactionImport,
 } from "@/hooks/use-transactions";
+import { DEFAULT_CATEGORY_COLOR, getCategoryColorInputValue } from "@/lib/category-colors";
 import { cn } from "@/lib/utils";
 import type {
   BankItem,
@@ -36,14 +37,6 @@ import type {
 } from "@/types/api";
 
 const PAGE_SIZE = 12;
-const colorSwatches = [
-  { text: "text-income", bg: "bg-income", ring: "ring-income/40" },
-  { text: "text-warning", bg: "bg-warning", ring: "ring-warning/40" },
-  { text: "text-info", bg: "bg-info", ring: "ring-info/40" },
-  { text: "text-expense", bg: "bg-expense", ring: "ring-expense/40" },
-  { text: "text-primary", bg: "bg-primary", ring: "ring-primary/40" },
-  { text: "text-muted-foreground", bg: "bg-muted-foreground", ring: "ring-muted-foreground/40" },
-];
 const transactionTypeOptions: Array<{ label: string; value: "income" | "expense" }> = [
   { label: "Receita", value: "income" },
   { label: "Despesa", value: "expense" },
@@ -94,9 +87,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     label: "",
     transactionType: "expense",
     icon: "Wallet",
-    color: "text-income",
+    color: DEFAULT_CATEGORY_COLOR,
     groupLabel: "",
-    groupColor: "bg-income",
+    groupColor: DEFAULT_CATEGORY_COLOR,
   });
 
   useEffect(() => {
@@ -113,9 +106,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
         label: "",
         transactionType: "expense",
         icon: "Wallet",
-        color: "text-income",
+        color: DEFAULT_CATEGORY_COLOR,
         groupLabel: "",
-        groupColor: "bg-income",
+        groupColor: DEFAULT_CATEGORY_COLOR,
       });
     }
   }, [open]);
@@ -228,9 +221,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
         label: "",
         transactionType: drafts[categoryTargetRow]?.type ?? "expense",
         icon: "Wallet",
-        color: "text-income",
+        color: DEFAULT_CATEGORY_COLOR,
         groupLabel: "",
-        groupColor: "bg-income",
+        groupColor: DEFAULT_CATEGORY_COLOR,
       });
       toast.success("Categoria criada.");
     } catch (error) {
@@ -505,25 +498,29 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Cor</p>
-              <div className="flex flex-wrap gap-3">
-                {colorSwatches.map((swatch) => (
-                  <button
-                    key={swatch.text}
-                    type="button"
-                    onClick={() =>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/35 px-3 py-2">
+                  <span
+                    className="h-8 w-8 rounded-full border border-white/20"
+                    style={{ backgroundColor: getCategoryColorInputValue(categoryForm.groupColor || categoryForm.color) }}
+                  />
+                  <input
+                    aria-label="Selecionar cor da categoria"
+                    type="color"
+                    value={getCategoryColorInputValue(categoryForm.groupColor || categoryForm.color)}
+                    onChange={(event) => {
+                      const nextColor = event.target.value;
+
                       setCategoryForm((current) => ({
                         ...current,
-                        color: swatch.text,
-                        groupColor: swatch.bg,
-                      }))
-                    }
-                    className={cn(
-                      "h-8 w-8 rounded-full border-2 transition-transform hover:scale-105",
-                      swatch.bg,
-                      categoryForm.color === swatch.text ? `scale-105 border-white ring-2 ${swatch.ring}` : "border-transparent",
-                    )}
+                        color: nextColor,
+                        groupColor: nextColor,
+                      }));
+                    }}
+                    className="h-10 w-16 cursor-pointer rounded-md border-0 bg-transparent p-0"
                   />
-                ))}
+                </label>
+                <span className="text-xs text-muted-foreground">{getCategoryColorInputValue(categoryForm.groupColor || categoryForm.color)}</span>
               </div>
             </div>
           </div>

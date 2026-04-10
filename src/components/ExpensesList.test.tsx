@@ -4,6 +4,7 @@ import { ArrowDownCircle } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
 import ExpensesList from "@/components/ExpensesList";
+import { appRoutes } from "@/lib/routes";
 import type { TransactionItem } from "@/types/api";
 
 const transactions: TransactionItem[] = [
@@ -48,8 +49,8 @@ describe("ExpensesList", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("link", { name: "Ver todas" })).toHaveAttribute("href", "/transactions");
-    expect(screen.getByRole("link", { name: /Abrir transacoes e ver Supermercado/i })).toHaveAttribute("href", "/transactions");
+    expect(screen.getByRole("link", { name: "Ver todas" })).toHaveAttribute("href", appRoutes.transactions);
+    expect(screen.getByRole("link", { name: /Abrir transacoes e ver Supermercado/i })).toHaveAttribute("href", appRoutes.transactions);
     expect(screen.getByText("Mercado · Nubank")).toBeInTheDocument();
   });
 

@@ -1,7 +1,8 @@
-import { ArrowDownCircle, ArrowUpCircle, Filter, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import AppShell from "@/components/AppShell";
+import CategoryPieChart from "@/components/CategoryPieChart";
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import {
@@ -45,6 +46,7 @@ import {
   useUpdateTransaction,
 } from "@/hooks/use-transactions";
 import { resolvePresetRange } from "@/lib/transactions-date-filter";
+import { DEFAULT_CATEGORY_COLOR, getCategoryColorInputValue, resolveCategoryColorPresentation } from "@/lib/category-colors";
 import { cn } from "@/lib/utils";
 import type { CreateCategoryInput, CreateTransactionInput, TransactionItem, UpdateTransactionInput } from "@/types/api";
 import { toast } from "@/components/ui/sonner";
@@ -66,15 +68,6 @@ const transactionTypeOptions: Array<{ label: string; value: "income" | "expense"
   { label: "Despesa", value: "expense" },
 ];
 
-const colorSwatches = [
-  { text: "text-income", bg: "bg-income", ring: "ring-income/40" },
-  { text: "text-warning", bg: "bg-warning", ring: "ring-warning/40" },
-  { text: "text-info", bg: "bg-info", ring: "ring-info/40" },
-  { text: "text-expense", bg: "bg-expense", ring: "ring-expense/40" },
-  { text: "text-primary", bg: "bg-primary", ring: "ring-primary/40" },
-  { text: "text-muted-foreground", bg: "bg-muted-foreground", ring: "ring-muted-foreground/40" },
-];
-
 const typeFilters: Array<{ label: string; value: TransactionTypeFilter }> = [
   { label: "Todas", value: "all" },
   { label: "Receitas", value: "income" },
@@ -90,25 +83,6 @@ function formatCurrency(value: number) {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
-}
-
-function textColorFromGroup(groupColor: string) {
-  if (groupColor.includes("warning")) {
-    return "text-warning";
-  }
-  if (groupColor.includes("info")) {
-    return "text-info";
-  }
-  if (groupColor.includes("expense")) {
-    return "text-expense";
-  }
-  if (groupColor.includes("income")) {
-    return "text-income";
-  }
-  if (groupColor.includes("muted")) {
-    return "text-muted-foreground";
-  }
-  return "text-primary";
 }
 
 function emptyTransactionForm(type: "income" | "expense" = "expense"): TransactionFormState {
@@ -148,7 +122,7 @@ function TransactionsSkeleton() {
       <div className="glass-card p-4">
         <Skeleton className="h-11 w-full" />
       </div>
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="glass-card p-5">
           <div className="space-y-4">
             {Array.from({ length: 7 }).map((_, index) => (
@@ -205,9 +179,9 @@ export default function TransactionsPage() {
     label: "",
     transactionType: "expense",
     icon: "Wallet",
-    color: "text-income",
+    color: DEFAULT_CATEGORY_COLOR,
     groupLabel: "",
-    groupColor: "bg-income",
+    groupColor: DEFAULT_CATEGORY_COLOR,
   });
   const transactionBanks = useMemo(
     () => banks.filter((bank) => bank.accountType === "bank_account" || bank.accountType === "credit_card"),
@@ -223,7 +197,7 @@ export default function TransactionsPage() {
     [transactions],
   );
 
-  const { filteredTransactions, summaryCardsData, categoryCounts } = useFilteredTransactionsData(visibleTransactions, categories, {
+  const { filteredTransactions, summaryCardsData, categoryBreakdown } = useFilteredTransactionsData(visibleTransactions, categories, {
     search,
     typeFilter,
     categoryFilter,
@@ -319,9 +293,9 @@ export default function TransactionsPage() {
         label: "",
         transactionType: "expense",
         icon: "Wallet",
-        color: "text-income",
+        color: DEFAULT_CATEGORY_COLOR,
         groupLabel: "",
-        groupColor: "bg-income",
+        groupColor: DEFAULT_CATEGORY_COLOR,
       });
     } catch (error) {
       toast.error(editingCategoryId ? "Nao foi possivel atualizar a categoria." : "Nao foi possivel criar a categoria.", {
@@ -383,6 +357,10 @@ export default function TransactionsPage() {
   const handleCustomRangeApply = (range: { startDate: string; endDate: string }) => {
     setDatePreset("custom");
     setDateRange(range);
+  };
+
+  const handleCategoryFilterChange = (nextCategoryId: string) => {
+    setCategoryFilter((current) => (current === nextCategoryId ? "all" : nextCategoryId));
   };
 
   if (isLoading) {
@@ -586,25 +564,29 @@ export default function TransactionsPage() {
             </div>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Cor</p>
-              <div className="flex flex-wrap gap-3">
-                {colorSwatches.map((swatch) => (
-                  <button
-                    key={swatch.text}
-                    type="button"
-                    onClick={() =>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/35 px-3 py-2">
+                  <span
+                    className="h-8 w-8 rounded-full border border-white/20"
+                    style={{ backgroundColor: getCategoryColorInputValue(categoryForm.groupColor || categoryForm.color) }}
+                  />
+                  <input
+                    aria-label="Selecionar cor da categoria"
+                    type="color"
+                    value={getCategoryColorInputValue(categoryForm.groupColor || categoryForm.color)}
+                    onChange={(event) => {
+                      const nextColor = event.target.value;
+
                       setCategoryForm((current) => ({
                         ...current,
-                        color: swatch.text,
-                        groupColor: swatch.bg,
-                      }))
-                    }
-                    className={cn(
-                      "h-8 w-8 rounded-full border-2 transition-transform hover:scale-105",
-                      swatch.bg,
-                      categoryForm.color === swatch.text ? `scale-105 border-white ring-2 ${swatch.ring}` : "border-transparent",
-                    )}
+                        color: nextColor,
+                        groupColor: nextColor,
+                      }));
+                    }}
+                    className="h-10 w-16 cursor-pointer rounded-md border-0 bg-transparent p-0"
                   />
-                ))}
+                </label>
+                <span className="text-xs text-muted-foreground">{getCategoryColorInputValue(categoryForm.groupColor || categoryForm.color)}</span>
               </div>
             </div>
           </div>
@@ -701,13 +683,13 @@ export default function TransactionsPage() {
                 {filter.label}
               </button>
             ))}
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="h-11 min-w-[160px] rounded-xl border-border/60 bg-secondary/35">
+            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
+              <SelectTrigger data-testid="transactions-category-filter-trigger" className="h-11 min-w-[160px] rounded-xl border-border/60 bg-secondary/35">
                 <SelectValue placeholder="Todas categorias" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas categorias</SelectItem>
-                {categoryCounts.map((group) => (
+                {categoryBreakdown.map((group) => (
                   <SelectItem key={group.id} value={group.id}>
                     {group.label}
                   </SelectItem>
@@ -719,7 +701,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-[1.7rem] font-semibold text-foreground">Todas as Transações</h2>
@@ -735,7 +717,7 @@ export default function TransactionsPage() {
               {filteredTransactions.map((transaction) => {
                 const Icon = transaction.amount >= 0 ? ArrowUpCircle : ArrowDownCircle;
                 const accentColor = transaction.amount >= 0 ? "text-income" : "text-expense";
-                const categoryTextColor = textColorFromGroup(transaction.category.groupColor);
+                const categoryColor = resolveCategoryColorPresentation(transaction.category.groupColor || transaction.category.color);
                 const transactionCategories = categories.filter(
                   (category) => category.transactionType === (transaction.amount >= 0 ? "income" : "expense"),
                 );
@@ -802,10 +784,8 @@ export default function TransactionsPage() {
                         ) : (
                           <button
                             type="button"
-                            className={cn(
-                              "rounded-md px-1.5 py-0.5 font-medium transition-colors hover:bg-secondary/50",
-                              categoryTextColor,
-                            )}
+                            className="rounded-md px-1.5 py-0.5 font-medium transition-colors hover:bg-secondary/50"
+                            style={{ color: categoryColor.text }}
                             onClick={(event) => {
                               event.stopPropagation();
                               if (isUpdatingCategory) {
@@ -849,63 +829,82 @@ export default function TransactionsPage() {
                   label: "",
                   transactionType: "expense",
                   icon: "Wallet",
-                  color: "text-income",
+                  color: DEFAULT_CATEGORY_COLOR,
                   groupLabel: "",
-                  groupColor: "bg-income",
+                  groupColor: DEFAULT_CATEGORY_COLOR,
                 });
                 setCategoryDialogOpen(true);
               }}
               className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              aria-label="Nova categoria"
             >
               <Plus size={16} />
             </button>
           </div>
 
           <div className="space-y-5">
-            {categoryCounts.map((group) => (
-              <div
-                key={group.id}
-                className={cn(
-                  "group grid grid-cols-[minmax(0,1fr)_20px_24px] items-center gap-2 rounded-xl px-2 py-2 transition-colors hover:bg-secondary/30",
-                  categoryFilter === group.id && "bg-primary/10",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => setCategoryFilter((current) => (current === group.id ? "all" : group.id))}
-                  className="flex min-w-0 items-center gap-2.5 text-left"
-                >
-                  <span className={cn("h-3 w-3 shrink-0 rounded-full", group.color)} />
-                  <span className="break-words text-[0.96rem] font-medium leading-snug text-foreground">{group.label}</span>
-                </button>
-                <span className="text-right text-sm tabular-nums text-muted-foreground">{group.count}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const category = categories.find((item) => String(item.id) === group.id);
+            <CategoryPieChart
+              items={categoryBreakdown}
+              selectedItemId={categoryFilter === "all" ? undefined : categoryFilter}
+              onSelectItem={handleCategoryFilterChange}
+              emptyMessage="Nenhuma categoria encontrada para os filtros atuais."
+              isError={isError}
+              emptyErrorMessage="Nao foi possivel carregar o consolidado por categoria."
+            />
 
-                    if (!category) {
-                      return;
-                    }
+            {categoryBreakdown.length ? (
+              <div className="space-y-2 border-t border-border/40 pt-4">
+                {categoryBreakdown.map((group) => {
+                  const color = resolveCategoryColorPresentation(group.color);
+                  const selected = categoryFilter === group.id;
 
-                    setEditingCategoryId(group.id);
-                    setCategoryForm({
-                      label: category.label,
-                      transactionType: category.transactionType,
-                      icon: category.iconName || "Wallet",
-                      color: category.color,
-                      groupLabel: category.label,
-                      groupColor: category.groupColor,
-                    });
-                    setCategoryDialogOpen(true);
-                  }}
-                  className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover:opacity-100"
-                  aria-label={`Editar categoria ${group.label}`}
-                >
-                  <Pencil size={14} />
-                </button>
+                  return (
+                    <div
+                      key={group.id}
+                      className="group grid grid-cols-[minmax(0,1fr)_44px_24px] items-center gap-2 rounded-xl px-2 py-2 transition-colors hover:bg-secondary/30"
+                      style={selected ? { backgroundColor: color.soft } : undefined}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleCategoryFilterChange(group.id)}
+                        className="flex min-w-0 items-center gap-2.5 text-left"
+                        aria-label={`Filtrar por categoria ${group.label}`}
+                        aria-pressed={selected}
+                      >
+                        <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color.solid }} />
+                        <span className="break-words text-[0.96rem] font-medium leading-snug text-foreground">{group.label}</span>
+                      </button>
+                      <span className="text-right text-sm tabular-nums text-muted-foreground">{group.count}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const category = categories.find((item) => String(item.id) === group.id);
+
+                          if (!category) {
+                            return;
+                          }
+
+                          setEditingCategoryId(group.id);
+                          setCategoryForm({
+                            label: category.label,
+                            transactionType: category.transactionType,
+                            icon: category.iconName || "Wallet",
+                            color: category.color,
+                            groupLabel: category.label,
+                            groupColor: category.groupColor,
+                          });
+                          setCategoryDialogOpen(true);
+                        }}
+                        className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+                        aria-label={`Editar categoria ${group.label}`}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            ) : null}
           </div>
         </div>
       </div>

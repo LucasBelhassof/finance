@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
-import { Pie, PieChart, Cell } from "recharts";
 
+import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import {
   Select,
   SelectContent,
@@ -37,22 +36,6 @@ function SpendingChartSkeleton() {
   );
 }
 
-const tailwindColorToCss: Record<string, string> = {
-  "bg-primary": "hsl(var(--primary))",
-  "bg-income": "hsl(var(--income))",
-  "bg-expense": "hsl(var(--expense))",
-  "bg-info": "hsl(var(--info))",
-  "bg-warning": "hsl(var(--warning))",
-  "bg-orange-500": "#f97316",
-  "bg-purple-500": "#a855f7",
-  "bg-red-500": "#ef4444",
-  "bg-amber-500": "#f59e0b",
-};
-
-function resolveChartColor(colorClass: string) {
-  return tailwindColorToCss[colorClass] ?? "hsl(var(--muted-foreground))";
-}
-
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -60,19 +43,16 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-type SpendingChartItem = {
-  slug: string;
-  label: string;
-  color: string;
-  total: number;
-  formattedTotal: string;
-  percentage: number;
-  fill: string;
-};
-
 export default function SpendingChart({ transactions = [], banks = [], isLoading, isError }: SpendingChartProps) {
   const [selectedBankId, setSelectedBankId] = useState("all");
-  const chartData = useMemo<SpendingChartItem[]>(() => {
+  const chartData = useMemo<CategoryPieChartItem[]>(() => {
+    type GroupedSpendingItem = {
+      slug: string;
+      label: string;
+      color: string;
+      total: number;
+    };
+
     const filteredExpenses = transactions.filter((transaction) => {
       if (transaction.amount >= 0) {
         return false;
@@ -86,7 +66,7 @@ export default function SpendingChart({ transactions = [], banks = [], isLoading
     });
 
     const totalExpenses = filteredExpenses.reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
-    const grouped = new Map<string, Omit<SpendingChartItem, "percentage" | "formattedTotal" | "fill">>();
+    const grouped = new Map<string, GroupedSpendingItem>();
 
     filteredExpenses.forEach((transaction) => {
       const key = transaction.category.groupSlug || transaction.category.slug;
@@ -104,21 +84,14 @@ export default function SpendingChart({ transactions = [], banks = [], isLoading
     return Array.from(grouped.values())
       .sort((left, right) => right.total - left.total)
       .map((item) => ({
-        ...item,
+        id: item.slug,
+        label: item.label,
+        color: item.color,
+        total: item.total,
         formattedTotal: formatCurrency(item.total),
         percentage: totalExpenses > 0 ? Math.round((item.total / totalExpenses) * 100) : 0,
-        fill: resolveChartColor(item.color),
       }));
   }, [selectedBankId, transactions]);
-
-  const chartConfig = chartData.reduce<ChartConfig>((config, item) => {
-    config[item.slug] = {
-      label: item.label,
-      color: item.fill,
-    };
-
-    return config;
-  }, {});
 
   if (isLoading) {
     return <SpendingChartSkeleton />;
@@ -152,63 +125,10 @@ export default function SpendingChart({ transactions = [], banks = [], isLoading
               : "Nao ha despesas categorizadas para a conta selecionada."}
         </div>
       ) : (
-        <>
-          <ChartContainer config={chartConfig} className="mb-5 h-56 w-full">
-            <PieChart>
-              <ChartTooltip
-                cursor={false}
-                content={
-                  <ChartTooltipContent
-                    formatter={(_, __, item) => {
-                      const payload = item.payload as SpendingChartItem;
-
-                      return (
-                        <div className="flex min-w-[12rem] items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: payload.fill }} />
-                            <span className="text-muted-foreground">{payload.label}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium text-foreground">{payload.formattedTotal}</div>
-                            <div className="text-[11px] text-muted-foreground">{payload.percentage}% do total</div>
-                          </div>
-                        </div>
-                      );
-                    }}
-                  />
-                }
-              />
-              <Pie
-                data={chartData}
-                dataKey="total"
-                nameKey="slug"
-                innerRadius={54}
-                outerRadius={96}
-                paddingAngle={3}
-                strokeWidth={0}
-              >
-                {chartData.map((item) => (
-                  <Cell key={item.slug} fill={item.fill} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ChartContainer>
-
-          <div className="space-y-3">
-            {chartData.map((item) => (
-              <div key={item.slug} className="flex items-center gap-3">
-                <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.fill }} />
-                <div className="flex flex-1 items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <span className="block truncate text-sm text-foreground">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">{item.formattedTotal}</span>
-                  </div>
-                  <span className="text-sm font-medium text-muted-foreground">{item.percentage}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+        <CategoryPieChart
+          items={chartData}
+          emptyMessage="Ainda nao existem gastos categorizados para exibir."
+        />
       )}
     </div>
   );

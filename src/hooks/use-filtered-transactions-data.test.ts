@@ -46,11 +46,12 @@ describe("getFilteredTransactionsData", () => {
     expect(result.filteredTransactions).toHaveLength(2);
     expect(result.summaryCardsData.totalIncomes).toBe(0);
     expect(result.summaryCardsData.totalExpenses).toBe(91.4);
-    expect(result.categoryCounts.find((item) => item.label === "Alimentacao")?.count).toBe(1);
-    expect(result.categoryCounts.find((item) => item.label === "Transporte")?.count).toBe(1);
+    expect(result.categoryBreakdown.find((item) => item.label === "Alimentacao")?.count).toBe(1);
+    expect(result.categoryBreakdown.find((item) => item.label === "Alimentacao")?.total).toBe(67.9);
+    expect(result.categoryBreakdown.find((item) => item.label === "Transporte")?.count).toBe(1);
   });
 
-  it("applies search and category after period filtering", () => {
+  it("applies search and category after period filtering while keeping the category breakdown contextual", () => {
     const result = getFilteredTransactionsData(transactions as never[], categories as never[], {
       search: "uber",
       typeFilter: "all",
@@ -63,6 +64,28 @@ describe("getFilteredTransactionsData", () => {
 
     expect(result.filteredTransactions).toHaveLength(1);
     expect(result.filteredTransactions[0].description).toBe("Uber");
-    expect(result.categoryCounts.find((item) => item.label === "Transporte")?.count).toBe(1);
+    expect(result.categoryBreakdown).toHaveLength(1);
+    expect(result.categoryBreakdown[0]).toMatchObject({
+      label: "Transporte",
+      count: 1,
+      total: 23.5,
+      percentage: 100,
+    });
+  });
+
+  it("keeps the category breakdown independent from the active category filter", () => {
+    const result = getFilteredTransactionsData(transactions as never[], categories as never[], {
+      search: "",
+      typeFilter: "expense",
+      categoryFilter: "Transporte",
+      range: {
+        startDate: "2026-04-01",
+        endDate: "2026-04-06",
+      },
+    });
+
+    expect(result.filteredTransactions).toHaveLength(1);
+    expect(result.filteredTransactions[0].description).toBe("Uber");
+    expect(result.categoryBreakdown.map((item) => item.label)).toEqual(["Alimentacao", "Transporte"]);
   });
 });

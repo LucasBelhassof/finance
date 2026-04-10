@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { resolveCategoryColorPresentation } from "@/lib/category-colors";
 import { appRoutes } from "@/lib/routes";
 import type { TransactionItem } from "@/types/api";
 import { Link } from "react-router-dom";
@@ -60,6 +61,7 @@ export default function ExpensesList({ transactions = [], isLoading, isError }: 
         <div className="space-y-1">
           {transactions.map((transaction) => {
             const Icon = transaction.category.icon;
+            const categoryColor = resolveCategoryColorPresentation(transaction.category.color || transaction.category.groupColor);
 
             return (
               <Link
@@ -69,7 +71,7 @@ export default function ExpensesList({ transactions = [], isLoading, isError }: 
                 aria-label={`Abrir transacoes e ver ${transaction.description}`}
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <Icon size={16} className={transaction.category.color} />
+                  <Icon size={16} style={{ color: categoryColor.text }} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">{transaction.description}</p>

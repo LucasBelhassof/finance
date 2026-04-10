@@ -1,0 +1,262 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { describe, expect, it, beforeEach, vi } from "vitest";
+
+import TransactionsPage from "@/pages/Transactions";
+import type { BankItem, CategoryItem, TransactionItem } from "@/types/api";
+
+const mockUseTransactions = vi.fn();
+const mockUseCategories = vi.fn();
+const mockUseCreateCategory = vi.fn();
+const mockUseCreateTransaction = vi.fn();
+const mockUseUpdateTransaction = vi.fn();
+const mockUseDeleteTransaction = vi.fn();
+const mockUseUpdateCategory = vi.fn();
+const mockUseBanks = vi.fn();
+
+vi.mock("@/hooks/use-transactions", () => ({
+  useTransactions: (...args: unknown[]) => mockUseTransactions(...args),
+  useCategories: (...args: unknown[]) => mockUseCategories(...args),
+  useCreateCategory: (...args: unknown[]) => mockUseCreateCategory(...args),
+  useCreateTransaction: (...args: unknown[]) => mockUseCreateTransaction(...args),
+  useUpdateTransaction: (...args: unknown[]) => mockUseUpdateTransaction(...args),
+  useDeleteTransaction: (...args: unknown[]) => mockUseDeleteTransaction(...args),
+  useUpdateCategory: (...args: unknown[]) => mockUseUpdateCategory(...args),
+}));
+
+vi.mock("@/hooks/use-banks", () => ({
+  useBanks: (...args: unknown[]) => mockUseBanks(...args),
+}));
+
+vi.mock("@/components/AppShell", () => ({
+  default: ({ children, title, description }: { children: ReactNode; title: string; description: string }) => (
+    <div>
+      <h1>{title}</h1>
+      <p>{description}</p>
+      {children}
+    </div>
+  ),
+}));
+
+vi.mock("@/components/transactions/ImportTransactionsModal", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/transactions/TransactionsDateFilter", () => ({
+  default: () => <div>mock-date-filter</div>,
+}));
+
+vi.mock("@/components/ui/date-picker-input", () => ({
+  DatePickerInput: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+  }) => <input aria-label="Data" value={value} onChange={(event) => onChange(event.target.value)} />,
+}));
+
+vi.mock("@/components/ui/sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+const banks: BankItem[] = [
+  {
+    id: 1,
+    slug: "nubank",
+    name: "Nubank",
+    accountType: "bank_account",
+    parentBankConnectionId: null,
+    parentAccountName: null,
+    statementCloseDay: null,
+    statementDueDay: null,
+    connected: true,
+    color: "bg-primary",
+    currentBalance: 1000,
+    formattedBalance: "R$ 1.000,00",
+  },
+];
+
+const categories: CategoryItem[] = [
+  {
+    id: 1,
+    slug: "restaurantes",
+    label: "Restaurantes",
+    transactionType: "expense",
+    iconName: "ArrowDownCircle",
+    icon: ArrowDownCircle,
+    color: "#e76f51",
+    groupSlug: "alimentacao",
+    groupLabel: "Alimentacao",
+    groupColor: "#e76f51",
+  },
+  {
+    id: 2,
+    slug: "transporte",
+    label: "Transporte",
+    transactionType: "expense",
+    iconName: "ArrowDownCircle",
+    icon: ArrowDownCircle,
+    color: "text-info",
+    groupSlug: "transporte",
+    groupLabel: "Transporte",
+    groupColor: "bg-info",
+  },
+  {
+    id: 3,
+    slug: "salario",
+    label: "Salario",
+    transactionType: "income",
+    iconName: "ArrowUpCircle",
+    icon: ArrowUpCircle,
+    color: "#22c55e",
+    groupSlug: "receitas",
+    groupLabel: "Receitas",
+    groupColor: "#22c55e",
+  },
+];
+
+const transactions: TransactionItem[] = [
+  {
+    id: 11,
+    description: "iFood",
+    amount: -80,
+    formattedAmount: "-R$ 80,00",
+    occurredOn: "2026-04-05",
+    relativeDate: "Hoje",
+    housingId: null,
+    isInstallment: false,
+    installmentPurchaseId: null,
+    installmentNumber: null,
+    installmentCount: null,
+    purchaseOccurredOn: null,
+    category: {
+      id: 1,
+      slug: "restaurantes",
+      label: "Restaurantes",
+      iconName: "ArrowDownCircle",
+      icon: ArrowDownCircle,
+      color: "#e76f51",
+      groupSlug: "alimentacao",
+      groupLabel: "Alimentacao",
+      groupColor: "#e76f51",
+    },
+    account: {
+      id: 1,
+      slug: "nubank",
+      name: "Nubank",
+      accountType: "bank_account",
+      color: "bg-primary",
+    },
+  },
+  {
+    id: 12,
+    description: "Uber",
+    amount: -35,
+    formattedAmount: "-R$ 35,00",
+    occurredOn: "2026-04-04",
+    relativeDate: "Ontem",
+    housingId: null,
+    isInstallment: false,
+    installmentPurchaseId: null,
+    installmentNumber: null,
+    installmentCount: null,
+    purchaseOccurredOn: null,
+    category: {
+      id: 2,
+      slug: "transporte",
+      label: "Transporte",
+      iconName: "ArrowDownCircle",
+      icon: ArrowDownCircle,
+      color: "text-info",
+      groupSlug: "transporte",
+      groupLabel: "Transporte",
+      groupColor: "bg-info",
+    },
+    account: {
+      id: 1,
+      slug: "nubank",
+      name: "Nubank",
+      accountType: "bank_account",
+      color: "bg-primary",
+    },
+  },
+];
+
+function createMutation(result?: unknown) {
+  return {
+    mutateAsync: vi.fn().mockResolvedValue(result ?? {}),
+    isPending: false,
+  };
+}
+
+describe("TransactionsPage", () => {
+  beforeEach(() => {
+    mockUseTransactions.mockReturnValue({
+      data: transactions,
+      isLoading: false,
+      isError: false,
+    });
+    mockUseCategories.mockReturnValue({ data: categories });
+    mockUseBanks.mockReturnValue({ data: banks });
+    mockUseCreateTransaction.mockReturnValue(createMutation());
+    mockUseUpdateTransaction.mockReturnValue(createMutation());
+    mockUseDeleteTransaction.mockReturnValue(createMutation());
+    mockUseUpdateCategory.mockReturnValue(createMutation());
+  });
+
+  it("syncs the pie chart click with the existing category filter and toggles back to all", async () => {
+    mockUseCreateCategory.mockReturnValue(createMutation({ id: 99 }));
+
+    render(<TransactionsPage />);
+
+    expect(screen.getByText("iFood")).toBeInTheDocument();
+    expect(screen.getByText("Uber")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Filtrar por categoria Alimentacao/i }).at(-1)!);
+
+    await waitFor(() => {
+      expect(screen.getByText("iFood")).toBeInTheDocument();
+      expect(screen.queryByText("Uber")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("transactions-category-filter-trigger")).toHaveTextContent("Alimentacao");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Filtrar por categoria Alimentacao/i }).at(-1)!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Uber")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("transactions-category-filter-trigger")).toHaveTextContent("Todas categorias");
+  });
+
+  it("submits the chosen custom color when creating a category", async () => {
+    const createCategory = createMutation({
+      id: 77,
+      ...categories[0],
+    });
+    mockUseCreateCategory.mockReturnValue(createCategory);
+
+    render(<TransactionsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Nova categoria" }));
+    fireEvent.change(screen.getByPlaceholderText("Nome da categoria"), { target: { value: "Lazer" } });
+    fireEvent.change(screen.getByLabelText("Selecionar cor da categoria"), { target: { value: "#123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() => {
+      expect(createCategory.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "Lazer",
+          color: "#123456",
+          groupColor: "#123456",
+        }),
+      );
+    });
+  });
+});

@@ -12,6 +12,8 @@ import type {
   ApiDashboardResponse,
   ApiErrorResponse,
   ApiHealthResponse,
+  ApiHousingItem,
+  ApiHousingResponse,
   ApiImportCommitResponse,
   ApiImportAiSuggestionsResponse,
   ApiImportAiSuggestionItem,
@@ -33,9 +35,12 @@ import type {
   ChatRole,
   CreateBankConnectionInput,
   CreateCategoryInput,
+  CreateHousingInput,
   CreateTransactionInput,
   DashboardData,
   HealthStatus,
+  HousingExpenseType,
+  HousingItem,
   ImportCommitData,
   ImportCommitItem,
   ImportAiSuggestionsData,
@@ -50,6 +55,7 @@ import type {
   TransactionAccount,
   TransactionItem,
   UpdateCategoryInput,
+  UpdateHousingInput,
   UpdateTransactionInput,
   UpdateBankConnectionInput,
 } from "@/types/api";
@@ -158,6 +164,21 @@ function normalizeChatRole(role?: string): ChatRole {
 
 function normalizeImportType(type?: string): "income" | "expense" {
   return type === "income" ? "income" : "expense";
+}
+
+function normalizeHousingExpenseType(type?: string): HousingExpenseType {
+  switch (type) {
+    case "home_financing":
+    case "electricity":
+    case "water":
+    case "condo":
+    case "vehicle_financing":
+    case "other":
+      return type;
+    case "rent":
+    default:
+      return "rent";
+  }
 }
 
 function normalizeInsightColors(insight: ApiInsight) {
@@ -310,6 +331,51 @@ export function mapBank(bank: ApiBank): BankItem {
   };
 }
 
+export function mapHousingItem(item: ApiHousingItem): HousingItem {
+  const amount = safeNumber(item.amount);
+  const bank = item.bank ?? {};
+  const category = item.category ?? {};
+
+  return {
+    id: item.id ?? safeString(item.description, "housing"),
+    description: safeString(item.description, "Despesa de habitacao"),
+    expenseType: normalizeHousingExpenseType(item.expenseType),
+    amount,
+    formattedAmount: safeString(item.formattedAmount, formatCurrency(amount)),
+    dueDay: safeNumber(item.dueDay, 1),
+    startDate: safeString(item.startDate),
+    installmentCount: typeof item.installmentCount === "number" ? item.installmentCount : null,
+    notes: safeString(item.notes),
+    status: item.status === "inactive" ? "inactive" : "active",
+    bank: {
+      id: bank.id ?? "bank",
+      slug: safeString(bank.slug, "bank"),
+      name: safeString(bank.name, "Conta"),
+      accountType: bank.accountType === "credit_card" || bank.accountType === "cash" ? bank.accountType : "bank_account",
+      color: safeString(bank.color, "bg-secondary"),
+    },
+    category: {
+      id: category.id ?? "category",
+      slug: safeString(category.slug, "moradia"),
+      label: safeString(category.label, "Moradia"),
+      iconName: safeString(category.icon),
+      icon: resolveLucideIcon(category.icon),
+      color: safeString(category.color, "text-primary"),
+      groupSlug: safeString((category as ApiCategory).groupSlug, "moradia"),
+      groupLabel: safeString((category as ApiCategory).groupLabel, "Moradia"),
+      groupColor: safeString((category as ApiCategory).groupColor, "bg-primary"),
+    },
+    installmentPurchaseId: item.installmentPurchaseId ?? null,
+    transactionIds: item.transactionIds ?? [],
+    transactions: (item.transactions ?? []).map((transaction) => ({
+      id: transaction.id ?? "transaction",
+      occurredOn: safeString(transaction.occurredOn),
+      amount: safeNumber(transaction.amount),
+      installmentNumber: typeof transaction.installmentNumber === "number" ? transaction.installmentNumber : null,
+    })),
+  };
+}
+
 export function mapChatMessage(message: ApiChatMessage): ChatMessage {
   return {
     id: message.id ?? `${normalizeChatRole(message.role)}-${safeString(message.createdAt, "0")}`,
@@ -337,6 +403,10 @@ export function mapInsightsResponse(response: ApiInsightsResponse) {
 
 export function mapBanksResponse(response: ApiBanksResponse) {
   return (response.banks ?? []).map(mapBank);
+}
+
+export function mapHousingResponse(response: ApiHousingResponse) {
+  return (response.housing ?? []).map(mapHousingItem);
 }
 
 export function mapInstallmentsOverviewResponse(response: ApiInstallmentsOverviewResponse): InstallmentsOverview {
@@ -682,6 +752,50 @@ export async function getInsights() {
 export async function getBanks() {
   const response = await request<ApiBanksResponse>("/api/banks");
   return mapBanksResponse(response);
+}
+
+export async function getHousing() {
+  const response = await request<ApiHousingResponse>("/api/housing");
+  return mapHousingResponse(response);
+}
+
+function buildHousingBody(input: CreateHousingInput) {
+  return {
+    description: input.description,
+    expenseType: input.expenseType,
+    amount: input.amount,
+    dueDay: input.dueDay,
+    startDate: input.startDate,
+    bankConnectionId: input.bankConnectionId,
+    categoryId: input.categoryId,
+    installmentCount: input.installmentCount,
+    notes: input.notes,
+    status: input.status,
+  };
+}
+
+export async function postHousing(input: CreateHousingInput) {
+  const response = await request<ApiHousingItem>("/api/housing", {
+    method: "POST",
+    body: JSON.stringify(buildHousingBody(input)),
+  });
+
+  return mapHousingItem(response);
+}
+
+export async function patchHousing(input: UpdateHousingInput) {
+  const response = await request<ApiHousingItem>(`/api/housing/${input.id}`, {
+    method: "PATCH",
+    body: JSON.stringify(buildHousingBody(input)),
+  });
+
+  return mapHousingItem(response);
+}
+
+export async function deleteHousing(id: number | string) {
+  await request<null>(`/api/housing/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export async function postBank(input: CreateBankConnectionInput) {

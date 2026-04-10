@@ -4,9 +4,45 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HousingPage from "@/pages/Housing";
 
-const mockCreateTransaction = vi.fn();
-const mockUpdateTransaction = vi.fn();
-const mockDeleteTransaction = vi.fn();
+const mockCreateHousing = vi.fn();
+const mockUpdateHousing = vi.fn();
+const mockDeleteHousing = vi.fn();
+
+const housingItems = [
+  {
+    id: 99,
+    description: "Financiamento do carro",
+    expenseType: "vehicle_financing",
+    amount: 1500,
+    formattedAmount: "R$ 1.500,00",
+    dueDay: 10,
+    startDate: "2026-04-10",
+    installmentCount: 24,
+    notes: "",
+    status: "active",
+    bank: {
+      id: 10,
+      slug: "itau",
+      name: "Itau",
+      accountType: "bank_account",
+      color: "bg-primary",
+    },
+    category: {
+      id: 20,
+      slug: "moradia",
+      label: "Moradia",
+      iconName: "Home",
+      icon: vi.fn(),
+      color: "text-primary",
+      groupSlug: "moradia",
+      groupLabel: "Moradia",
+      groupColor: "bg-primary",
+    },
+    installmentPurchaseId: 30,
+    transactionIds: [101, 102],
+    transactions: [],
+  },
+];
 
 vi.mock("@/components/AppShell", () => ({
   default: ({ children, title }: { children: ReactNode; title: string }) => (
@@ -83,16 +119,24 @@ vi.mock("@/hooks/use-transactions", () => ({
       },
     ],
   }),
-  useCreateTransaction: () => ({
-    mutateAsync: mockCreateTransaction,
+}));
+
+vi.mock("@/hooks/use-housing", () => ({
+  useHousing: () => ({
+    data: housingItems,
+    isLoading: false,
+    isError: false,
+  }),
+  useCreateHousing: () => ({
+    mutateAsync: mockCreateHousing,
     isPending: false,
   }),
-  useUpdateTransaction: () => ({
-    mutateAsync: mockUpdateTransaction,
+  useUpdateHousing: () => ({
+    mutateAsync: mockUpdateHousing,
     isPending: false,
   }),
-  useDeleteTransaction: () => ({
-    mutateAsync: mockDeleteTransaction,
+  useDeleteHousing: () => ({
+    mutateAsync: mockDeleteHousing,
     isPending: false,
   }),
 }));
@@ -100,84 +144,19 @@ vi.mock("@/hooks/use-transactions", () => ({
 describe("HousingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateTransaction.mockResolvedValue({ id: 99 });
-    mockUpdateTransaction.mockResolvedValue({ id: 99 });
-    mockDeleteTransaction.mockResolvedValue(undefined);
+    mockCreateHousing.mockResolvedValue(housingItems[0]);
+    mockUpdateHousing.mockResolvedValue(housingItems[0]);
+    mockDeleteHousing.mockResolvedValue(undefined);
   });
 
-  it("creates a transaction when adding a housing recurring expense", async () => {
-    render(<HousingPage />);
-
-    fireEvent.change(screen.getByPlaceholderText(/financiamento do apartamento/i), {
-      target: { value: "Financiamento do carro" },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/valor mensal/i), {
-      target: { value: "1500,00" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Dia"), {
-      target: { value: "10" },
-    });
-
-    fireEvent.change(screen.getAllByRole("combobox")[1], {
-      target: { value: "10" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /adicionar despesa/i }));
-
-    await waitFor(() => {
-      expect(mockCreateTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          description: "Financiamento do carro",
-          amount: -1500,
-          bankConnectionId: "10",
-          categoryId: 20,
-        }),
-      );
-    });
-  });
-
-  it("updates the linked transaction when editing a housing expense", async () => {
-    render(<HousingPage />);
-
-    fireEvent.change(screen.getByPlaceholderText(/financiamento do apartamento/i), {
-      target: { value: "Financiamento do carro" },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/valor mensal/i), {
-      target: { value: "1500,00" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Dia"), {
-      target: { value: "10" },
-    });
-    fireEvent.change(screen.getAllByRole("combobox")[1], {
-      target: { value: "10" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /adicionar despesa/i }));
-
-    await screen.findByText(/lancada em transacoes #99/i);
-
-    fireEvent.click(screen.getByRole("button", { name: /editar financiamento do carro/i }));
-    fireEvent.change(screen.getByPlaceholderText(/valor mensal/i), {
-      target: { value: "1700,00" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /salvar alteracoes/i }));
-
-    await waitFor(() => {
-      expect(mockUpdateTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "99",
-          description: "Financiamento do carro",
-          amount: -1700,
-          bankConnectionId: "10",
-          categoryId: 20,
-        }),
-      );
-    });
-  });
-
-  it("deletes the linked transaction when deleting a housing expense", async () => {
+  it("creates a housing expense through the housing API", async () => {
     render(<HousingPage />);
 
     fireEvent.change(screen.getByPlaceholderText(/financiamento do apartamento/i), {
       target: { value: "Aluguel" },
+    });
+    fireEvent.change(screen.getAllByRole("combobox")[0], {
+      target: { value: "rent" },
     });
     fireEvent.change(screen.getByPlaceholderText(/valor mensal/i), {
       target: { value: "2000,00" },
@@ -190,12 +169,70 @@ describe("HousingPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /adicionar despesa/i }));
 
-    await screen.findByText(/lancada em transacoes #99/i);
-    fireEvent.click(screen.getByRole("button", { name: /excluir aluguel/i }));
+    await waitFor(() => {
+      expect(mockCreateHousing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: "Aluguel",
+          expenseType: "rent",
+          amount: 2000,
+          dueDay: 5,
+          bankConnectionId: "10",
+          categoryId: 20,
+          installmentCount: null,
+        }),
+      );
+    });
+  });
+
+  it("requires installment count for financing expenses", async () => {
+    render(<HousingPage />);
+
+    fireEvent.change(screen.getByPlaceholderText(/financiamento do apartamento/i), {
+      target: { value: "Financiamento do carro" },
+    });
+    fireEvent.change(screen.getAllByRole("combobox")[0], {
+      target: { value: "vehicle_financing" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/valor mensal/i), {
+      target: { value: "1500,00" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Dia"), {
+      target: { value: "10" },
+    });
+    fireEvent.change(screen.getAllByRole("combobox")[1], {
+      target: { value: "10" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /adicionar despesa/i }));
+
+    expect(mockCreateHousing).not.toHaveBeenCalled();
+  });
+
+  it("updates and deletes persisted housing expenses", async () => {
+    render(<HousingPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /editar financiamento do carro/i }));
+    fireEvent.change(screen.getByPlaceholderText(/valor mensal/i), {
+      target: { value: "1700,00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /salvar alteracoes/i }));
 
     await waitFor(() => {
-      expect(mockDeleteTransaction).toHaveBeenCalledWith("99");
+      expect(mockUpdateHousing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 99,
+          description: "Financiamento do carro",
+          expenseType: "vehicle_financing",
+          amount: 1700,
+          installmentCount: 24,
+          bankConnectionId: "10",
+        }),
+      );
     });
-    expect(screen.queryByText(/lancada em transacoes #99/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /excluir financiamento do carro/i }));
+
+    await waitFor(() => {
+      expect(mockDeleteHousing).toHaveBeenCalledWith(99);
+    });
   });
 });

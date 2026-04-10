@@ -1,7 +1,6 @@
 import {
   Building2,
   ChevronDown,
-  CreditCard,
   Layers3,
   LayoutDashboard,
   Lightbulb,
@@ -42,7 +41,6 @@ import { appRoutes } from "@/lib/routes";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", to: appRoutes.dashboard, end: true },
-  { icon: CreditCard, label: "Transacoes", to: appRoutes.transactions },
 ];
 
 const secondaryNavItems = [
@@ -52,6 +50,7 @@ const secondaryNavItems = [
 ];
 
 const expenseManagementItems = [
+  { label: "Transacoes", to: appRoutes.transactions },
   { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
   { label: "Habitação", to: appRoutes.expenseManagementHousing },
   { label: "Métricas", to: appRoutes.expenseManagementMetrics },
@@ -72,7 +71,8 @@ export default function Sidebar() {
     .join("");
   const isCollapsed = state === "collapsed";
   const isExpenseManagementActive = Boolean(
-    matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
+    location.pathname === appRoutes.transactions ||
+      matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
   );
 
   return (

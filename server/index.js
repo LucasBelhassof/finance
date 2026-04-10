@@ -6,9 +6,11 @@ import {
   createCategory,
   createBankConnection,
   createChatReply,
+  createHousing,
   createTransaction,
   updateCategory,
   deleteBankConnection,
+  deleteHousing,
   deleteTransaction,
   getDashboardData,
   getInstallmentsOverview,
@@ -17,6 +19,7 @@ import {
   listBanks,
   listCategories,
   listChatMessages,
+  listHousing,
   listInsights,
   listTransactions,
   listRecentTransactions,
@@ -24,6 +27,7 @@ import {
   pingDatabase,
   previewTransactionImport,
   updateBankConnection,
+  updateHousing,
   updateTransaction,
 } from "./database.js";
 import { MAX_IMPORT_BYTES, parseMultipartCsvUpload } from "./transaction-import.js";
@@ -64,6 +68,56 @@ app.get("/api/transactions", async (request, response, next) => {
     const transactions =
       limitValue === undefined ? await listTransactions() : await listTransactions(Number.isNaN(limit) ? 8 : limit);
     response.json({ transactions });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/housing", async (_request, response, next) => {
+  try {
+    const housing = await listHousing();
+    response.json({ housing });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/housing", async (request, response, next) => {
+  try {
+    const housing = await createHousing(request.body ?? {});
+    response.status(201).json(housing);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/housing/:id", async (request, response, next) => {
+  try {
+    const housingId = Number.parseInt(request.params.id, 10);
+
+    if (!Number.isInteger(housingId)) {
+      response.status(400).json({ error: "invalid_housing_id" });
+      return;
+    }
+
+    const housing = await updateHousing(housingId, request.body ?? {});
+    response.json(housing);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/housing/:id", async (request, response, next) => {
+  try {
+    const housingId = Number.parseInt(request.params.id, 10);
+
+    if (!Number.isInteger(housingId)) {
+      response.status(400).json({ error: "invalid_housing_id" });
+      return;
+    }
+
+    await deleteHousing(housingId);
+    response.status(204).send();
   } catch (error) {
     next(error);
   }

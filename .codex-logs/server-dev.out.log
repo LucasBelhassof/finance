@@ -1,0 +1,10 @@
+
+> vite_react_shadcn_ts@0.0.0 server:dev
+> node --watch server/index.js
+
+◇ injected env (10) from .env // tip: ⌘ override existing { override: true }
+Finance backend listening on http://localhost:3001
+Restarting 'server/index.js'
+◇ injected env (10) from .env // tip: ⌘ suppress logs { quiet: true }
+Finance backend listening on http://localhost:3001
+Completed running 'server/index.js'. Waiting for file changes before restarting...

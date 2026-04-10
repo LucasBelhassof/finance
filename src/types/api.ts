@@ -133,6 +133,37 @@ export interface ApiBanksResponse {
   banks?: ApiBank[];
 }
 
+export type HousingExpenseType = "rent" | "home_financing" | "electricity" | "water" | "condo" | "vehicle_financing" | "other";
+
+export interface ApiHousingTransaction {
+  id?: number | string;
+  occurredOn?: string;
+  amount?: number;
+  installmentNumber?: number | null;
+}
+
+export interface ApiHousingItem {
+  id?: number | string;
+  description?: string;
+  expenseType?: string;
+  amount?: number;
+  formattedAmount?: string;
+  dueDay?: number;
+  startDate?: string;
+  installmentCount?: number | null;
+  notes?: string;
+  status?: string;
+  bank?: ApiTransactionAccount;
+  category?: ApiTransactionCategory;
+  installmentPurchaseId?: number | string | null;
+  transactionIds?: Array<number | string>;
+  transactions?: ApiHousingTransaction[];
+}
+
+export interface ApiHousingResponse {
+  housing?: ApiHousingItem[];
+}
+
 export interface ApiInstallmentOverviewFilters {
   cardId?: number | string;
   categoryId?: number | string;
@@ -566,6 +597,48 @@ export interface CreateBankConnectionInput {
 }
 
 export interface UpdateBankConnectionInput extends CreateBankConnectionInput {
+  id: number | string;
+}
+
+export interface HousingTransaction {
+  id: number | string;
+  occurredOn: string;
+  amount: number;
+  installmentNumber: number | null;
+}
+
+export interface HousingItem {
+  id: number | string;
+  description: string;
+  expenseType: HousingExpenseType;
+  amount: number;
+  formattedAmount: string;
+  dueDay: number;
+  startDate: string;
+  installmentCount: number | null;
+  notes: string;
+  status: "active" | "inactive";
+  bank: TransactionAccount;
+  category: TransactionCategory;
+  installmentPurchaseId: number | string | null;
+  transactionIds: Array<number | string>;
+  transactions: HousingTransaction[];
+}
+
+export interface CreateHousingInput {
+  description: string;
+  expenseType: HousingExpenseType;
+  amount: number;
+  dueDay: number;
+  startDate: string;
+  bankConnectionId: number | string;
+  categoryId?: number | string;
+  installmentCount?: number | null;
+  notes?: string;
+  status?: "active" | "inactive";
+}
+
+export interface UpdateHousingInput extends CreateHousingInput {
   id: number | string;
 }
 

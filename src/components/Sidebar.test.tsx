@@ -27,30 +27,34 @@ function renderSidebar(initialPath = appRoutes.dashboard) {
 }
 
 describe("Sidebar", () => {
-  it("places expense management below transactions", () => {
+  it("places transactions as the first expense management submenu item", () => {
     renderSidebar();
 
-    const transactionsLink = screen.getByRole("link", { name: /transacoes/i });
-    const expenseManagementButton = screen.getByRole("button", { name: /gestão de gastos/i });
+    fireEvent.click(screen.getByRole("button", { name: /gest.o de gastos/i }));
 
-    expect(transactionsLink.compareDocumentPosition(expenseManagementButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const transactionsLink = screen.getByRole("link", { name: /transacoes/i });
+    const installmentsLink = screen.getByRole("link", { name: /parcelamentos/i });
+
+    expect(transactionsLink).toHaveAttribute("href", appRoutes.transactions);
+    expect(transactionsLink.compareDocumentPosition(installmentsLink)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("renders the expense management submenu and links", () => {
     renderSidebar();
 
-    fireEvent.click(screen.getByRole("button", { name: /gestão de gastos/i }));
+    fireEvent.click(screen.getByRole("button", { name: /gest.o de gastos/i }));
 
-    expect(screen.getByRole("button", { name: /gestão de gastos/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /gest.o de gastos/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /transacoes/i })).toHaveAttribute("href", appRoutes.transactions);
     expect(screen.getByRole("link", { name: /parcelamentos/i })).toHaveAttribute(
       "href",
       appRoutes.expenseManagementInstallments,
     );
-    expect(screen.getByRole("link", { name: /habitação/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /habita..o/i })).toHaveAttribute(
       "href",
       appRoutes.expenseManagementHousing,
     );
-    expect(screen.getByRole("link", { name: /métricas/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /m.tricas/i })).toHaveAttribute(
       "href",
       appRoutes.expenseManagementMetrics,
     );
@@ -59,7 +63,7 @@ describe("Sidebar", () => {
   it("opens and marks expense management active on nested routes", () => {
     renderSidebar(appRoutes.expenseManagementInstallments);
 
-    expect(screen.getByRole("button", { name: /gestão de gastos/i })).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("button", { name: /gest.o de gastos/i })).toHaveAttribute("data-active", "true");
     expect(screen.getByRole("link", { name: /parcelamentos/i })).toHaveAttribute("data-active", "true");
   });
 });

@@ -98,6 +98,16 @@ function normalizeDateValue(value) {
   return String(value).slice(0, 10);
 }
 
+function addMonthsToDate(value, monthOffset, dueDay) {
+  const date = parseDateOnly(value);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + monthOffset;
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const safeDay = Math.min(Math.max(Number(dueDay), 1), lastDay);
+
+  return new Date(Date.UTC(year, month, safeDay)).toISOString().slice(0, 10);
+}
+
 function getTransactionTypeFromAmount(amount) {
   return Number(amount) < 0 ? "expense" : "income";
 }
@@ -595,7 +605,7 @@ export async function getInstallmentsOverview(filters = {}) {
       LEFT JOIN transactions t ON t.installment_purchase_id = ip.id
       LEFT JOIN categories c ON c.id = COALESCE(ip.category_id, t.category_id)
       WHERE ip.user_id = $1
-        AND b.account_type = 'credit_card'
+        AND (b.account_type = 'credit_card' OR ip.housing_id IS NOT NULL)
         AND ip.installment_count >= 2
       ORDER BY ip.id ASC, t.installment_number ASC NULLS LAST, t.id ASC
     `,
@@ -619,6 +629,443 @@ export async function getInstallmentsOverview(filters = {}) {
   }));
 
   return buildInstallmentsOverviewResponse(rows, filters);
+}
+
+const housingExpenseTypes = new Set(["rent", "home_financing", "electricity", "water", "condo", "vehicle_financing", "other"]);
+const housingFinancingTypes = new Set(["home_financing", "vehicle_financing"]);
+
+function mapHousingRow(row, transactions = []) {
+  const amount = parseNumeric(row.amount);
+
+  return {
+    id: row.id,
+    description: row.description,
+    expenseType: row.expense_type,
+    amount,
+    formattedAmount: formatCurrency(amount),
+    dueDay: Number(row.due_day),
+    startDate: normalizeDateValue(row.start_date),
+    installmentCount: Number.isInteger(Number(row.installment_count)) ? Number(row.installment_count) : null,
+    notes: row.notes ?? "",
+    status: row.status,
+    bank: {
+      id: row.bank_connection_id,
+      slug: row.bank_slug,
+      name: row.bank_name,
+      accountType: row.bank_account_type,
+      color: row.bank_color,
+    },
+    category: {
+      id: row.category_id,
+      slug: row.category_slug,
+      label: row.category_label,
+      icon: row.category_icon,
+      color: row.category_color,
+      groupSlug: row.group_slug,
+      groupLabel: row.group_label,
+      groupColor: row.group_color,
+    },
+    installmentPurchaseId: row.installment_purchase_id ?? null,
+    transactionIds: transactions.map((transaction) => transaction.id),
+    transactions: transactions.map((transaction) => ({
+      id: transaction.id,
+      occurredOn: normalizeDateValue(transaction.occurred_on),
+      amount: parseNumeric(transaction.amount),
+      installmentNumber: Number.isInteger(Number(transaction.installment_number)) ? Number(transaction.installment_number) : null,
+    })),
+  };
+}
+
+function validateHousingInput(input) {
+  const description = String(input.description ?? "").trim();
+  const expenseType = String(input.expenseType ?? input.expense_type ?? "").trim();
+  const amount = Number(input.amount);
+  const dueDay = Number(input.dueDay ?? input.due_day);
+  const startDate = normalizeDateValue(input.startDate ?? input.start_date);
+  const bankConnectionId = Number(input.bankConnectionId ?? input.bank_connection_id);
+  const notes = String(input.notes ?? "").trim();
+  const status = input.status === "inactive" ? "inactive" : "active";
+  const isFinancing = housingFinancingTypes.has(expenseType);
+  const installmentCountValue = input.installmentCount ?? input.installment_count;
+  const installmentCount =
+    installmentCountValue === undefined || installmentCountValue === null || installmentCountValue === ""
+      ? null
+      : Number(installmentCountValue);
+
+  if (!description || !housingExpenseTypes.has(expenseType)) {
+    throw new Error("description and valid expenseType are required");
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("amount must be greater than zero");
+  }
+
+  if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31 || !startDate) {
+    throw new Error("dueDay and startDate are required");
+  }
+
+  if (!Number.isInteger(bankConnectionId)) {
+    throw new Error("bankConnectionId is required");
+  }
+
+  if (isFinancing && (!Number.isInteger(installmentCount) || installmentCount < 2)) {
+    throw new Error("installmentCount must be at least 2 for financing housing expenses");
+  }
+
+  return {
+    description,
+    expenseType,
+    amount,
+    dueDay,
+    startDate,
+    bankConnectionId,
+    notes,
+    status,
+    installmentCount: isFinancing ? installmentCount : null,
+  };
+}
+
+async function getHousingRows(userId, housingId = null, client = pool) {
+  const result = await client.query(
+    `
+      SELECT
+        h.id,
+        h.description,
+        h.expense_type,
+        h.amount,
+        h.due_day,
+        h.start_date,
+        h.installment_count,
+        h.notes,
+        h.status,
+        b.id AS bank_connection_id,
+        b.slug AS bank_slug,
+        b.name AS bank_name,
+        b.account_type AS bank_account_type,
+        b.color AS bank_color,
+        c.id AS category_id,
+        c.slug AS category_slug,
+        c.label AS category_label,
+        c.icon AS category_icon,
+        c.color AS category_color,
+        c.group_slug,
+        c.group_label,
+        c.group_color,
+        ip.id AS installment_purchase_id
+      FROM housing h
+      INNER JOIN bank_connections b ON b.id = h.bank_connection_id
+      INNER JOIN categories c ON c.id = h.category_id
+      LEFT JOIN installment_purchases ip ON ip.housing_id = h.id
+      WHERE h.user_id = $1
+        AND ($2::INTEGER IS NULL OR h.id = $2)
+      ORDER BY h.id DESC
+    `,
+    [userId, housingId],
+  );
+
+  if (!result.rows.length) {
+    return [];
+  }
+
+  const transactionsResult = await client.query(
+    `
+      SELECT id, housing_id, amount, occurred_on, installment_number
+      FROM transactions
+      WHERE user_id = $1
+        AND housing_id = ANY($2::INTEGER[])
+      ORDER BY housing_id ASC, installment_number ASC NULLS LAST, occurred_on ASC, id ASC
+    `,
+    [userId, result.rows.map((row) => row.id)],
+  );
+
+  const transactionsByHousingId = new Map();
+
+  transactionsResult.rows.forEach((transaction) => {
+    const key = String(transaction.housing_id);
+    const transactions = transactionsByHousingId.get(key) ?? [];
+    transactions.push(transaction);
+    transactionsByHousingId.set(key, transactions);
+  });
+
+  return result.rows.map((row) => mapHousingRow(row, transactionsByHousingId.get(String(row.id)) ?? []));
+}
+
+async function generateHousingTransactions(client, userId, housing) {
+  await client.query(
+    `
+      DELETE FROM transactions
+      WHERE user_id = $1
+        AND housing_id = $2
+    `,
+    [userId, housing.id],
+  );
+  await client.query(
+    `
+      DELETE FROM installment_purchases
+      WHERE user_id = $1
+        AND housing_id = $2
+    `,
+    [userId, housing.id],
+  );
+
+  if (housing.status !== "active") {
+    return;
+  }
+
+  const amount = -Math.abs(Number(housing.amount));
+
+  if (housingFinancingTypes.has(housing.expenseType)) {
+    const installmentPurchase = await client.query(
+      `
+        INSERT INTO installment_purchases (
+          user_id,
+          bank_connection_id,
+          category_id,
+          seed_key,
+          description_base,
+          normalized_description_base,
+          purchase_occurred_on,
+          installment_count,
+          amount_per_installment,
+          housing_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id
+      `,
+      [
+        userId,
+        housing.bankConnectionId,
+        housing.categoryId,
+        `housing:${housing.id}`,
+        housing.description,
+        normalizeDescription(housing.description),
+        housing.startDate,
+        housing.installmentCount,
+        Math.abs(Number(housing.amount)),
+        housing.id,
+      ],
+    );
+
+    for (let installmentNumber = 1; installmentNumber <= housing.installmentCount; installmentNumber += 1) {
+      await client.query(
+        `
+          INSERT INTO transactions (
+            user_id,
+            bank_connection_id,
+            category_id,
+            description,
+            amount,
+            occurred_on,
+            seed_key,
+            installment_purchase_id,
+            installment_number,
+            housing_id
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `,
+        [
+          userId,
+          housing.bankConnectionId,
+          housing.categoryId,
+          `${housing.description} (${installmentNumber}/${housing.installmentCount})`,
+          amount,
+          addMonthsToDate(housing.startDate, installmentNumber - 1, housing.dueDay),
+          `housing:${housing.id}:installment:${installmentNumber}`,
+          installmentPurchase.rows[0].id,
+          installmentNumber,
+          housing.id,
+        ],
+      );
+    }
+
+    return;
+  }
+
+  await client.query(
+    `
+      INSERT INTO transactions (
+        user_id,
+        bank_connection_id,
+        category_id,
+        description,
+        amount,
+        occurred_on,
+        seed_key,
+        housing_id
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `,
+    [
+      userId,
+      housing.bankConnectionId,
+      housing.categoryId,
+      housing.description,
+      amount,
+      addMonthsToDate(housing.startDate, 0, housing.dueDay),
+      `housing:${housing.id}:recurring`,
+      housing.id,
+    ],
+  );
+}
+
+export async function listHousing() {
+  const user = await getPrimaryUser();
+  return getHousingRows(user.id);
+}
+
+export async function createHousing(input) {
+  const user = await getPrimaryUser();
+  const normalized = validateHousingInput(input);
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const [bankConnection, category] = await Promise.all([
+      getBankConnectionById(user.id, normalized.bankConnectionId, client),
+      resolveCategoryForTransactionInput(input.categoryId, -Math.abs(normalized.amount), client),
+    ]);
+
+    if (!bankConnection) {
+      throw new Error("bank connection not found");
+    }
+
+    const result = await client.query(
+      `
+        INSERT INTO housing (
+          user_id,
+          bank_connection_id,
+          category_id,
+          description,
+          expense_type,
+          amount,
+          due_day,
+          start_date,
+          installment_count,
+          notes,
+          status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING id
+      `,
+      [
+        user.id,
+        normalized.bankConnectionId,
+        category.id,
+        normalized.description,
+        normalized.expenseType,
+        normalized.amount,
+        normalized.dueDay,
+        normalized.startDate,
+        normalized.installmentCount,
+        normalized.notes,
+        normalized.status,
+      ],
+    );
+
+    await generateHousingTransactions(client, user.id, {
+      id: result.rows[0].id,
+      ...normalized,
+      categoryId: category.id,
+    });
+
+    const [housing] = await getHousingRows(user.id, result.rows[0].id, client);
+    await client.query("COMMIT");
+    return housing;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateHousing(housingId, input) {
+  const user = await getPrimaryUser();
+  const normalized = validateHousingInput(input);
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const [bankConnection, category] = await Promise.all([
+      getBankConnectionById(user.id, normalized.bankConnectionId, client),
+      resolveCategoryForTransactionInput(input.categoryId, -Math.abs(normalized.amount), client),
+    ]);
+
+    if (!bankConnection) {
+      throw new Error("bank connection not found");
+    }
+
+    const result = await client.query(
+      `
+        UPDATE housing
+        SET bank_connection_id = $3,
+            category_id = $4,
+            description = $5,
+            expense_type = $6,
+            amount = $7,
+            due_day = $8,
+            start_date = $9,
+            installment_count = $10,
+            notes = $11,
+            status = $12,
+            updated_at = NOW()
+        WHERE user_id = $1
+          AND id = $2
+        RETURNING id
+      `,
+      [
+        user.id,
+        housingId,
+        normalized.bankConnectionId,
+        category.id,
+        normalized.description,
+        normalized.expenseType,
+        normalized.amount,
+        normalized.dueDay,
+        normalized.startDate,
+        normalized.installmentCount,
+        normalized.notes,
+        normalized.status,
+      ],
+    );
+
+    if (!result.rowCount) {
+      throw new Error("housing expense not found");
+    }
+
+    await generateHousingTransactions(client, user.id, {
+      id: housingId,
+      ...normalized,
+      categoryId: category.id,
+    });
+
+    const [housing] = await getHousingRows(user.id, housingId, client);
+    await client.query("COMMIT");
+    return housing;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteHousing(housingId) {
+  const user = await getPrimaryUser();
+  const result = await pool.query(
+    `
+      DELETE FROM housing
+      WHERE user_id = $1
+        AND id = $2
+    `,
+    [user.id, housingId],
+  );
+
+  if (!result.rowCount) {
+    throw new Error("housing expense not found");
+  }
 }
 
 export async function listCategories() {
@@ -782,8 +1229,8 @@ async function resolveCategoryForTransactionInput(rawCategoryId, amount, client 
   return category;
 }
 
-async function getBankConnectionById(userId, bankConnectionId) {
-  const result = await pool.query(
+async function getBankConnectionById(userId, bankConnectionId, client = pool) {
+  const result = await client.query(
     `
       SELECT
         id,

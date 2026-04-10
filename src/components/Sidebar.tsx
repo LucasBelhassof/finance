@@ -1,7 +1,18 @@
-import { Building2, CreditCard, Layers3, LayoutDashboard, Lightbulb, LogOut, MessageSquare, UserCircle2 } from "lucide-react";
+import {
+  Building2,
+  ChevronDown,
+  CreditCard,
+  Layers3,
+  LayoutDashboard,
+  Lightbulb,
+  LogOut,
+  MessageSquare,
+  UserCircle2,
+} from "lucide-react";
 import { matchPath, useLocation, useNavigate } from "react-router-dom";
 
 import { NavLink } from "@/components/NavLink";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +29,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
@@ -29,10 +43,18 @@ import { appRoutes } from "@/lib/routes";
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", to: appRoutes.dashboard, end: true },
   { icon: CreditCard, label: "Transacoes", to: appRoutes.transactions },
-  { icon: Layers3, label: "Parcelamentos", to: appRoutes.installments },
+];
+
+const secondaryNavItems = [
   { icon: MessageSquare, label: "Chat IA", to: appRoutes.chat },
   { icon: Lightbulb, label: "Insights", to: appRoutes.insights },
   { icon: Building2, label: "Contas", to: appRoutes.accounts },
+];
+
+const expenseManagementItems = [
+  { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
+  { label: "Financiamentos", to: appRoutes.expenseManagementFinancing },
+  { label: "Métricas", to: appRoutes.expenseManagementMetrics },
 ];
 
 export default function Sidebar() {
@@ -49,6 +71,9 @@ export default function Sidebar() {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
   const isCollapsed = state === "collapsed";
+  const isExpenseManagementActive = Boolean(
+    matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
+  );
 
   return (
     <SidebarRoot collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -77,6 +102,64 @@ export default function Sidebar() {
                   className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
                 >
                   <NavLink to={item.to} end={item.end}>
+                    <item.icon size={18} className="shrink-0" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+
+          <Collapsible asChild defaultOpen={isExpenseManagementActive}>
+            <SidebarMenuItem>
+              <CollapsibleTrigger asChild>
+                <SidebarMenuButton
+                  isActive={isExpenseManagementActive}
+                  tooltip="Gestão de Gastos"
+                  className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                >
+                  <Layers3 size={18} className="shrink-0" />
+                  <span className="truncate group-data-[collapsible=icon]:hidden">Gestão de Gastos</span>
+                  <ChevronDown
+                    size={16}
+                    className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
+                  />
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenuSub>
+                  {expenseManagementItems.map((item) => {
+                    const isActive = location.pathname === item.to;
+
+                    return (
+                      <SidebarMenuSubItem key={item.label}>
+                        <SidebarMenuSubButton asChild isActive={isActive}>
+                          <NavLink to={item.to}>
+                            <span>{item.label}</span>
+                          </NavLink>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    );
+                  })}
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            </SidebarMenuItem>
+          </Collapsible>
+
+          {secondaryNavItems.map((item) => {
+            const isActive = Boolean(
+              matchPath({ path: `${item.to}/*`, end: false }, location.pathname) || location.pathname === item.to,
+            );
+
+            return (
+              <SidebarMenuItem key={item.label}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive}
+                  tooltip={item.label}
+                  className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                >
+                  <NavLink to={item.to}>
                     <item.icon size={18} className="shrink-0" />
                     <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
                   </NavLink>

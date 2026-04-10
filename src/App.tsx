@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { appRoutes } from "@/lib/routes";
 import AccountsPage from "./pages/Accounts.tsx";
 import ChatPage from "./pages/Chat.tsx";
+import ExpenseMetricsPage from "./pages/ExpenseMetrics.tsx";
+import FinancingPage from "./pages/Financing.tsx";
 import InstallmentsPage from "./pages/Installments.tsx";
 import Index from "./pages/Index.tsx";
 import InsightsPage from "./pages/Insights.tsx";
@@ -25,7 +27,10 @@ const App = () => (
         <Routes>
           <Route path={appRoutes.dashboard} element={<Index />} />
           <Route path={appRoutes.transactions} element={<TransactionsPage />} />
-          <Route path={appRoutes.installments} element={<InstallmentsPage />} />
+          <Route path={appRoutes.installments} element={<Navigate to={appRoutes.expenseManagementInstallments} replace />} />
+          <Route path={appRoutes.expenseManagementInstallments} element={<InstallmentsPage />} />
+          <Route path={appRoutes.expenseManagementFinancing} element={<FinancingPage />} />
+          <Route path={appRoutes.expenseManagementMetrics} element={<ExpenseMetricsPage />} />
           <Route path={appRoutes.chat} element={<ChatPage />} />
           <Route path={appRoutes.insights} element={<InsightsPage />} />
           <Route path={appRoutes.accounts} element={<AccountsPage />} />

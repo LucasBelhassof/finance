@@ -51,8 +51,8 @@ const secondaryNavItems = [
 
 const expenseManagementItems = [
   { label: "Transacoes", to: appRoutes.transactions },
-  { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
   { label: "Habitação", to: appRoutes.expenseManagementHousing },
+  { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
   { label: "Métricas", to: appRoutes.expenseManagementMetrics },
 ];
 

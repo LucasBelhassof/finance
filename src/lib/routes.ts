@@ -1,8 +1,8 @@
 export const appRoutes = {
   dashboard: "/",
-  transactions: "/transactions",
   installments: "/installments",
   expenseManagement: "/gestao-de-gastos",
+  transactions: "/gestao-de-gastos/transactions",
   expenseManagementInstallments: "/gestao-de-gastos/parcelamentos",
   expenseManagementFinancing: "/gestao-de-gastos/financiamentos",
   expenseManagementHousing: "/gestao-de-gastos/habitacao",

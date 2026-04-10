@@ -5,6 +5,7 @@ import {
   createDeterministicRandom,
   generateExpenseTransactions,
   generateIncomeTransactions,
+  selectSeedCategoriesBySlug,
   selectExpensePaymentMethod,
   selectIncomeOrigin,
 } from "./seed-data.js";
@@ -86,6 +87,23 @@ describe("seed-data helpers", () => {
     expect(result.transactions).toHaveLength(result.purchase.installmentCount);
     expect(result.transactions.every((transaction) => transaction.amount < 0)).toBe(true);
     expect(result.transactions.every((transaction) => Number.isInteger(transaction.installmentNumber))).toBe(true);
+  });
+
+  it("selectSeedCategoriesBySlug enforces the required default expense categories", () => {
+    const availableCategories = [
+      { id: 1, slug: "outros-despesas", label: "Outros", transactionType: "expense" },
+      { id: 2, slug: "transporte", label: "Transporte", transactionType: "expense" },
+      { id: 3, slug: "alimentacao", label: "Alimentacao", transactionType: "expense" },
+    ];
+
+    expect(selectSeedCategoriesBySlug(availableCategories, ["outros-despesas", "transporte"])).toEqual([
+      availableCategories[0],
+      availableCategories[1],
+    ]);
+
+    expect(() => selectSeedCategoriesBySlug(availableCategories, ["outros-despesas", "saude"])).toThrow(
+      "missing required seed categories: saude",
+    );
   });
 
   it("throws when installment generation receives a non-card account", () => {

@@ -79,22 +79,33 @@ const INCOME_DESCRIPTIONS = [
 ];
 
 const EXPENSE_DESCRIPTIONS = [
-  "Supermercado",
-  "Restaurante",
-  "Farmacia",
-  "Combustivel",
-  "Cinema",
-  "Streaming",
-  "Assinatura anual",
-  "Passagem",
-  "Academia",
-  "Loja online",
-  "Delivery",
-  "Eletronicos",
-  "Conta de energia",
-  "Internet",
-  "Aluguel",
-  "Uber",
+  "Mercado do bairro",
+  "Jantar fora",
+  "Remedios e farmacia",
+  "Corrida de aplicativo",
+  "Sessao de cinema",
+  "Servico de streaming",
+  "Plano anual digital",
+  "Passagem urbana",
+  "Mensalidade da academia",
+  "Pedido de delivery",
+  "Compra na loja online",
+  "Consulta de rotina",
+  "Ingresso de show",
+  "Compra no shopping",
+  "Plano de musica",
+  "Corrida noturna",
+];
+
+const DEFAULT_EXPENSE_CATEGORY_SLUGS = [
+  "outros-despesas",
+  "transporte",
+  "alimentacao",
+  "supermercado",
+  "assinaturas",
+  "lazer",
+  "compras",
+  "saude",
 ];
 
 function normalizeDateOnly(value) {
@@ -447,6 +458,20 @@ async function listCategoriesByType(client, transactionType) {
   }));
 }
 
+export function selectSeedCategoriesBySlug(categories, preferredSlugs) {
+  const categoriesBySlug = new Map(categories.map((category) => [category.slug, category]));
+  const selectedCategories = preferredSlugs
+    .map((slug) => categoriesBySlug.get(slug))
+    .filter(Boolean);
+
+  if (selectedCategories.length !== preferredSlugs.length) {
+    const missingSlugs = preferredSlugs.filter((slug) => !categoriesBySlug.has(slug));
+    throw new Error(`missing required seed categories: ${missingSlugs.join(", ")}`);
+  }
+
+  return selectedCategories;
+}
+
 async function clearGeneratedFinancialData(client, userId) {
   await client.query(
     `
@@ -639,7 +664,7 @@ export async function runSeedData(pool, options = {}) {
 
     const categories = {
       income: await listCategoriesByType(client, "income"),
-      expense: await listCategoriesByType(client, "expense"),
+      expense: selectSeedCategoriesBySlug(await listCategoriesByType(client, "expense"), DEFAULT_EXPENSE_CATEGORY_SLUGS),
     };
 
     if (!categories.income.length || !categories.expense.length) {

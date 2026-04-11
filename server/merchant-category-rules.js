@@ -108,6 +108,7 @@ export const merchantCategoryMap = {
     "SARAIVA",
     "VANS",
     "KIWIFY",
+    "DROPER",
   ],
   assinaturas: [
     "GOOGLE YOUTUB",
@@ -130,7 +131,7 @@ export const merchantCategoryMap = {
     "SPOTIFY",
     "MICROSOFT",
     "CRUNCHYROLL",
-    "NUBANK MAIS",
+    "NUBANK+",
     "ADOBE",
     "DROPBOX",
     "NOTION",

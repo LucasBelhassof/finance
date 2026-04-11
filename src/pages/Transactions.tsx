@@ -203,6 +203,24 @@ export default function TransactionsPage() {
     categoryFilter,
     range: dateRange,
   });
+  const categoriesWithBreakdown = useMemo(() => {
+    const breakdownById = new Map(categoryBreakdown.map((item) => [item.id, item]));
+
+    return categories
+      .filter((category) => typeFilter === "all" || category.transactionType === typeFilter)
+      .map((category) => {
+        const breakdown = breakdownById.get(String(category.id));
+
+        return {
+          id: String(category.id),
+          label: category.label,
+          color: category.groupColor || category.color,
+          count: breakdown?.count ?? 0,
+          total: breakdown?.total ?? 0,
+        };
+      })
+      .sort((left, right) => right.count - left.count || right.total - left.total || left.label.localeCompare(right.label, "pt-BR"));
+  }, [categories, categoryBreakdown, typeFilter]);
 
   const deleteTarget = visibleTransactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
   const isEditing = Boolean(transactionForm.id);
@@ -689,9 +707,9 @@ export default function TransactionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas categorias</SelectItem>
-                {categoryBreakdown.map((group) => (
-                  <SelectItem key={group.id} value={group.id}>
-                    {group.label}
+                {categoriesWithBreakdown.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -852,39 +870,39 @@ export default function TransactionsPage() {
               emptyErrorMessage="Nao foi possivel carregar o consolidado por categoria."
             />
 
-            {categoryBreakdown.length ? (
+            {categoriesWithBreakdown.length ? (
               <div className="space-y-2 border-t border-border/40 pt-4">
-                {categoryBreakdown.map((group) => {
-                  const color = resolveCategoryColorPresentation(group.color);
-                  const selected = categoryFilter === group.id;
+                {categoriesWithBreakdown.map((categoryItem) => {
+                  const color = resolveCategoryColorPresentation(categoryItem.color);
+                  const selected = categoryFilter === categoryItem.id;
 
                   return (
                     <div
-                      key={group.id}
+                      key={categoryItem.id}
                       className="group grid grid-cols-[minmax(0,1fr)_44px_24px] items-center gap-2 rounded-xl px-2 py-2 transition-colors hover:bg-secondary/30"
                       style={selected ? { backgroundColor: color.soft } : undefined}
                     >
                       <button
                         type="button"
-                        onClick={() => handleCategoryFilterChange(group.id)}
+                        onClick={() => handleCategoryFilterChange(categoryItem.id)}
                         className="flex min-w-0 items-center gap-2.5 text-left"
-                        aria-label={`Filtrar por categoria ${group.label}`}
+                        aria-label={`Filtrar por categoria ${categoryItem.label}`}
                         aria-pressed={selected}
                       >
                         <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color.solid }} />
-                        <span className="break-words text-[0.96rem] font-medium leading-snug text-foreground">{group.label}</span>
+                        <span className="break-words text-[0.96rem] font-medium leading-snug text-foreground">{categoryItem.label}</span>
                       </button>
-                      <span className="text-right text-sm tabular-nums text-muted-foreground">{group.count}</span>
+                      <span className="text-right text-sm tabular-nums text-muted-foreground">{categoryItem.count}</span>
                       <button
                         type="button"
                         onClick={() => {
-                          const category = categories.find((item) => String(item.id) === group.id);
+                          const category = categories.find((item) => String(item.id) === categoryItem.id);
 
                           if (!category) {
                             return;
                           }
 
-                          setEditingCategoryId(group.id);
+                          setEditingCategoryId(categoryItem.id);
                           setCategoryForm({
                             label: category.label,
                             transactionType: category.transactionType,
@@ -896,7 +914,7 @@ export default function TransactionsPage() {
                           setCategoryDialogOpen(true);
                         }}
                         className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover:opacity-100"
-                        aria-label={`Editar categoria ${group.label}`}
+                        aria-label={`Editar categoria ${categoryItem.label}`}
                       >
                         <Pencil size={14} />
                       </button>

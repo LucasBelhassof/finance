@@ -224,7 +224,7 @@ describe("TransactionsPage", () => {
       expect(screen.queryByText("Uber")).not.toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("transactions-category-filter-trigger")).toHaveTextContent("Alimentacao");
+    expect(screen.getByTestId("transactions-category-filter-trigger")).toHaveTextContent("Restaurantes");
 
     fireEvent.click(screen.getAllByRole("button", { name: /Filtrar por categoria Alimentacao/i }).at(-1)!);
 
@@ -258,5 +258,29 @@ describe("TransactionsPage", () => {
         }),
       );
     });
+  });
+
+  it("shows categories without transactions in the sidebar and filter", () => {
+    mockUseCategories.mockReturnValue({
+      data: [
+        ...categories,
+        {
+          id: 77,
+          slug: "lazer",
+          label: "Lazer",
+          transactionType: "expense",
+          iconName: "ArrowDownCircle",
+          icon: ArrowDownCircle,
+          color: "#123456",
+          groupSlug: "lazer",
+          groupLabel: "Lazer",
+          groupColor: "#123456",
+        } satisfies CategoryItem,
+      ],
+    });
+
+    render(<TransactionsPage />);
+
+    expect(screen.getAllByText("Lazer").length).toBeGreaterThan(0);
   });
 });

@@ -1,11 +1,9 @@
 import { Bell } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
 
 import Sidebar from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { toast } from "@/components/ui/sonner";
-import { useDashboard } from "@/hooks/use-dashboard";
+import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 
 interface AppShellProps {
   title: string;
@@ -14,22 +12,8 @@ interface AppShellProps {
   showGreeting?: boolean;
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
-
 export default function AppShell({ title, description, children, showGreeting = false }: AppShellProps) {
-  const { data, isError, error } = useDashboard();
-
-  useEffect(() => {
-    if (!isError) {
-      return;
-    }
-
-    toast.error("Nao foi possivel carregar os dados do usuario.", {
-      description: getErrorMessage(error, "Tente novamente em instantes."),
-    });
-  }, [error, isError]);
+  const { user } = useAuthSession();
 
   return (
     <SidebarProvider defaultOpen>
@@ -41,7 +25,7 @@ export default function AppShell({ title, description, children, showGreeting = 
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-bold text-foreground">
-                  {showGreeting ? `${title}, ${data?.user.name ?? "Joao"} ` : title}
+                  {showGreeting ? `${title}, ${user?.name ?? "Joao"} ` : title}
                   {showGreeting ? "\u{1F44B}" : null}
                 </h1>
                 <p className="text-sm text-muted-foreground">{description}</p>

@@ -1,5 +1,8 @@
 export const appRoutes = {
   dashboard: "/",
+  login: "/login",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
   installments: "/installments",
   expenseManagement: "/gestao-de-gastos",
   transactions: "/gestao-de-gastos/transactions",

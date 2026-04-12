@@ -36,12 +36,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/sonner";
-import { useDashboard } from "@/hooks/use-dashboard";
 import { appRoutes } from "@/lib/routes";
+import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
+import { useLogout } from "@/modules/auth/hooks/use-logout";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", to: appRoutes.dashboard, end: true },
-];
+const navItems = [{ icon: LayoutDashboard, label: "Dashboard", to: appRoutes.dashboard, end: true }];
 
 const secondaryNavItems = [
   { icon: MessageSquare, label: "Chat IA", to: appRoutes.chat },
@@ -50,19 +49,20 @@ const secondaryNavItems = [
 ];
 
 const expenseManagementItems = [
-  { label: "Transações", to: appRoutes.transactions },
-  { label: "Habitação", to: appRoutes.expenseManagementHousing },
+  { label: "Transa\u00E7\u00F5es", to: appRoutes.transactions },
+  { label: "Habita\u00E7\u00E3o", to: appRoutes.expenseManagementHousing },
   { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
-  { label: "Métricas", to: appRoutes.expenseManagementMetrics },
+  { label: "M\u00E9tricas", to: appRoutes.expenseManagementMetrics },
 ];
 
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const logoutMutation = useLogout();
   const { state } = useSidebar();
-  const { data } = useDashboard();
-  const userName = data?.user.name ?? "Joao";
-  const userEmail = "joao@email.com";
+  const { user } = useAuthSession();
+  const userName = user?.name ?? "Joao";
+  const userEmail = user?.email ?? "joao@email.com";
   const initials = userName
     .split(" ")
     .filter(Boolean)
@@ -115,11 +115,11 @@ export default function Sidebar() {
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
                   isActive={isExpenseManagementActive}
-                  tooltip="Gestão de Gastos"
+                  tooltip="Gest\u00E3o de Gastos"
                   className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
                 >
                   <Layers3 size={18} className="shrink-0" />
-                  <span className="truncate group-data-[collapsible=icon]:hidden">Gestão de Gastos</span>
+                  <span className="truncate group-data-[collapsible=icon]:hidden">Gest\u00E3o de Gastos</span>
                   <ChevronDown
                     size={16}
                     className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
@@ -214,19 +214,24 @@ export default function Sidebar() {
               </DropdownMenuItem>
               <DropdownMenuItem className="gap-2" onClick={() => navigate(appRoutes.settings)}>
                 <Building2 size={16} />
-                Configurações
+                Configura\u00E7\u00F5es
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/60" />
               <DropdownMenuItem
                 className="gap-2 text-destructive hover:bg-destructive hover:text-black focus:bg-destructive focus:text-black"
-                onClick={() =>
-                  toast.info("Logout ainda nao esta disponivel.", {
-                    description: "A acao sera conectada quando o fluxo de autenticacao for implementado.",
-                  })
-                }
+                disabled={logoutMutation.isPending}
+                onClick={async () => {
+                  try {
+                    await logoutMutation.mutateAsync();
+                  } catch (error) {
+                    toast.error("Nao foi possivel encerrar a sessao.", {
+                      description: error instanceof Error ? error.message : "Tente novamente em instantes.",
+                    });
+                  }
+                }}
               >
                 <LogOut size={16} />
-                Sair
+                {logoutMutation.isPending ? "Saindo..." : "Sair"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

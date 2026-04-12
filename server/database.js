@@ -39,7 +39,6 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 const monthLabels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 let initializationPromise;
-let cachedUser;
 
 function parseNumeric(value) {
   return Number.parseFloat(value ?? 0);
@@ -187,26 +186,8 @@ function mapCategoryRow(row) {
   };
 }
 
-async function getPrimaryUserRecord(client = pool) {
-  const result = await client.query(`
-    SELECT id, name
-    FROM users
-    ORDER BY id ASC
-    LIMIT 1
-  `);
-
-  return result.rows[0] ?? null;
-}
-
 async function doInitializeDatabase() {
   await runMigrations(pool);
-  cachedUser = await getPrimaryUserRecord();
-
-  if (!cachedUser) {
-    throw new Error("No users were found in the database after running migrations.");
-  }
-
-  return cachedUser;
 }
 
 export async function initializeDatabase() {
@@ -217,13 +198,30 @@ export async function initializeDatabase() {
   return initializationPromise;
 }
 
-async function getPrimaryUser() {
-  if (cachedUser) {
-    return cachedUser;
+async function requireUserId(userId) {
+  await initializeDatabase();
+
+  const normalizedUserId = Number(userId);
+
+  if (!Number.isInteger(normalizedUserId)) {
+    throw new Error("authenticated user is required");
   }
 
-  await initializeDatabase();
-  return cachedUser;
+  return normalizedUserId;
+}
+
+async function getUserById(userId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT id, name, email
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [userId],
+  );
+
+  return result.rows[0] ?? null;
 }
 
 async function getReferenceMonth(userId) {
@@ -247,8 +245,8 @@ export async function pingDatabase() {
   return result.rows[0];
 }
 
-export async function getSummaryCards() {
-  const user = await getPrimaryUser();
+export async function getSummaryCards(userId) {
+  const resolvedUserId = await requireUserId(userId);
   const [balanceResult, monthlyTotalsResult] = await Promise.all([
     pool.query(
       `
@@ -256,7 +254,7 @@ export async function getSummaryCards() {
         FROM bank_connections
         WHERE user_id = $1
       `,
-      [user.id],
+      [resolvedUserId],
     ),
     pool.query(
       `
@@ -299,7 +297,7 @@ export async function getSummaryCards() {
         LEFT JOIN transactions t
           ON t.user_id = $1
       `,
-      [user.id],
+      [resolvedUserId],
     ),
   ]);
 
@@ -315,8 +313,8 @@ export async function getSummaryCards() {
   });
 }
 
-export async function listBanks() {
-  const user = await getPrimaryUser();
+export async function listBanks(userId) {
+  const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
         SELECT
@@ -342,7 +340,7 @@ export async function listBanks() {
         b.sort_order ASC,
         b.id ASC
     `,
-    [user.id],
+    [resolvedUserId],
   );
 
   return result.rows.map((row) => ({
@@ -363,12 +361,12 @@ export async function listBanks() {
   }));
 }
 
-export async function createBankConnection(input) {
-  const user = await getPrimaryUser();
-  const normalized = await validateBankConnectionInput(user.id, input);
+export async function createBankConnection(userId, input) {
+  const resolvedUserId = await requireUserId(userId);
+  const normalized = await validateBankConnectionInput(resolvedUserId, input);
   const [slug, sortOrder] = await Promise.all([
-    buildUniqueBankSlug(user.id, normalized.name),
-    getNextBankSortOrder(user.id),
+    buildUniqueBankSlug(resolvedUserId, normalized.name),
+    getNextBankSortOrder(resolvedUserId),
   ]);
 
   const result = await pool.query(
@@ -391,7 +389,7 @@ export async function createBankConnection(input) {
       RETURNING id
     `,
     [
-      user.id,
+      resolvedUserId,
       slug,
       normalized.name,
       normalized.accountType,
@@ -406,7 +404,7 @@ export async function createBankConnection(input) {
     ],
   );
 
-  const created = await listBanks();
+  const created = await listBanks(resolvedUserId);
   const bank = created.find((item) => String(item.id) === String(result.rows[0].id));
 
   if (!bank) {
@@ -416,16 +414,16 @@ export async function createBankConnection(input) {
   return bank;
 }
 
-export async function updateBankConnection(bankConnectionId, input) {
-  const user = await getPrimaryUser();
-  const existing = await getBankConnectionById(user.id, bankConnectionId);
+export async function updateBankConnection(userId, bankConnectionId, input) {
+  const resolvedUserId = await requireUserId(userId);
+  const existing = await getBankConnectionById(resolvedUserId, bankConnectionId);
 
   if (!existing) {
     throw new Error("bank connection not found");
   }
 
-  const normalized = await validateBankConnectionInput(user.id, input, bankConnectionId);
-  const hasChildren = await hasChildBankConnections(user.id, bankConnectionId);
+  const normalized = await validateBankConnectionInput(resolvedUserId, input, bankConnectionId);
+  const hasChildren = await hasChildBankConnections(resolvedUserId, bankConnectionId);
 
   if (hasChildren && normalized.accountType !== "bank_account") {
     throw new Error("accounts with linked cards must remain bank accounts");
@@ -448,7 +446,7 @@ export async function updateBankConnection(bankConnectionId, input) {
           AND id = $2
       `,
     [
-      user.id,
+      resolvedUserId,
       bankConnectionId,
       normalized.name,
         normalized.accountType,
@@ -462,7 +460,7 @@ export async function updateBankConnection(bankConnectionId, input) {
       ],
   );
 
-  const updated = await listBanks();
+  const updated = await listBanks(resolvedUserId);
   const bank = updated.find((item) => String(item.id) === String(bankConnectionId));
 
   if (!bank) {
@@ -472,23 +470,23 @@ export async function updateBankConnection(bankConnectionId, input) {
   return bank;
 }
 
-export async function deleteBankConnection(bankConnectionId) {
-  const user = await getPrimaryUser();
-  const existing = await getBankConnectionById(user.id, bankConnectionId);
+export async function deleteBankConnection(userId, bankConnectionId) {
+  const resolvedUserId = await requireUserId(userId);
+  const existing = await getBankConnectionById(resolvedUserId, bankConnectionId);
 
   if (!existing) {
     throw new Error("bank connection not found");
   }
 
-  if (await hasChildBankConnections(user.id, bankConnectionId)) {
+  if (await hasChildBankConnections(resolvedUserId, bankConnectionId)) {
     throw new Error("delete linked cards before deleting the parent bank account");
   }
 
-  if (await hasTransactionsForBankConnection(user.id, bankConnectionId)) {
+  if (await hasTransactionsForBankConnection(resolvedUserId, bankConnectionId)) {
     throw new Error("cannot delete a bank connection already used by transactions");
   }
 
-  if (existing.account_type === "cash" && (await countCashBankConnections(user.id)) <= 1) {
+  if (existing.account_type === "cash" && (await countCashBankConnections(resolvedUserId)) <= 1) {
     throw new Error("at least one cash account must remain");
   }
 
@@ -498,7 +496,7 @@ export async function deleteBankConnection(bankConnectionId) {
       WHERE user_id = $1
         AND id = $2
     `,
-    [user.id, bankConnectionId],
+    [resolvedUserId, bankConnectionId],
   );
 
   if (!result.rowCount) {
@@ -506,8 +504,8 @@ export async function deleteBankConnection(bankConnectionId) {
   }
 }
 
-export async function listRecentTransactions(limit = 8) {
-  const user = await getPrimaryUser();
+export async function listRecentTransactions(userId, limit = 8) {
+  const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
       SELECT
@@ -541,7 +539,7 @@ export async function listRecentTransactions(limit = 8) {
       ORDER BY t.occurred_on DESC, t.id DESC
       LIMIT $2
     `,
-    [user.id, limit],
+    [resolvedUserId, limit],
   );
 
   const referenceDate = normalizeDateValue(result.rows[0]?.occurred_on);
@@ -549,8 +547,8 @@ export async function listRecentTransactions(limit = 8) {
   return result.rows.map((row) => mapTransactionRow(row, referenceDate));
 }
 
-export async function listTransactions(limit) {
-  const user = await getPrimaryUser();
+export async function listTransactions(userId, limit) {
+  const resolvedUserId = await requireUserId(userId);
   const hasLimit = Number.isInteger(limit) && limit > 0;
   const result = await pool.query(
     `
@@ -585,15 +583,15 @@ export async function listTransactions(limit) {
       ORDER BY t.occurred_on DESC, t.id DESC
       LIMIT COALESCE($2, 1000)
     `,
-    [user.id, hasLimit ? limit : null],
+    [resolvedUserId, hasLimit ? limit : null],
   );
 
   const referenceDate = normalizeDateValue(result.rows[0]?.occurred_on);
   return result.rows.map((row) => mapTransactionRow(row, referenceDate));
 }
 
-export async function getInstallmentsOverview(filters = {}) {
-  const user = await getPrimaryUser();
+export async function getInstallmentsOverview(userId, filters = {}) {
+  const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
       SELECT
@@ -619,7 +617,7 @@ export async function getInstallmentsOverview(filters = {}) {
         AND ip.installment_count >= 2
       ORDER BY ip.id ASC, t.installment_number ASC NULLS LAST, t.id ASC
     `,
-    [user.id],
+    [resolvedUserId],
   );
 
   const rows = result.rows.map((row) => ({
@@ -918,13 +916,13 @@ async function generateHousingTransactions(client, userId, housing) {
   );
 }
 
-export async function listHousing() {
-  const user = await getPrimaryUser();
-  return getHousingRows(user.id);
+export async function listHousing(userId) {
+  const resolvedUserId = await requireUserId(userId);
+  return getHousingRows(resolvedUserId);
 }
 
-export async function createHousing(input) {
-  const user = await getPrimaryUser();
+export async function createHousing(userId, input) {
+  const resolvedUserId = await requireUserId(userId);
   const normalized = validateHousingInput(input);
   const client = await pool.connect();
 
@@ -932,7 +930,7 @@ export async function createHousing(input) {
     await client.query("BEGIN");
 
     const [bankConnection, category] = await Promise.all([
-      getBankConnectionById(user.id, normalized.bankConnectionId, client),
+      getBankConnectionById(resolvedUserId, normalized.bankConnectionId, client),
       resolveCategoryForTransactionInput(input.categoryId, -Math.abs(normalized.amount), client),
     ]);
 
@@ -959,7 +957,7 @@ export async function createHousing(input) {
         RETURNING id
       `,
       [
-        user.id,
+        resolvedUserId,
         normalized.bankConnectionId,
         category.id,
         normalized.description,
@@ -973,13 +971,13 @@ export async function createHousing(input) {
       ],
     );
 
-    await generateHousingTransactions(client, user.id, {
+    await generateHousingTransactions(client, resolvedUserId, {
       id: result.rows[0].id,
       ...normalized,
       categoryId: category.id,
     });
 
-    const [housing] = await getHousingRows(user.id, result.rows[0].id, client);
+    const [housing] = await getHousingRows(resolvedUserId, result.rows[0].id, client);
     await client.query("COMMIT");
     return housing;
   } catch (error) {
@@ -990,8 +988,8 @@ export async function createHousing(input) {
   }
 }
 
-export async function updateHousing(housingId, input) {
-  const user = await getPrimaryUser();
+export async function updateHousing(userId, housingId, input) {
+  const resolvedUserId = await requireUserId(userId);
   const normalized = validateHousingInput(input);
   const client = await pool.connect();
 
@@ -999,7 +997,7 @@ export async function updateHousing(housingId, input) {
     await client.query("BEGIN");
 
     const [bankConnection, category] = await Promise.all([
-      getBankConnectionById(user.id, normalized.bankConnectionId, client),
+      getBankConnectionById(resolvedUserId, normalized.bankConnectionId, client),
       resolveCategoryForTransactionInput(input.categoryId, -Math.abs(normalized.amount), client),
     ]);
 
@@ -1026,7 +1024,7 @@ export async function updateHousing(housingId, input) {
         RETURNING id
       `,
       [
-        user.id,
+        resolvedUserId,
         housingId,
         normalized.bankConnectionId,
         category.id,
@@ -1045,13 +1043,13 @@ export async function updateHousing(housingId, input) {
       throw new Error("housing expense not found");
     }
 
-    await generateHousingTransactions(client, user.id, {
+    await generateHousingTransactions(client, resolvedUserId, {
       id: housingId,
       ...normalized,
       categoryId: category.id,
     });
 
-    const [housing] = await getHousingRows(user.id, housingId, client);
+    const [housing] = await getHousingRows(resolvedUserId, housingId, client);
     await client.query("COMMIT");
     return housing;
   } catch (error) {
@@ -1062,15 +1060,15 @@ export async function updateHousing(housingId, input) {
   }
 }
 
-export async function deleteHousing(housingId) {
-  const user = await getPrimaryUser();
+export async function deleteHousing(userId, housingId) {
+  const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
       DELETE FROM housing
       WHERE user_id = $1
         AND id = $2
     `,
-    [user.id, housingId],
+    [resolvedUserId, housingId],
   );
 
   if (!result.rowCount) {
@@ -1740,8 +1738,8 @@ async function getTransactionById(userId, transactionId, client = pool) {
   return result.rows[0] ?? null;
 }
 
-export async function createTransaction(input) {
-  const user = await getPrimaryUser();
+export async function createTransaction(userId, input) {
+  const resolvedUserId = await requireUserId(userId);
   const description = String(input.description ?? "").trim();
   const amount = Number(input.amount);
   const occurredOn = normalizeDateValue(input.occurredOn);
@@ -1753,7 +1751,7 @@ export async function createTransaction(input) {
 
   const category = await resolveCategoryForTransactionInput(input.categoryId, amount);
 
-  const bankConnection = await getBankConnectionById(user.id, bankConnectionId);
+  const bankConnection = await getBankConnectionById(resolvedUserId, bankConnectionId);
 
   if (!bankConnection) {
     throw new Error("bank connection not found");
@@ -1765,15 +1763,15 @@ export async function createTransaction(input) {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id
     `,
-    [user.id, bankConnectionId, category.id, description, amount, occurredOn],
+    [resolvedUserId, bankConnectionId, category.id, description, amount, occurredOn],
   );
 
-  const row = await getTransactionById(user.id, result.rows[0].id);
+  const row = await getTransactionById(resolvedUserId, result.rows[0].id);
   return mapTransactionRow(row, occurredOn);
 }
 
-export async function updateTransaction(transactionId, input) {
-  const user = await getPrimaryUser();
+export async function updateTransaction(userId, transactionId, input) {
+  const resolvedUserId = await requireUserId(userId);
   const description = String(input.description ?? "").trim();
   const amount = Number(input.amount);
   const occurredOn = normalizeDateValue(input.occurredOn);
@@ -1785,7 +1783,7 @@ export async function updateTransaction(transactionId, input) {
 
   const category = await resolveCategoryForTransactionInput(input.categoryId, amount);
 
-  const bankConnection = await getBankConnectionById(user.id, bankConnectionId);
+  const bankConnection = await getBankConnectionById(resolvedUserId, bankConnectionId);
 
   if (!bankConnection) {
     throw new Error("bank connection not found");
@@ -1803,26 +1801,26 @@ export async function updateTransaction(transactionId, input) {
         AND id = $2
       RETURNING id
     `,
-    [user.id, transactionId, bankConnectionId, category.id, description, amount, occurredOn],
+    [resolvedUserId, transactionId, bankConnectionId, category.id, description, amount, occurredOn],
   );
 
   if (!result.rowCount) {
     throw new Error("transaction not found");
   }
 
-  const row = await getTransactionById(user.id, transactionId);
+  const row = await getTransactionById(resolvedUserId, transactionId);
   return mapTransactionRow(row, occurredOn);
 }
 
-export async function deleteTransaction(transactionId) {
-  const user = await getPrimaryUser();
+export async function deleteTransaction(userId, transactionId) {
+  const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
       DELETE FROM transactions
       WHERE user_id = $1
         AND id = $2
     `,
-    [user.id, transactionId],
+    [resolvedUserId, transactionId],
   );
 
   if (!result.rowCount) {
@@ -1830,15 +1828,15 @@ export async function deleteTransaction(transactionId) {
   }
 }
 
-export async function previewTransactionImport(fileBuffer, importSource = "bank_statement", bankConnectionId, filename, contentType) {
-  const user = await getPrimaryUser();
+export async function previewTransactionImport(userId, fileBuffer, importSource = "bank_statement", bankConnectionId, filename, contentType) {
+  const resolvedUserId = await requireUserId(userId);
   const parsedBankConnectionId = Number(bankConnectionId);
 
   if (!Number.isInteger(parsedBankConnectionId)) {
     throw new Error("bankConnectionId is required");
   }
 
-  const bankConnection = await getBankConnectionById(user.id, parsedBankConnectionId);
+  const bankConnection = await getBankConnectionById(resolvedUserId, parsedBankConnectionId);
 
   if (!bankConnection) {
     throw new Error("bank connection not found");
@@ -1854,16 +1852,16 @@ export async function previewTransactionImport(fileBuffer, importSource = "bank_
 
   const [categories, fingerprintRows, historicalRows, recurringRules] = await Promise.all([
     listCategories(),
-    listTransactionFingerprintRows(user.id),
-    listHistoricalCategorizationRows(user.id),
-    listRecurringCategorizationRules(user.id),
+    listTransactionFingerprintRows(resolvedUserId),
+    listHistoricalCategorizationRows(resolvedUserId),
+    listRecurringCategorizationRules(resolvedUserId),
   ]);
 
   const existingFingerprints = new Set(
     fingerprintRows.map((row) =>
       String(
         row.seed_key ??
-          buildImportSeedKey(user.id, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+          buildImportSeedKey(resolvedUserId, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
       ),
     ),
   );
@@ -1879,13 +1877,13 @@ export async function previewTransactionImport(fileBuffer, importSource = "bank_
     historicalRows,
     importSource,
     recurringRules,
-    userId: user.id,
+    userId: resolvedUserId,
   });
 }
 
-export async function getTransactionImportAiSuggestions(input) {
-  const user = await getPrimaryUser();
-  const session = getPreviewSession(input.previewToken, user.id);
+export async function getTransactionImportAiSuggestions(userId, input) {
+  const resolvedUserId = await requireUserId(userId);
+  const session = getPreviewSession(input.previewToken, resolvedUserId);
   const categories = await listCategories();
   const config = getImportAiConfig();
 
@@ -1928,18 +1926,18 @@ export async function getTransactionImportAiSuggestions(input) {
   };
 }
 
-export async function commitTransactionImport(input) {
-  const user = await getPrimaryUser();
-  const session = getPreviewSession(input.previewToken, user.id);
+export async function commitTransactionImport(userId, input) {
+  const resolvedUserId = await requireUserId(userId);
+  const session = getPreviewSession(input.previewToken, resolvedUserId);
   validateCommitItemsShape(input.items, session);
   const sessionItemsByRowIndex = new Map(session.items.map((item) => [item.rowIndex, item.original]));
 
-  const [categories, fingerprintRows] = await Promise.all([listCategories(), listTransactionFingerprintRows(user.id)]);
+  const [categories, fingerprintRows] = await Promise.all([listCategories(), listTransactionFingerprintRows(resolvedUserId)]);
   const existingFingerprints = new Set(
     fingerprintRows.map((row) =>
       String(
         row.seed_key ??
-          buildImportSeedKey(user.id, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+          buildImportSeedKey(resolvedUserId, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
       ),
     ),
   );
@@ -1981,7 +1979,7 @@ export async function commitTransactionImport(input) {
 
       const installmentPurchaseSeedKey = isInstallmentEntry
         ? buildInstallmentPurchaseSeedKey(
-            user.id,
+            resolvedUserId,
             session.bankConnectionId,
             previewItem.purchaseOccurredOn,
             previewItem.normalizedPurchaseDescriptionBase,
@@ -2001,7 +1999,7 @@ export async function commitTransactionImport(input) {
         if (installmentPurchaseSeedKey) {
           installmentPurchase = await getOrCreateInstallmentPurchase(
             {
-              userId: user.id,
+              userId: resolvedUserId,
               bankConnectionId: session.bankConnectionId,
               categoryId: normalized.categoryId,
               seedKey: installmentPurchaseSeedKey,
@@ -2018,9 +2016,9 @@ export async function commitTransactionImport(input) {
         for (const entry of entriesToImport) {
           const seedKey =
             installmentPurchaseSeedKey && Number.isInteger(entry.installmentNumber)
-              ? buildInstallmentTransactionSeedKey(user.id, installmentPurchaseSeedKey, entry.installmentNumber)
+              ? buildInstallmentTransactionSeedKey(resolvedUserId, installmentPurchaseSeedKey, entry.installmentNumber)
               : buildImportSeedKey(
-                  user.id,
+                  resolvedUserId,
                   entry.occurredOn,
                   entry.amount,
                   normalized.normalizedFinalDescription,
@@ -2033,7 +2031,7 @@ export async function commitTransactionImport(input) {
 
           const transaction = await createImportedTransaction(
             {
-              userId: user.id,
+              userId: resolvedUserId,
               bankConnectionId: session.bankConnectionId,
               categoryId: entry.categoryId,
               description: entry.description,
@@ -2058,7 +2056,7 @@ export async function commitTransactionImport(input) {
 
         if (importedTransactions.length > 0) {
           await upsertTransactionCategorizationRule({
-            userId: user.id,
+            userId: resolvedUserId,
             matchKey: extractCategorizationMatchKey(normalized.description),
             type: normalized.type,
             categoryId: normalized.categoryId,
@@ -2126,8 +2124,8 @@ export async function commitTransactionImport(input) {
   };
 }
 
-export async function listSpendingByCategory() {
-  const user = await getPrimaryUser();
+export async function listSpendingByCategory(userId) {
+  const resolvedUserId = await requireUserId(userId);
   const totalsResult = await pool.query(
     `
       WITH latest_month AS (
@@ -2149,7 +2147,7 @@ export async function listSpendingByCategory() {
       GROUP BY c.group_slug, c.group_label, c.group_color
       ORDER BY total DESC, c.group_label ASC
     `,
-    [user.id],
+    [resolvedUserId],
   );
 
   const totalSpent = totalsResult.rows.reduce((acc, row) => acc + parseNumeric(row.total), 0);
@@ -2164,8 +2162,8 @@ export async function listSpendingByCategory() {
   }));
 }
 
-export async function listInsights() {
-  const user = await getPrimaryUser();
+export async function listInsights(userId) {
+  const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
       SELECT id, title, description, tag, tone
@@ -2173,7 +2171,7 @@ export async function listInsights() {
       WHERE user_id = $1
       ORDER BY sort_order ASC, id ASC
     `,
-    [user.id],
+    [resolvedUserId],
   );
 
   return result.rows.map((row) => ({
@@ -2186,8 +2184,8 @@ export async function listInsights() {
   }));
 }
 
-export async function listChatMessages(limit = 20) {
-  const user = await getPrimaryUser();
+export async function listChatMessages(userId, limit = 20) {
+  const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
       SELECT id, role, content, created_at
@@ -2200,7 +2198,7 @@ export async function listChatMessages(limit = 20) {
       ) recent
       ORDER BY created_at ASC, id ASC
     `,
-    [user.id, limit],
+    [resolvedUserId, limit],
   );
 
   return result.rows.map((row) => ({
@@ -2301,13 +2299,13 @@ async function insertChatMessage(userId, role, content) {
   };
 }
 
-export async function createChatReply(message) {
-  const user = await getPrimaryUser();
-  const userMessage = await insertChatMessage(user.id, "user", message);
+export async function createChatReply(userId, message) {
+  const resolvedUserId = await requireUserId(userId);
+  const userMessage = await insertChatMessage(resolvedUserId, "user", message);
   const [summaryCards, spendingByCategory, deliverySpend] = await Promise.all([
-    getSummaryCards(),
-    listSpendingByCategory(),
-    getDeliverySpend(user.id),
+    getSummaryCards(resolvedUserId),
+    listSpendingByCategory(resolvedUserId),
+    getDeliverySpend(resolvedUserId),
   ]);
 
   const assistantContent = buildAssistantReply(message, {
@@ -2316,7 +2314,7 @@ export async function createChatReply(message) {
     deliverySpend,
   });
 
-  const assistantMessage = await insertChatMessage(user.id, "assistant", assistantContent);
+  const assistantMessage = await insertChatMessage(resolvedUserId, "assistant", assistantContent);
 
   return {
     userMessage,
@@ -2324,17 +2322,23 @@ export async function createChatReply(message) {
   };
 }
 
-export async function getDashboardData() {
-  const user = await getPrimaryUser();
+export async function getDashboardData(userId) {
+  const resolvedUserId = await requireUserId(userId);
+  const user = await getUserById(resolvedUserId);
+
+  if (!user) {
+    throw new Error("user not found");
+  }
+
   const [summaryCards, recentTransactions, spendingByCategory, insights, banks, chatMessages, snapshots] =
     await Promise.all([
-      getSummaryCards(),
-      listRecentTransactions(),
-      listSpendingByCategory(),
-      listInsights(),
-      listBanks(),
-      listChatMessages(),
-      getReferenceMonth(user.id),
+      getSummaryCards(resolvedUserId),
+      listRecentTransactions(resolvedUserId),
+      listSpendingByCategory(resolvedUserId),
+      listInsights(resolvedUserId),
+      listBanks(resolvedUserId),
+      listChatMessages(resolvedUserId),
+      getReferenceMonth(resolvedUserId),
     ]);
 
   return {

@@ -2,6 +2,7 @@
 /bootstrap/ssr
 /node_modules
 /dist
+/dist-server
 /public/build/
 /public/assets/
 /public/hot

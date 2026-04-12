@@ -6,13 +6,23 @@ import Sidebar from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { appRoutes } from "@/lib/routes";
 
-vi.mock("@/hooks/use-dashboard", () => ({
-  useDashboard: () => ({
-    data: {
-      user: {
-        name: "Joao Silva",
-      },
+const { logoutMutateAsync } = vi.hoisted(() => ({
+  logoutMutateAsync: vi.fn(),
+}));
+
+vi.mock("@/modules/auth/hooks/use-auth-session", () => ({
+  useAuthSession: () => ({
+    user: {
+      name: "João Silva",
+      email: "joao@finance.test",
     },
+  }),
+}));
+
+vi.mock("@/modules/auth/hooks/use-logout", () => ({
+  useLogout: () => ({
+    isPending: false,
+    mutateAsync: logoutMutateAsync,
   }),
 }));
 
@@ -26,14 +36,24 @@ function renderSidebar(initialPath = appRoutes.dashboard) {
   );
 }
 
+function getClosestElement<T extends HTMLElement>(textPattern: RegExp, selector: string) {
+  const element = screen.getByText(textPattern).closest(selector);
+
+  if (!element) {
+    throw new Error(`Could not find closest ${selector} for ${textPattern.toString()}.`);
+  }
+
+  return element as T;
+}
+
 describe("Sidebar", () => {
   it("places transactions as the first expense management submenu item", () => {
     renderSidebar();
 
-    fireEvent.click(screen.getByRole("button", { name: /gest.o de gastos/i }));
+    fireEvent.click(getClosestElement<HTMLButtonElement>(/gest/i, "button"));
 
-    const transactionsLink = screen.getByRole("link", { name: /transacoes/i });
-    const installmentsLink = screen.getByRole("link", { name: /parcelamentos/i });
+    const transactionsLink = getClosestElement<HTMLAnchorElement>(/^trans/i, "a");
+    const installmentsLink = getClosestElement<HTMLAnchorElement>(/^parcel/i, "a");
 
     expect(transactionsLink).toHaveAttribute("href", appRoutes.transactions);
     expect(transactionsLink.compareDocumentPosition(installmentsLink)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
@@ -42,28 +62,21 @@ describe("Sidebar", () => {
   it("renders the expense management submenu and links", () => {
     renderSidebar();
 
-    fireEvent.click(screen.getByRole("button", { name: /gest.o de gastos/i }));
+    const expenseManagementButton = getClosestElement<HTMLButtonElement>(/gest/i, "button");
 
-    expect(screen.getByRole("button", { name: /gest.o de gastos/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /transacoes/i })).toHaveAttribute("href", appRoutes.transactions);
-    expect(screen.getByRole("link", { name: /parcelamentos/i })).toHaveAttribute(
-      "href",
-      appRoutes.expenseManagementInstallments,
-    );
-    expect(screen.getByRole("link", { name: /habita..o/i })).toHaveAttribute(
-      "href",
-      appRoutes.expenseManagementHousing,
-    );
-    expect(screen.getByRole("link", { name: /m.tricas/i })).toHaveAttribute(
-      "href",
-      appRoutes.expenseManagementMetrics,
-    );
+    fireEvent.click(expenseManagementButton);
+
+    expect(expenseManagementButton).toBeInTheDocument();
+    expect(getClosestElement<HTMLAnchorElement>(/^trans/i, "a")).toHaveAttribute("href", appRoutes.transactions);
+    expect(getClosestElement<HTMLAnchorElement>(/^parcel/i, "a")).toHaveAttribute("href", appRoutes.expenseManagementInstallments);
+    expect(getClosestElement<HTMLAnchorElement>(/^hab/i, "a")).toHaveAttribute("href", appRoutes.expenseManagementHousing);
+    expect(getClosestElement<HTMLAnchorElement>(/^m/i, "a")).toHaveAttribute("href", appRoutes.expenseManagementMetrics);
   });
 
   it("opens and marks expense management active on nested routes", () => {
     renderSidebar(appRoutes.expenseManagementInstallments);
 
-    expect(screen.getByRole("button", { name: /gest.o de gastos/i })).toHaveAttribute("data-active", "true");
-    expect(screen.getByRole("link", { name: /parcelamentos/i })).toHaveAttribute("data-active", "true");
+    expect(getClosestElement<HTMLButtonElement>(/gest/i, "button")).toHaveAttribute("data-active", "true");
+    expect(getClosestElement<HTMLAnchorElement>(/^parcel/i, "a")).toHaveAttribute("data-active", "true");
   });
 });

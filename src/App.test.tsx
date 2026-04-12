@@ -1,9 +1,26 @@
+import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
+import { Outlet } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "@/App";
 import { appRoutes } from "@/lib/routes";
 
+vi.mock("@/modules/auth/components/AuthProvider", () => ({
+  AuthProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/modules/auth/components/ProtectedRoute", () => ({
+  ProtectedRoute: () => <Outlet />,
+}));
+
+vi.mock("@/modules/auth/components/PublicOnlyRoute", () => ({
+  PublicOnlyRoute: () => <Outlet />,
+}));
+
+vi.mock("@/modules/auth/pages/LoginPage", () => ({ default: () => <h1>Login</h1> }));
+vi.mock("@/modules/auth/pages/ForgotPasswordPage", () => ({ default: () => <h1>Esqueci minha senha</h1> }));
+vi.mock("@/modules/auth/pages/ResetPasswordPage", () => ({ default: () => <h1>Redefinir senha</h1> }));
 vi.mock("./pages/Accounts.tsx", () => ({ default: () => <h1>Contas</h1> }));
 vi.mock("./pages/Chat.tsx", () => ({ default: () => <h1>Chat IA</h1> }));
 vi.mock("./pages/ExpenseMetrics.tsx", () => ({ default: () => <h1>Métricas</h1> }));
@@ -14,7 +31,7 @@ vi.mock("./pages/Insights.tsx", () => ({ default: () => <h1>Insights</h1> }));
 vi.mock("./pages/NotFound.tsx", () => ({ default: () => <h1>Not found</h1> }));
 vi.mock("./pages/Profile.tsx", () => ({ default: () => <h1>Perfil</h1> }));
 vi.mock("./pages/Settings.tsx", () => ({ default: () => <h1>Configurações</h1> }));
-vi.mock("./pages/Transactions.tsx", () => ({ default: () => <h1>Transacoes</h1> }));
+vi.mock("./pages/Transactions.tsx", () => ({ default: () => <h1>Transações</h1> }));
 
 describe("App routes", () => {
   beforeEach(() => {

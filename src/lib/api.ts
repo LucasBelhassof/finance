@@ -61,7 +61,7 @@ import type {
 } from "@/types/api";
 
 const DEFAULT_API_URL = "";
-const apiBaseUrl = (import.meta.env.VITE_API_URL?.trim() || DEFAULT_API_URL).replace(/\/$/, "");
+export const apiBaseUrl = (import.meta.env.VITE_API_URL?.trim() || DEFAULT_API_URL).replace(/\/$/, "");
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -76,6 +76,24 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
   }
+}
+
+type ApiAuthConfig = {
+  getAccessToken: () => string | null;
+  onAuthFailure: () => void | Promise<void>;
+  refreshAccessToken: () => Promise<string | null>;
+};
+
+const defaultApiAuthConfig: ApiAuthConfig = {
+  getAccessToken: () => null,
+  onAuthFailure: () => undefined,
+  refreshAccessToken: async () => null,
+};
+
+let apiAuthConfig: ApiAuthConfig = defaultApiAuthConfig;
+
+export function configureApiAuth(config: ApiAuthConfig) {
+  apiAuthConfig = config;
 }
 
 function safeString(value: unknown, fallback = "") {
@@ -121,7 +139,12 @@ async function parseResponseBody(response: Response) {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit) {
+type RequestOptions = {
+  allowRefreshRetry?: boolean;
+  skipAuthHandling?: boolean;
+};
+
+async function request<T>(path: string, init?: RequestInit, options: RequestOptions = {}) {
   const headers = new Headers(init?.headers);
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
 
@@ -129,10 +152,32 @@ async function request<T>(path: string, init?: RequestInit) {
     headers.set("Content-Type", "application/json");
   }
 
+  if (!options.skipAuthHandling) {
+    const accessToken = apiAuthConfig.getAccessToken();
+
+    if (accessToken && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${accessToken}`);
+    }
+  }
+
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     headers,
+    credentials: "include",
   });
+
+  if (response.status === 401 && !options.skipAuthHandling && options.allowRefreshRetry !== false) {
+    const refreshedAccessToken = await apiAuthConfig.refreshAccessToken();
+
+    if (refreshedAccessToken) {
+      return request<T>(path, init, {
+        ...options,
+        allowRefreshRetry: false,
+      });
+    }
+
+    await apiAuthConfig.onAuthFailure();
+  }
 
   const body = await parseResponseBody(response);
 
@@ -686,6 +731,7 @@ export function mapDashboardResponse(response: ApiDashboardResponse): DashboardD
     user: {
       id: response.user?.id ?? "default-user",
       name: safeString(response.user?.name, "Joao"),
+      email: safeString(response.user?.email, "joao@email.com"),
     },
     referenceMonth: response.referenceMonth ?? null,
     summaryCards: (response.summaryCards ?? []).map(mapSummaryCard),

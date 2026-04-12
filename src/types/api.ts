@@ -5,6 +5,7 @@ export type ChatRole = "assistant" | "user";
 export interface ApiUser {
   id?: number | string;
   name?: string;
+  email?: string;
 }
 
 export interface ApiSummaryCard {

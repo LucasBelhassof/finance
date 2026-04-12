@@ -187,7 +187,11 @@ export default function TransactionsPage() {
     groupColor: DEFAULT_CATEGORY_COLOR,
   });
   const transactionBanks = useMemo(
-    () => banks.filter((bank) => bank.accountType === "bank_account" || bank.accountType === "credit_card"),
+    () =>
+      banks.filter(
+        (bank) =>
+          bank.accountType === "bank_account" || bank.accountType === "credit_card" || bank.accountType === "cash",
+      ),
     [banks],
   );
   const visibleTransactions = useMemo(
@@ -195,7 +199,9 @@ export default function TransactionsPage() {
       transactions.filter(
         (transaction) =>
           transaction.housingId === null &&
-          (transaction.account.accountType === "bank_account" || transaction.account.accountType === "credit_card"),
+          (transaction.account.accountType === "bank_account" ||
+            transaction.account.accountType === "credit_card" ||
+            transaction.account.accountType === "cash"),
       ),
     [transactions],
   );
@@ -525,10 +531,10 @@ export default function TransactionsPage() {
             <Select
               value={transactionForm.bankConnectionId}
               onValueChange={(value) => setTransactionForm((current) => ({ ...current, bankConnectionId: value }))}
-            >
-              <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-                <SelectValue placeholder="Banco ou conta" />
-              </SelectTrigger>
+              >
+                <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
+                  <SelectValue placeholder="Conta, cartao ou caixa" />
+                </SelectTrigger>
               <SelectContent>
                 {transactionBanks.map((bank) => (
                   <SelectItem key={bank.id} value={String(bank.id)}>

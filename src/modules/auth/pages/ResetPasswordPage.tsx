@@ -34,6 +34,7 @@ export default function ResetPasswordPage() {
       eyebrow="Nova senha"
       title="Defina uma senha forte e siga em frente."
       description="O token de reset e temporario, de uso unico, e todas as sessoes ativas sao invalidadas apos a troca."
+      showShowcase={false}
     >
       <Card className="rounded-[2rem] border-border/60 bg-card/94 shadow-2xl backdrop-blur">
         <CardHeader className="space-y-2">

@@ -35,6 +35,7 @@ export default function ForgotPasswordPage() {
       eyebrow="Recuperacao"
       title="Recupere o acesso sem atrito."
       description="Geramos um link temporario, com uso unico e expiracao curta, sem revelar se a conta existe."
+      showShowcase={false}
     >
       <Card className="rounded-[2rem] border-border/60 bg-card/94 shadow-2xl backdrop-blur">
         <CardHeader className="space-y-2">

@@ -22,7 +22,6 @@ export default function SignupPage() {
       email: "",
       password: "",
       confirmPassword: "",
-      rememberMe: false,
     },
   });
   const signupMutation = useSignup();
@@ -32,6 +31,7 @@ export default function SignupPage() {
       eyebrow="Finance Auth"
       title="Crie sua conta em segundos."
       description="Acesso imediato a dashboard, contas e automacoes com sessao protegida."
+      showShowcase={false}
     >
       <Card className="overflow-hidden rounded-[2rem] border-border/60 bg-card/94 shadow-2xl backdrop-blur">
         <CardHeader className="space-y-3 pb-4">
@@ -124,27 +124,6 @@ export default function SignupPage() {
                       <PasswordField {...field} autoComplete="new-password" placeholder="Repita sua senha" />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="rememberMe"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-2xl border border-border/60 bg-secondary/30 px-4 py-3">
-                    <div className="space-y-1">
-                      <FormLabel className="text-sm font-medium text-foreground">Lembrar de mim</FormLabel>
-                      <p className="text-sm text-muted-foreground">Mantem a sessao ativa por mais tempo sem salvar sua senha.</p>
-                    </div>
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={(event) => field.onChange(event.target.checked)}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                    </FormControl>
                   </FormItem>
                 )}
               />

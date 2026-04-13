@@ -5,9 +5,10 @@ import { useForm } from "react-hook-form";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { appRoutes } from "@/lib/routes";
 import { AuthScreen } from "@/modules/auth/components/AuthScreen";
 import { PasswordField } from "@/modules/auth/components/PasswordField";
@@ -32,22 +33,19 @@ export default function LoginPage() {
       description="Acesse dashboard, contas e automacoes com sessao protegida e refresh transparente."
       showShowcase={false}
     >
-      <Card className="overflow-hidden rounded-[2rem] border-border/60 bg-card/94 shadow-2xl backdrop-blur">
-        <CardHeader className="space-y-3 pb-4">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
+      <Card className="w-full overflow-hidden rounded-[1.9rem] border border-white/8 bg-[#16212b]/96 text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+        <CardHeader className="space-y-5 pb-4">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/18 text-sm font-semibold text-emerald-300">
             F
           </div>
-          <div className="space-y-1">
-            <CardTitle className="text-3xl">Login</CardTitle>
-            <CardDescription className="text-sm leading-6">
-              Use seu e-mail e senha para continuar. Seu access token fica apenas em memoria.
-            </CardDescription>
+          <div className="space-y-2">
+            <CardTitle className="text-[2rem] font-semibold tracking-[-0.03em] text-white">Login</CardTitle>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-6">
           {loginMutation.isError ? (
-            <Alert variant="destructive" className="rounded-2xl">
+            <Alert variant="destructive" className="rounded-2xl border-destructive/30 bg-destructive/10">
               <AlertDescription>{loginMutation.error.message}</AlertDescription>
             </Alert>
           ) : null}
@@ -63,15 +61,15 @@ export default function LoginPage() {
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
+                  <FormItem className="space-y-2.5">
+                    <FormLabel className="text-[1.05rem] font-semibold text-slate-100">E-mail</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         type="email"
                         autoComplete="email"
                         placeholder="voce@empresa.com"
-                        className="h-12 rounded-xl border-border/70 bg-background/80"
+                        className="h-12 rounded-2xl border-white/8 bg-[#101924] px-4 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-1 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-0"
                       />
                     </FormControl>
                     <FormMessage />
@@ -83,10 +81,15 @@ export default function LoginPage() {
                 control={form.control}
                 name="password"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha</FormLabel>
+                  <FormItem className="space-y-2.5">
+                    <FormLabel className="text-[1.05rem] font-semibold text-slate-100">Senha</FormLabel>
                     <FormControl>
-                      <PasswordField {...field} autoComplete="current-password" placeholder="Sua senha" />
+                      <PasswordField
+                        {...field}
+                        autoComplete="current-password"
+                        placeholder="Sua senha"
+                        className="focus-visible:ring-1 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-0"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -97,38 +100,40 @@ export default function LoginPage() {
                 control={form.control}
                 name="rememberMe"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-2xl border border-border/60 bg-secondary/30 px-4 py-3">
-                    <div className="space-y-1">
-                      <FormLabel className="text-sm font-medium text-foreground">Lembrar de mim</FormLabel>
-                      <p className="text-sm text-muted-foreground">Mantem a sessao ativa por mais tempo sem salvar sua senha.</p>
+                  <FormItem>
+                    <div className="flex items-center justify-between gap-4">
+                      <FormLabel className="text-[1.05rem] font-semibold text-slate-100">Lembrar de mim</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="data-[state=checked]:bg-emerald-500"
+                        />
+                      </FormControl>
                     </div>
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={(event) => field.onChange(event.target.checked)}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                    </FormControl>
                   </FormItem>
                 )}
               />
 
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Sessao segura com refresh rotativo.</span>
-                <Link className="font-medium text-primary hover:text-primary/80" to={appRoutes.forgotPassword}>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-slate-500">Sessao segura com refresh rotativo.</span>
+                <Link className="font-medium text-emerald-400 hover:text-emerald-300" to={appRoutes.forgotPassword}>
                   Esqueci minha senha
                 </Link>
               </div>
 
-              <Button className="h-12 w-full rounded-xl text-sm font-semibold" disabled={loginMutation.isPending} type="submit">
+              <Button
+                className="h-12 w-full rounded-2xl bg-emerald-500 text-base font-semibold text-slate-950 shadow-[0_10px_24px_rgba(16,185,129,0.35)] transition-colors hover:bg-emerald-400"
+                disabled={loginMutation.isPending}
+                type="submit"
+              >
                 {loginMutation.isPending ? <LoaderCircle className="animate-spin" size={16} /> : null}
                 Entrar
               </Button>
 
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-center text-sm text-slate-500">
                 Nao tem uma conta?{" "}
-                <Link className="font-medium text-primary hover:text-primary/80" to={appRoutes.signup}>
+                <Link className="font-semibold text-emerald-400 hover:text-emerald-300" to={appRoutes.signup}>
                   Criar conta
                 </Link>
               </p>

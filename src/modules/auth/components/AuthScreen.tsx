@@ -11,8 +11,12 @@ type AuthScreenProps = {
 
 export function AuthScreen({ aside, children, description, eyebrow, showShowcase = true, title }: AuthScreenProps) {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.16),_transparent_48%),linear-gradient(180deg,_hsl(var(--background)),_hsl(210_22%_96%))] px-4 py-8 sm:px-6 lg:px-8">
-      <div className={`mx-auto grid min-h-[calc(100vh-4rem)] items-center gap-6 ${showShowcase ? "max-w-6xl lg:grid-cols-[1.15fr_0.85fr]" : "max-w-2xl"}`}>
+    <div className="relative min-h-screen overflow-hidden bg-[#08111b] px-4 py-8 sm:px-6 lg:px-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_34%),radial-gradient(circle_at_bottom,rgba(16,185,129,0.08),transparent_30%),linear-gradient(135deg,#0a1320_0%,#09121a_38%,#071019_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(22,163,74,0.12),transparent_24%),radial-gradient(circle_at_24%_78%,rgba(15,23,42,0.6),transparent_26%)]" />
+      <div className="absolute inset-0 opacity-30 [background:linear-gradient(rgba(148,163,184,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.04)_1px,transparent_1px)] [background-size:72px_72px] [mask-image:radial-gradient(circle_at_center,black,transparent_82%)]" />
+
+      <div className={`relative mx-auto grid min-h-[calc(100vh-4rem)] items-center gap-6 ${showShowcase ? "max-w-6xl lg:grid-cols-[1.15fr_0.85fr]" : "max-w-2xl"}`}>
         {showShowcase ? (
           <section className="relative hidden min-h-[620px] overflow-hidden rounded-[2rem] border border-border/60 bg-[linear-gradient(160deg,_hsl(var(--primary))_0%,_hsl(214_84%_44%)_46%,_hsl(212_46%_16%)_100%)] p-10 text-primary-foreground shadow-2xl lg:flex">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.24),transparent_24%),radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.18),transparent_18%),radial-gradient(circle_at_60%_80%,rgba(255,255,255,0.12),transparent_20%)]" />
@@ -49,7 +53,9 @@ export function AuthScreen({ aside, children, description, eyebrow, showShowcase
           </section>
         ) : null}
 
-        <section className={`mx-auto w-full ${showShowcase ? "max-w-xl" : "max-w-lg"}`}>{children}</section>
+        <section className={`mx-auto flex w-full items-center justify-center ${showShowcase ? "max-w-xl" : "max-w-lg"}`}>
+          {children}
+        </section>
       </div>
     </div>
   );

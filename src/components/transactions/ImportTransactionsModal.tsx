@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "@/components/ui/sonner";
 import {
   useCommitTransactionImport,
@@ -268,7 +268,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="!top-6 !translate-y-0 max-h-[calc(100vh-48px)] w-[calc(100vw-32px)] max-w-[1180px] overflow-hidden border-border/70 bg-card p-0 sm:rounded-2xl">
+        <DialogContent className="!top-6 !translate-y-0 flex max-h-[calc(100vh-48px)] w-[calc(100vw-32px)] max-w-[1180px] flex-col overflow-hidden border-border/70 bg-card p-0 sm:rounded-2xl">
           <DialogHeader className="shrink-0 border-b border-border/50 px-6 py-5">
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet size={18} />
@@ -279,7 +279,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
             </DialogDescription>
           </DialogHeader>
 
-          <div data-testid="import-preview-body" className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div data-testid="import-preview-body" className="scrollbar-app min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5">
             <div className="space-y-6">
               <div className="rounded-2xl border border-border/50 bg-secondary/20 p-4">
                 <div className="space-y-3">
@@ -403,8 +403,8 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                     </Button>
                   </div>
 
-                  <div className="rounded-2xl border border-border/50 bg-card">
-                    <ScrollArea className="h-[min(34vh,320px)] min-h-[260px] w-full">
+                  <div className="min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-card">
+                    <ScrollArea className="scrollbar-app w-full">
                       <ImportPreviewTable
                         categories={categories}
                         items={currentItems}
@@ -412,6 +412,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         onChangeDraft={handleChangeDraft}
                         onCreateCategory={handleOpenCategoryDialog}
                       />
+                      <ScrollBar orientation="horizontal" className="bg-secondary/20" />
                     </ScrollArea>
                   </div>
 

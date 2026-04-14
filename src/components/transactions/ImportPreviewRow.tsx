@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { CategoryItem, ImportCommitItem, ImportPreviewItem } from "@/types/api";
 
@@ -38,11 +39,12 @@ export default function ImportPreviewRow({
   return (
     <TableRow className={cn(draft.exclude && "opacity-55")}>
       <TableCell className="w-[72px] px-4 py-4 align-top text-xs text-muted-foreground">#{item.rowIndex}</TableCell>
-      <TableCell className="min-w-[240px] px-4 py-4 align-top">
-        <Input
+      <TableCell className="w-[280px] px-4 py-4 align-top">
+        <Textarea
           value={draft.description}
           onChange={(event) => onChange(item.rowIndex, { description: event.target.value })}
-          className="h-9 rounded-lg border-border/50 bg-secondary/30"
+          rows={3}
+          className="min-h-[84px] resize-none whitespace-pre-wrap break-words rounded-xl border-border/50 bg-secondary/30 text-sm leading-relaxed"
         />
         <div className="mt-2 flex flex-wrap gap-2">
           {isInvalid ? <Badge variant="destructive">Erro</Badge> : null}
@@ -97,18 +99,18 @@ export default function ImportPreviewRow({
           value={draft.amount}
           onChange={(event) => onChange(item.rowIndex, { amount: event.target.value })}
           inputMode="decimal"
-          className="h-9 rounded-lg border-border/50 bg-secondary/30"
+          className="h-10 rounded-xl border-border/50 bg-secondary/30 px-2.5 text-right font-medium tabular-nums"
         />
       </TableCell>
-      <TableCell className="w-[144px] px-4 py-4 align-top">
+      <TableCell className="w-[132px] px-4 py-4 align-top">
         <DatePickerInput
           value={draft.occurredOn}
           onChange={(value) => onChange(item.rowIndex, { occurredOn: value })}
-          className="h-9 rounded-lg"
+          className="h-10 rounded-xl"
           placeholder="Data"
         />
       </TableCell>
-      <TableCell className="w-[176px] px-4 py-4 align-top">
+      <TableCell className="w-[156px] px-4 py-4 align-top">
         <div className="flex rounded-xl border border-border/50 bg-secondary/35 p-1">
           <button
             type="button"
@@ -136,10 +138,10 @@ export default function ImportPreviewRow({
           </button>
         </div>
       </TableCell>
-      <TableCell className="min-w-[180px] px-4 py-4 align-top">
+      <TableCell className="w-[192px] px-4 py-4 align-top">
         <div className="flex items-center gap-2">
           <Select value={String(draft.categoryId ?? "")} onValueChange={(value) => onChange(item.rowIndex, { categoryId: value })}>
-            <SelectTrigger className="h-9 rounded-lg border-border/50 bg-secondary/30">
+            <SelectTrigger className="h-10 rounded-xl border-border/50 bg-secondary/30">
               <SelectValue placeholder={draft.type === "income" ? "Categoria" : "Categoria (opcional)"} />
             </SelectTrigger>
             <SelectContent>
@@ -150,12 +152,12 @@ export default function ImportPreviewRow({
               ))}
             </SelectContent>
           </Select>
-          <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => onCreateCategory(item.rowIndex)}>
+          <Button type="button" size="icon" variant="outline" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => onCreateCategory(item.rowIndex)}>
             <Plus size={14} />
           </Button>
         </div>
       </TableCell>
-      <TableCell className="min-w-[200px] px-4 py-4 align-top">
+      <TableCell className="w-[176px] px-4 py-4 align-top">
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <Checkbox

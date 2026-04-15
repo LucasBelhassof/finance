@@ -708,30 +708,30 @@ export default function TransactionsPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
         <Button
           variant="outline"
-          className="rounded-xl border-border/60 bg-secondary/20"
+          className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
           onClick={() => setImportDialogOpen(true)}
         >
           Importar CSV
         </Button>
         <Button
           variant="outline"
-          className="rounded-xl border-border/60 bg-secondary/20"
+          className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
           onClick={() => openCreateTransaction("income")}
         >
           <ArrowUpCircle size={14} />
           Receita
         </Button>
-        <Button className="rounded-xl bg-income text-background hover:bg-income/90" onClick={() => openCreateTransaction("expense")}>
+        <Button className="w-full rounded-xl bg-income text-background hover:bg-income/90 sm:w-auto" onClick={() => openCreateTransaction("expense")}>
           <ArrowDownCircle size={14} />
           Despesa
         </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="glass-card rounded-2xl border border-border/40 p-5">
+        <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">Total Receitas</p>
           <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.totalIncomes)}</p>
         </div>
@@ -745,7 +745,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="glass-card rounded-2xl border border-border/40 p-4">
+      <div className="glass-card rounded-2xl border border-border/40 p-3 sm:p-4">
         <div className="flex flex-col gap-3">
           <TransactionsDateFilter
             preset={datePreset}
@@ -755,55 +755,57 @@ export default function TransactionsPage() {
           />
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="relative flex-1">
-            <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar transacao..."
-              className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            {/*<div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border/60 bg-secondary/35 text-muted-foreground">
-              <Filter size={16} />
-            </div>*/}
-            {typeFilters.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => setTypeFilter(filter.value)}
-                className={cn(
-                  "rounded-2xl px-4 py-2.5 text-sm transition-colors",
-                  typeFilter === filter.value
-                    ? "bg-primary/15 text-primary"
-                    : "bg-secondary/50 text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {filter.label}
-              </button>
-            ))}
-            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
-              <SelectTrigger data-testid="transactions-category-filter-trigger" className="h-11 min-w-[160px] rounded-xl border-border/60 bg-secondary/35">
-                <SelectValue placeholder="Todas categorias" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas categorias</SelectItem>
-                {categoriesWithBreakdown.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.label}
-                  </SelectItem>
+            <div className="relative flex-1">
+              <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar transacao..."
+                className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
+              />
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                {typeFilters.map((filter) => (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    onClick={() => setTypeFilter(filter.value)}
+                    className={cn(
+                      "min-h-11 rounded-2xl px-3 py-2 text-center text-sm transition-colors sm:px-4 sm:py-2.5",
+                      typeFilter === filter.value
+                        ? "bg-primary/15 text-primary"
+                        : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {filter.label}
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+              <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
+                <SelectTrigger
+                  data-testid="transactions-category-filter-trigger"
+                  className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 sm:min-w-[190px]"
+                >
+                  <SelectValue placeholder="Todas categorias" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas categorias</SelectItem>
+                  {categoriesWithBreakdown.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="glass-card rounded-2xl border border-border/40 p-5">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-[1.7rem] font-semibold text-foreground">Todas as Transações</h2>
             <span className="text-sm text-muted-foreground">{filteredTransactions.length} transações</span>
           </div>
@@ -813,7 +815,7 @@ export default function TransactionsPage() {
               {isError ? "Nao foi possivel carregar as transacoes agora." : "Nenhuma transacao encontrada para os filtros atuais."}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {filteredTransactions.map((transaction) => {
                 const Icon = transaction.amount >= 0 ? ArrowUpCircle : ArrowDownCircle;
                 const accentColor = transaction.amount >= 0 ? "text-income" : "text-expense";
@@ -836,27 +838,26 @@ export default function TransactionsPage() {
                         openEditTransaction(transaction);
                       }
                     }}
-                    className="group flex w-full items-center gap-4 rounded-xl px-4 py-4 text-left transition-colors hover:bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className="group flex w-full flex-col gap-3 rounded-2xl border border-border/30 px-3 py-3 text-left transition-colors hover:bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-primary/40 sm:flex-row sm:items-center sm:gap-4 sm:px-4 sm:py-4"
                   >
-                    <div className={cn("flex h-9 w-9 items-center justify-center rounded-full", accentColor)}>
-                      <Icon size={18} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-[1.15rem] font-medium text-foreground">{transaction.description}</p>
+                    <div className="flex items-start gap-3 sm:flex-1 sm:items-center">
+                      <div className={cn("mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:mt-0", accentColor)}>
+                        <Icon size={18} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start gap-2">
+                          <p className="min-w-0 flex-1 break-words text-[1rem] font-medium leading-snug text-foreground sm:text-[1.15rem]">{transaction.description}</p>
                         {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount ? (
-                          <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
+                          <span className="shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
                             {transaction.installmentNumber}/{transaction.installmentCount}
                           </span>
                         ) : null}
-                        <Pencil size={14} className="opacity-0 transition-opacity text-muted-foreground group-hover:opacity-100" />
-                      </div>
-                      <div className="mt-1 flex items-center gap-3 text-sm">
+                          <Pencil size={14} className="mt-0.5 shrink-0 text-muted-foreground opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100" />
+                        </div>
+                        <div className="mt-2 flex flex-col gap-2 text-sm sm:mt-1">
+                          <div className="flex flex-wrap items-center gap-2.5">
                         {isEditingCategory ? (
-                          <div
-                            className="min-w-[168px]"
-                            onClick={(event) => event.stopPropagation()}
-                          >
+                          <div className="w-full min-w-0 sm:w-auto sm:min-w-[168px]" onClick={(event) => event.stopPropagation()}>
                             <Select
                               open={isEditingCategory}
                               onOpenChange={(open) => {
@@ -869,7 +870,7 @@ export default function TransactionsPage() {
                                 void handleInlineCategoryChange(transaction, value);
                               }}
                             >
-                              <SelectTrigger className="h-8 rounded-lg border-border/60 bg-secondary/35 text-xs">
+                              <SelectTrigger className="h-8 w-full rounded-lg border-border/60 bg-secondary/35 text-xs">
                                 <SelectValue placeholder="Categoria" />
                               </SelectTrigger>
                               <SelectContent>
@@ -884,7 +885,7 @@ export default function TransactionsPage() {
                         ) : (
                           <button
                             type="button"
-                            className="rounded-md px-1.5 py-0.5 font-medium transition-colors hover:bg-secondary/50"
+                            className="max-w-full rounded-md px-1.5 py-0.5 text-left font-medium transition-colors hover:bg-secondary/50"
                             style={{ color: categoryColor.text }}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -898,16 +899,18 @@ export default function TransactionsPage() {
                             {isUpdatingCategory ? "Atualizando..." : transaction.category.label}
                           </button>
                         )}
-                        <span className="text-muted-foreground">{transaction.account.name}</span>
-                        <span className="text-muted-foreground">{transaction.occurredOn.split("-").reverse().join("/")}</span>
-                        {transaction.isInstallment && transaction.purchaseOccurredOn ? (
-                          <span className="text-muted-foreground">
-                            Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}
-                          </span>
-                        ) : null}
+                            <span className="break-words text-muted-foreground">{transaction.account.name}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground sm:text-sm">
+                            <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
+                            {transaction.isInstallment && transaction.purchaseOccurredOn ? (
+                              <span>Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}</span>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className={cn("text-lg font-semibold", accentColor)}>
+                    <div className={cn("w-full text-right text-base font-semibold sm:w-auto sm:text-lg", accentColor)}>
                       {transaction.amount >= 0 ? "+ " : "- "}
                       {formatCurrency(Math.abs(transaction.amount))}
                     </div>

@@ -8,6 +8,7 @@ import {
   MessageSquare,
   UserCircle2,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { matchPath, useLocation, useNavigate } from "react-router-dom";
 
 import { NavLink } from "@/components/NavLink";
@@ -59,8 +60,9 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const logoutMutation = useLogout();
-  const { state } = useSidebar();
+  const { isMobile, openMobile, setOpenMobile, state } = useSidebar();
   const { user } = useAuthSession();
+  const previousPathnameRef = useRef(location.pathname);
   const userName = user?.name ?? "Joao";
   const userEmail = user?.email ?? "joao@email.com";
   const initials = userName
@@ -74,6 +76,13 @@ export default function Sidebar() {
     location.pathname === appRoutes.transactions ||
       matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
   );
+
+  useEffect(() => {
+    if (isMobile && openMobile && previousPathnameRef.current !== location.pathname) {
+      setOpenMobile(false);
+    }
+    previousPathnameRef.current = location.pathname;
+  }, [isMobile, location.pathname, openMobile, setOpenMobile]);
 
   return (
     <SidebarRoot collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -237,7 +246,7 @@ export default function Sidebar() {
           </DropdownMenu>
 
           <SidebarTrigger
-            className="h-11 w-11 shrink-0 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="hidden h-11 w-11 shrink-0 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground md:inline-flex"
             aria-label="Alternar sidebar"
             title="Alternar sidebar"
           />

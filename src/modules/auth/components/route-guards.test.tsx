@@ -41,7 +41,7 @@ function renderPublicOnlyRoute(initialPath = appRoutes.login) {
 }
 
 describe("auth route guards", () => {
-  it("shows the bootstrapping state while validating the session", () => {
+  it("shows the application loader while bootstrapping the session", () => {
     useAuthContextMock.mockReturnValue({
       isAuthenticated: false,
       isBootstrapping: true,
@@ -49,7 +49,7 @@ describe("auth route guards", () => {
 
     renderProtectedRoute();
 
-    expect(screen.getByText(/validando sessao/i)).toBeInTheDocument();
+    expect(screen.getByText(/finly/i)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /área interna/i })).not.toBeInTheDocument();
   });
 

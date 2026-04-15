@@ -33,6 +33,7 @@ import {
   updateHousing,
   updateTransaction,
 } from "./database.js";
+import { createAdminRouter } from "./modules/admin/routes.js";
 import { createAuthRouter, requireAccessToken } from "./modules/auth/routes.js";
 import { env } from "./shared/env.js";
 import { isHttpError, toHttpError } from "./shared/errors.js";
@@ -90,6 +91,7 @@ export function createApp() {
     await requireAccessToken(request);
     next();
   });
+  app.use("/api/admin", createAdminRouter());
 
   app.get("/api/dashboard", async (request, response) => {
     const dashboard = await getDashboardData(getAuthenticatedUserId(request));

@@ -35,7 +35,7 @@ async function main() {
   const input = bootstrapAuthSchema.parse({
     email: argumentsMap.email,
     password: argumentsMap.password,
-    name: argumentsMap.name || "João",
+    name: argumentsMap.name || "Usuario",
     userId: argumentsMap["user-id"] ? Number(argumentsMap["user-id"]) : undefined,
   });
 

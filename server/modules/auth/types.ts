@@ -3,6 +3,10 @@ export interface AuthUser {
   name: string;
   email: string;
   emailVerified: boolean;
+  role: "user" | "admin";
+  status: "active" | "inactive" | "suspended";
+  isPremium: boolean;
+  premiumSince: string | null;
 }
 
 export interface RequestAuthContext {

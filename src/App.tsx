@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FinlyMiniLoader } from "@/components/FinlyMiniLoader";
 import { appRoutes } from "@/lib/routes";
+import { AdminRoute } from "@/modules/auth/components/AdminRoute";
 import { AuthProvider } from "@/modules/auth/components/AuthProvider";
 import { ProtectedRoute } from "@/modules/auth/components/ProtectedRoute";
 import { PublicOnlyRoute } from "@/modules/auth/components/PublicOnlyRoute";
@@ -16,6 +17,11 @@ import SignupPage from "@/modules/auth/pages/SignupPage";
 import LoadingPage from "./pages/Loading.tsx";
 
 const AccountsPage = lazy(() => import("./pages/Accounts.tsx"));
+const AdminActivityPage = lazy(() => import("./pages/admin/AdminActivityPage.tsx"));
+const AdminFinancialMetricsPage = lazy(() => import("./pages/admin/AdminFinancialMetricsPage.tsx"));
+const AdminOverviewPage = lazy(() => import("./pages/admin/AdminOverviewPage.tsx"));
+const AdminSubscriptionsPage = lazy(() => import("./pages/admin/AdminSubscriptionsPage.tsx"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage.tsx"));
 const ChatPage = lazy(() => import("./pages/Chat.tsx"));
 const ExpenseMetricsPage = lazy(() => import("./pages/ExpenseMetrics.tsx"));
 const HousingPage = lazy(() => import("./pages/Housing.tsx"));
@@ -66,6 +72,15 @@ const App = () => (
               <Route path={appRoutes.accounts} element={<Suspense fallback={<PageLoader />}><AccountsPage /></Suspense>} />
               <Route path={appRoutes.profile} element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
               <Route path={appRoutes.settings} element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+            </Route>
+
+            <Route element={<AdminRoute />}>
+              <Route path={appRoutes.admin} element={<Navigate to={appRoutes.adminOverview} replace />} />
+              <Route path={appRoutes.adminOverview} element={<Suspense fallback={<PageLoader />}><AdminOverviewPage /></Suspense>} />
+              <Route path={appRoutes.adminUsers} element={<Suspense fallback={<PageLoader />}><AdminUsersPage /></Suspense>} />
+              <Route path={appRoutes.adminFinancialMetrics} element={<Suspense fallback={<PageLoader />}><AdminFinancialMetricsPage /></Suspense>} />
+              <Route path={appRoutes.adminSubscriptions} element={<Suspense fallback={<PageLoader />}><AdminSubscriptionsPage /></Suspense>} />
+              <Route path={appRoutes.adminActivity} element={<Suspense fallback={<PageLoader />}><AdminActivityPage /></Suspense>} />
             </Route>
 
             <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />

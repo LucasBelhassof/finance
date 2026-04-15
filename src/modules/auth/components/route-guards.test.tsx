@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { appRoutes } from "@/lib/routes";
+import { AdminRoute } from "@/modules/auth/components/AdminRoute";
 import { ProtectedRoute } from "@/modules/auth/components/ProtectedRoute";
 import { PublicOnlyRoute } from "@/modules/auth/components/PublicOnlyRoute";
 
@@ -34,7 +35,22 @@ function renderPublicOnlyRoute(initialPath = appRoutes.login) {
         <Route element={<PublicOnlyRoute />}>
           <Route path={appRoutes.login} element={<h1>Login</h1>} />
         </Route>
+        <Route path={appRoutes.loading} element={<h1>Loading</h1>} />
         <Route path={appRoutes.dashboard} element={<h1>Dashboard</h1>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+function renderAdminRoute(initialPath = appRoutes.adminOverview) {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <Routes>
+        <Route element={<AdminRoute />}>
+          <Route path={appRoutes.adminOverview} element={<h1>Admin</h1>} />
+        </Route>
+        <Route path={appRoutes.dashboard} element={<h1>Dashboard</h1>} />
+        <Route path={appRoutes.login} element={<h1>Login</h1>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -83,7 +99,7 @@ describe("auth route guards", () => {
 
     renderPublicOnlyRoute();
 
-    expect(await screen.findByRole("heading", { name: /dashboard/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /loading/i })).toBeInTheDocument();
   });
 
   it("renders public auth content for anonymous users", async () => {
@@ -95,5 +111,33 @@ describe("auth route guards", () => {
     renderPublicOnlyRoute();
 
     expect(await screen.findByRole("heading", { name: /login/i })).toBeInTheDocument();
+  });
+
+  it("redirects non-admin users away from admin routes", async () => {
+    useAuthContextMock.mockReturnValue({
+      isAuthenticated: true,
+      isBootstrapping: false,
+      user: {
+        role: "user",
+      },
+    });
+
+    renderAdminRoute();
+
+    expect(await screen.findByRole("heading", { name: /dashboard/i })).toBeInTheDocument();
+  });
+
+  it("renders admin content for admin users", async () => {
+    useAuthContextMock.mockReturnValue({
+      isAuthenticated: true,
+      isBootstrapping: false,
+      user: {
+        role: "admin",
+      },
+    });
+
+    renderAdminRoute();
+
+    expect(await screen.findByRole("heading", { name: /admin/i })).toBeInTheDocument();
   });
 });

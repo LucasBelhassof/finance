@@ -9,8 +9,8 @@ import { appRoutes } from "@/lib/routes";
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { data } = useDashboard();
-  const userName = data?.user.name ?? "Joao";
-  const userEmail = "joao@email.com";
+  const userName = data?.user.name ?? "Usuario";
+  const userEmail = data?.user.email ?? "usuario@email.com";
   const userId = data?.user.id ? String(data.user.id) : "--";
 
   return (

@@ -6,6 +6,10 @@ export interface ApiUser {
   id?: number | string;
   name?: string;
   email?: string;
+  role?: "user" | "admin";
+  status?: "active" | "inactive" | "suspended";
+  isPremium?: boolean;
+  premiumSince?: string | null;
 }
 
 export interface ApiSummaryCard {
@@ -766,4 +770,208 @@ export interface DashboardData {
   insights: InsightItem[];
   banks: BankItem[];
   chatMessages: ChatMessage[];
+}
+
+export interface ApiAdminOverviewResponse {
+  totals?: {
+    totalUsers?: number;
+    activeUsers?: number;
+    premiumUsers?: number;
+    freeUsers?: number;
+    usersOnlineNow?: number;
+    activeSessions?: number;
+    totalTransactions?: number;
+    aggregateBalance?: number;
+  };
+  period?: {
+    startDate?: string;
+    endDate?: string;
+  };
+  signups?: Array<{
+    date?: string;
+    total?: number;
+  }>;
+}
+
+export interface ApiAdminFinancialMetricsResponse {
+  period?: {
+    startDate?: string;
+    endDate?: string;
+  };
+  summary?: {
+    totalIncome?: number;
+    totalExpenses?: number;
+    aggregateBalance?: number;
+    averageTicketPerUser?: number;
+    transactionCount?: number;
+  };
+  monthlySeries?: Array<{
+    month?: string;
+    income?: number;
+    expenses?: number;
+    volume?: number;
+    transactions?: number;
+  }>;
+  topUsers?: Array<{
+    id?: number | string;
+    name?: string;
+    email?: string;
+    transactionCount?: number;
+    transactedVolume?: number;
+  }>;
+}
+
+export interface ApiAdminSubscriptionMetricsResponse {
+  period?: {
+    startDate?: string;
+    endDate?: string;
+  };
+  summary?: {
+    totalUsers?: number;
+    premiumUsers?: number;
+    freeUsers?: number;
+    conversionRate?: number;
+    estimatedSubscriptionRevenue?: number;
+    estimatedMrr?: number;
+  };
+  evolution?: Array<{
+    month?: string;
+    premiumActivations?: number;
+  }>;
+}
+
+export interface ApiAdminActivityResponse {
+  events?: Array<{
+    id?: number | string;
+    eventType?: string;
+    success?: boolean;
+    createdAt?: string;
+    email?: string | null;
+    user?: {
+      id?: number | string;
+      name?: string;
+      role?: "user" | "admin";
+    } | null;
+  }>;
+}
+
+export interface ApiAdminUsersResponse {
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  users?: Array<{
+    id?: number | string;
+    name?: string;
+    email?: string;
+    role?: "user" | "admin";
+    status?: "active" | "inactive" | "suspended";
+    isPremium?: boolean;
+    createdAt?: string;
+    premiumSince?: string | null;
+    lastSessionAt?: string | null;
+    transactionCount?: number;
+    netTotal?: number;
+  }>;
+}
+
+export interface AdminOverviewData {
+  totals: {
+    totalUsers: number;
+    activeUsers: number;
+    premiumUsers: number;
+    freeUsers: number;
+    usersOnlineNow: number;
+    activeSessions: number;
+    totalTransactions: number;
+    aggregateBalance: number;
+  };
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  signups: Array<{
+    date: string;
+    total: number;
+  }>;
+}
+
+export interface AdminFinancialMetricsData {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  summary: {
+    totalIncome: number;
+    totalExpenses: number;
+    aggregateBalance: number;
+    averageTicketPerUser: number;
+    transactionCount: number;
+  };
+  monthlySeries: Array<{
+    month: string;
+    income: number;
+    expenses: number;
+    volume: number;
+    transactions: number;
+  }>;
+  topUsers: Array<{
+    id: number | string;
+    name: string;
+    email: string;
+    transactionCount: number;
+    transactedVolume: number;
+  }>;
+}
+
+export interface AdminSubscriptionMetricsData {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  summary: {
+    totalUsers: number;
+    premiumUsers: number;
+    freeUsers: number;
+    conversionRate: number;
+    estimatedSubscriptionRevenue: number;
+    estimatedMrr: number;
+  };
+  evolution: Array<{
+    month: string;
+    premiumActivations: number;
+  }>;
+}
+
+export interface AdminActivityData {
+  events: Array<{
+    id: number | string;
+    eventType: string;
+    success: boolean;
+    createdAt: string;
+    email: string | null;
+    user: {
+      id: number | string;
+      name: string;
+      role: "user" | "admin";
+    } | null;
+  }>;
+}
+
+export interface AdminUsersData {
+  page: number;
+  pageSize: number;
+  total: number;
+  users: Array<{
+    id: number | string;
+    name: string;
+    email: string;
+    role: "user" | "admin";
+    status: "active" | "inactive" | "suspended";
+    isPremium: boolean;
+    createdAt: string;
+    premiumSince: string | null;
+    lastSessionAt: string | null;
+    transactionCount: number;
+    netTotal: number;
+  }>;
 }

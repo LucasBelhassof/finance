@@ -1,22 +1,18 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Sidebar from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { appRoutes } from "@/lib/routes";
 
-const { logoutMutateAsync } = vi.hoisted(() => ({
+const { logoutMutateAsync, useAuthSessionMock } = vi.hoisted(() => ({
   logoutMutateAsync: vi.fn(),
+  useAuthSessionMock: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/hooks/use-auth-session", () => ({
-  useAuthSession: () => ({
-    user: {
-      name: "João Silva",
-      email: "joao@finance.test",
-    },
-  }),
+  useAuthSession: useAuthSessionMock,
 }));
 
 vi.mock("@/modules/auth/hooks/use-logout", () => ({
@@ -47,6 +43,16 @@ function getClosestElement<T extends HTMLElement>(textPattern: RegExp, selector:
 }
 
 describe("Sidebar", () => {
+  beforeEach(() => {
+    useAuthSessionMock.mockReturnValue({
+      user: {
+        name: "Joao Silva",
+        email: "joao@finance.test",
+        role: "user",
+      },
+    });
+  });
+
   it("places transactions as the first expense management submenu item", () => {
     renderSidebar();
 
@@ -78,5 +84,20 @@ describe("Sidebar", () => {
 
     expect(getClosestElement<HTMLButtonElement>(/gest/i, "button")).toHaveAttribute("data-active", "true");
     expect(getClosestElement<HTMLAnchorElement>(/^parcel/i, "a")).toHaveAttribute("data-active", "true");
+  });
+
+  it("renders the admin submenu only for admin users", () => {
+    useAuthSessionMock.mockReturnValue({
+      user: {
+        name: "Admin Silva",
+        email: "admin@finance.test",
+        role: "admin",
+      },
+    });
+
+    renderSidebar(appRoutes.adminOverview);
+
+    expect(screen.getByText(/administracao/i)).toBeInTheDocument();
+    expect(getClosestElement<HTMLAnchorElement>(/visao geral/i, "a")).toHaveAttribute("href", appRoutes.adminOverview);
   });
 });

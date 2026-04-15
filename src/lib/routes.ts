@@ -15,6 +15,12 @@ export const appRoutes = {
   chat: "/chat",
   insights: "/insights",
   accounts: "/accounts",
+  admin: "/admin",
+  adminOverview: "/admin/overview",
+  adminUsers: "/admin/users",
+  adminFinancialMetrics: "/admin/financial-metrics",
+  adminSubscriptions: "/admin/subscriptions",
+  adminActivity: "/admin/activity",
   profile: "/profile",
   settings: "/settings",
 } as const;

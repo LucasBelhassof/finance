@@ -9,7 +9,17 @@ import type {
   ApiChatMessage,
   ApiChatMessagesResponse,
   ApiChatReplyResponse,
+  ApiAdminActivityResponse,
+  ApiAdminFinancialMetricsResponse,
+  ApiAdminOverviewResponse,
+  ApiAdminSubscriptionMetricsResponse,
+  ApiAdminUsersResponse,
   ApiDashboardResponse,
+  AdminActivityData,
+  AdminFinancialMetricsData,
+  AdminOverviewData,
+  AdminSubscriptionMetricsData,
+  AdminUsersData,
   ApiErrorResponse,
   ApiHealthResponse,
   ApiHousingItem,
@@ -267,6 +277,120 @@ export function mapSummaryCard(card: ApiSummaryCard): SummaryCard {
     positive: typeof card.positive === "boolean" ? card.positive : value >= 0,
     description: safeString(card.description, "vs mes anterior"),
     icon: resolveSummaryCardIcon(label),
+  };
+}
+
+function mapAdminOverviewResponse(response: ApiAdminOverviewResponse): AdminOverviewData {
+  return {
+    totals: {
+      totalUsers: safeNumber(response.totals?.totalUsers),
+      activeUsers: safeNumber(response.totals?.activeUsers),
+      premiumUsers: safeNumber(response.totals?.premiumUsers),
+      freeUsers: safeNumber(response.totals?.freeUsers),
+      usersOnlineNow: safeNumber(response.totals?.usersOnlineNow),
+      activeSessions: safeNumber(response.totals?.activeSessions),
+      totalTransactions: safeNumber(response.totals?.totalTransactions),
+      aggregateBalance: safeNumber(response.totals?.aggregateBalance),
+    },
+    period: {
+      startDate: safeString(response.period?.startDate),
+      endDate: safeString(response.period?.endDate),
+    },
+    signups: (response.signups ?? []).map((item) => ({
+      date: safeString(item.date),
+      total: safeNumber(item.total),
+    })),
+  };
+}
+
+function mapAdminFinancialMetricsResponse(response: ApiAdminFinancialMetricsResponse): AdminFinancialMetricsData {
+  return {
+    period: {
+      startDate: safeString(response.period?.startDate),
+      endDate: safeString(response.period?.endDate),
+    },
+    summary: {
+      totalIncome: safeNumber(response.summary?.totalIncome),
+      totalExpenses: safeNumber(response.summary?.totalExpenses),
+      aggregateBalance: safeNumber(response.summary?.aggregateBalance),
+      averageTicketPerUser: safeNumber(response.summary?.averageTicketPerUser),
+      transactionCount: safeNumber(response.summary?.transactionCount),
+    },
+    monthlySeries: (response.monthlySeries ?? []).map((item) => ({
+      month: safeString(item.month),
+      income: safeNumber(item.income),
+      expenses: safeNumber(item.expenses),
+      volume: safeNumber(item.volume),
+      transactions: safeNumber(item.transactions),
+    })),
+    topUsers: (response.topUsers ?? []).map((item) => ({
+      id: item.id ?? "",
+      name: safeString(item.name, "Usuario"),
+      email: safeString(item.email),
+      transactionCount: safeNumber(item.transactionCount),
+      transactedVolume: safeNumber(item.transactedVolume),
+    })),
+  };
+}
+
+function mapAdminSubscriptionMetricsResponse(response: ApiAdminSubscriptionMetricsResponse): AdminSubscriptionMetricsData {
+  return {
+    period: {
+      startDate: safeString(response.period?.startDate),
+      endDate: safeString(response.period?.endDate),
+    },
+    summary: {
+      totalUsers: safeNumber(response.summary?.totalUsers),
+      premiumUsers: safeNumber(response.summary?.premiumUsers),
+      freeUsers: safeNumber(response.summary?.freeUsers),
+      conversionRate: safeNumber(response.summary?.conversionRate),
+      estimatedSubscriptionRevenue: safeNumber(response.summary?.estimatedSubscriptionRevenue),
+      estimatedMrr: safeNumber(response.summary?.estimatedMrr),
+    },
+    evolution: (response.evolution ?? []).map((item) => ({
+      month: safeString(item.month),
+      premiumActivations: safeNumber(item.premiumActivations),
+    })),
+  };
+}
+
+function mapAdminActivityResponse(response: ApiAdminActivityResponse): AdminActivityData {
+  return {
+    events: (response.events ?? []).map((item) => ({
+      id: item.id ?? "",
+      eventType: safeString(item.eventType),
+      success: Boolean(item.success),
+      createdAt: safeString(item.createdAt),
+      email: item.email ? safeString(item.email) : null,
+      user: item.user
+        ? {
+            id: item.user.id ?? "",
+            name: safeString(item.user.name, "Usuario"),
+            role: item.user.role === "admin" ? "admin" : "user",
+          }
+        : null,
+    })),
+  };
+}
+
+function mapAdminUsersResponse(response: ApiAdminUsersResponse): AdminUsersData {
+  return {
+    page: safeNumber(response.page, 1),
+    pageSize: safeNumber(response.pageSize, 20),
+    total: safeNumber(response.total),
+    users: (response.users ?? []).map((item) => ({
+      id: item.id ?? "",
+      name: safeString(item.name, "Usuario"),
+      email: safeString(item.email),
+      role: item.role === "admin" ? "admin" : "user",
+      status: item.status === "inactive" || item.status === "suspended" ? item.status : "active",
+      isPremium: Boolean(item.isPremium),
+      createdAt: safeString(item.createdAt),
+      premiumSince: item.premiumSince ? safeString(item.premiumSince) : null,
+      lastSessionAt: item.lastSessionAt ? safeString(item.lastSessionAt) : null,
+      transactionCount: safeNumber(item.transactionCount),
+      netTotal: safeNumber(item.netTotal),
+    })),
   };
 }
 
@@ -730,8 +854,8 @@ export function mapDashboardResponse(response: ApiDashboardResponse): DashboardD
   return {
     user: {
       id: response.user?.id ?? "default-user",
-      name: safeString(response.user?.name, "Joao"),
-      email: safeString(response.user?.email, "joao@email.com"),
+      name: safeString(response.user?.name, "Usuario"),
+      email: safeString(response.user?.email, "usuario@email.com"),
     },
     referenceMonth: response.referenceMonth ?? null,
     summaryCards: (response.summaryCards ?? []).map(mapSummaryCard),
@@ -754,6 +878,69 @@ export function mapHealthResponse(response: ApiHealthResponse): HealthStatus {
 export async function getDashboard() {
   const response = await request<ApiDashboardResponse>("/api/dashboard");
   return mapDashboardResponse(response);
+}
+
+export async function getAdminOverview(startDate?: string, endDate?: string) {
+  const response = await request<ApiAdminOverviewResponse>(
+    buildPath("/api/admin/overview", {
+      startDate,
+      endDate,
+    }),
+  );
+
+  return mapAdminOverviewResponse(response);
+}
+
+export async function getAdminUsers(params: {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  premium?: string;
+  recentActivity?: string;
+} = {}) {
+  const response = await request<ApiAdminUsersResponse>(
+    buildPath("/api/admin/users", {
+      page: params.page,
+      pageSize: params.pageSize,
+      status: params.status,
+      premium: params.premium,
+      recentActivity: params.recentActivity,
+    }),
+  );
+
+  return mapAdminUsersResponse(response);
+}
+
+export async function getAdminFinancialMetrics(startDate?: string, endDate?: string) {
+  const response = await request<ApiAdminFinancialMetricsResponse>(
+    buildPath("/api/admin/financial-metrics", {
+      startDate,
+      endDate,
+    }),
+  );
+
+  return mapAdminFinancialMetricsResponse(response);
+}
+
+export async function getAdminSubscriptionMetrics(startDate?: string, endDate?: string) {
+  const response = await request<ApiAdminSubscriptionMetricsResponse>(
+    buildPath("/api/admin/subscription-metrics", {
+      startDate,
+      endDate,
+    }),
+  );
+
+  return mapAdminSubscriptionMetricsResponse(response);
+}
+
+export async function getAdminActivity(limit?: number) {
+  const response = await request<ApiAdminActivityResponse>(
+    buildPath("/api/admin/activity", {
+      limit,
+    }),
+  );
+
+  return mapAdminActivityResponse(response);
 }
 
 export async function getHealth() {

@@ -59,7 +59,16 @@ function resolveRefreshExpiry(rememberMe: boolean) {
   return new Date(Date.now() + resolveRefreshTtlMs(rememberMe));
 }
 
-function toAuthUser(user: { id: number; name: string; email: string | null; emailVerifiedAt?: Date | null }): AuthUser {
+function toAuthUser(user: {
+  id: number;
+  name: string;
+  email: string | null;
+  emailVerifiedAt?: Date | null;
+  role?: "user" | "admin";
+  status?: "active" | "inactive" | "suspended";
+  isPremium?: boolean;
+  premiumSince?: Date | null;
+}): AuthUser {
   if (!user.email) {
     throw new BadRequestError("user_email_missing", "The user does not have an email configured.");
   }
@@ -69,6 +78,13 @@ function toAuthUser(user: { id: number; name: string; email: string | null; emai
     name: String(user.name),
     email: String(user.email),
     emailVerified: user.emailVerifiedAt != null,
+    role: user.role === "admin" ? "admin" : "user",
+    status:
+      user.status === "inactive" || user.status === "suspended"
+        ? user.status
+        : "active",
+    isPremium: Boolean(user.isPremium),
+    premiumSince: user.premiumSince ? user.premiumSince.toISOString() : null,
   };
 }
 

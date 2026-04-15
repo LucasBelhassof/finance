@@ -26,7 +26,7 @@ export interface AuthSessionPayload {
   expiresAt: string;
 }
 
-export interface UpdateOnboardingProgressInput extends AuthOnboardingProgress {}
+export type UpdateOnboardingProgressInput = AuthOnboardingProgress;
 
 export interface LoginInput {
   email: string;

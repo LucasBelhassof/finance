@@ -1,8 +1,7 @@
-import { Bell } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { NotificationBell } from "@/components/NotificationBell";
 import Sidebar from "@/components/Sidebar";
-import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 
@@ -41,15 +40,7 @@ export default function AppShell({ title, description, children, showGreeting = 
                 </div>
               </div>
 
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                className="relative h-9 w-9 shrink-0 rounded-lg"
-              >
-                <Bell size={16} className="text-muted-foreground" />
-                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-expense" />
-              </Button>
+              <NotificationBell />
             </div>
           </header>
 

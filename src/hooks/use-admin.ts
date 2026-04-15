@@ -1,12 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  getAdminNotificationTargets,
+  getAdminNotifications,
   getAdminActivity,
   getAdminFinancialMetrics,
   getAdminOverview,
   getAdminSubscriptionMetrics,
   getAdminUsers,
+  postAdminNotification,
 } from "@/lib/api";
+import type { CreateAdminNotificationInput } from "@/types/api";
 
 export function useAdminOverview() {
   return useQuery({
@@ -45,5 +49,32 @@ export function useAdminActivity() {
     queryKey: ["admin", "activity"],
     queryFn: () => getAdminActivity(20),
     staleTime: 30_000,
+  });
+}
+
+export function useAdminNotificationTargets() {
+  return useQuery({
+    queryKey: ["admin", "notification-targets"],
+    queryFn: getAdminNotificationTargets,
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminNotifications() {
+  return useQuery({
+    queryKey: ["admin", "notifications"],
+    queryFn: () => getAdminNotifications(50),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateAdminNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateAdminNotificationInput) => postAdminNotification(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "notifications"] });
+    },
   });
 }

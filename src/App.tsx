@@ -18,6 +18,7 @@ import SignupPage from "@/modules/auth/pages/SignupPage";
 const AccountsPage = lazy(() => import("./pages/Accounts.tsx"));
 const AdminActivityPage = lazy(() => import("./pages/admin/AdminActivityPage.tsx"));
 const AdminFinancialMetricsPage = lazy(() => import("./pages/admin/AdminFinancialMetricsPage.tsx"));
+const AdminNotificationsPage = lazy(() => import("./pages/admin/AdminNotificationsPage.tsx"));
 const AdminOverviewPage = lazy(() => import("./pages/admin/AdminOverviewPage.tsx"));
 const AdminSubscriptionsPage = lazy(() => import("./pages/admin/AdminSubscriptionsPage.tsx"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage.tsx"));
@@ -81,6 +82,7 @@ const App = () => (
               <Route path={appRoutes.adminFinancialMetrics} element={<Suspense fallback={<PageLoader />}><AdminFinancialMetricsPage /></Suspense>} />
               <Route path={appRoutes.adminSubscriptions} element={<Suspense fallback={<PageLoader />}><AdminSubscriptionsPage /></Suspense>} />
               <Route path={appRoutes.adminActivity} element={<Suspense fallback={<PageLoader />}><AdminActivityPage /></Suspense>} />
+              <Route path={appRoutes.adminNotifications} element={<Suspense fallback={<PageLoader />}><AdminNotificationsPage /></Suspense>} />
             </Route>
 
             <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />

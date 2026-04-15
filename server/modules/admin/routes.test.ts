@@ -12,6 +12,9 @@ const {
   getAdminSubscriptionMetricsMock,
   getAdminUsersMock,
   insertAuditEventMock,
+  createAdminNotificationMock,
+  listAdminNotificationTargetsMock,
+  listAdminNotificationsMock,
 } = vi.hoisted(() => ({
   getAdminActivityMock: vi.fn(),
   getAdminFinancialMetricsMock: vi.fn(),
@@ -19,6 +22,9 @@ const {
   getAdminSubscriptionMetricsMock: vi.fn(),
   getAdminUsersMock: vi.fn(),
   insertAuditEventMock: vi.fn(),
+  createAdminNotificationMock: vi.fn(),
+  listAdminNotificationTargetsMock: vi.fn(),
+  listAdminNotificationsMock: vi.fn(),
 }));
 
 vi.mock("./service.js", () => ({
@@ -33,8 +39,15 @@ vi.mock("../auth/repository.js", () => ({
   insertAuditEvent: insertAuditEventMock,
 }));
 
+vi.mock("../notifications/service.js", () => ({
+  createAdminNotification: createAdminNotificationMock,
+  listAdminNotificationTargets: listAdminNotificationTargetsMock,
+  listAdminNotifications: listAdminNotificationsMock,
+}));
+
 function createTestApp(role: "user" | "admin" = "admin") {
   const app = express();
+  app.use(express.json());
 
   app.use((request, _response, next) => {
     request.auth = {
@@ -73,6 +86,9 @@ describe("admin routes", () => {
     getAdminFinancialMetricsMock.mockResolvedValue({ period: {}, summary: {}, monthlySeries: [], topUsers: [] });
     getAdminSubscriptionMetricsMock.mockResolvedValue({ period: {}, summary: {}, evolution: [] });
     getAdminActivityMock.mockResolvedValue({ events: [] });
+    listAdminNotificationTargetsMock.mockResolvedValue({ users: [] });
+    listAdminNotificationsMock.mockResolvedValue({ notifications: [] });
+    createAdminNotificationMock.mockResolvedValue({ notificationId: 10, recipientsCount: 2 });
   });
 
   it("returns overview for admin users", async () => {
@@ -96,5 +112,25 @@ describe("admin routes", () => {
       message: "Admin access is required.",
     });
     expect(getAdminOverviewMock).not.toHaveBeenCalled();
+  });
+
+  it("creates notifications for admin users", async () => {
+    const app = createTestApp("admin");
+
+    const response = await request(app).post("/api/admin/notifications").send({
+      title: "Comunicado",
+      message: "Sistema atualizado.",
+      target: {
+        mode: "all",
+      },
+    });
+
+    expect(response.status).toBe(201);
+    expect(createAdminNotificationMock).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        title: "Comunicado",
+      }),
+    );
   });
 });

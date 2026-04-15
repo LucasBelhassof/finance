@@ -21,6 +21,7 @@ export const appRoutes = {
   adminFinancialMetrics: "/admin/financial-metrics",
   adminSubscriptions: "/admin/subscriptions",
   adminActivity: "/admin/activity",
+  adminNotifications: "/admin/notifications",
   profile: "/profile",
   settings: "/settings",
 } as const;

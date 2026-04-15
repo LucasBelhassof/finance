@@ -51,18 +51,19 @@ const secondaryNavItems = [
 ];
 
 const expenseManagementItems = [
-  { label: "Transa\u00E7\u00F5es", to: appRoutes.transactions },
-  { label: "Habita\u00E7\u00E3o", to: appRoutes.expenseManagementHousing },
+  { label: "Transações", to: appRoutes.transactions },
+  { label: "Habitação", to: appRoutes.expenseManagementHousing },
   { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
-  { label: "M\u00E9tricas", to: appRoutes.expenseManagementMetrics },
+  { label: "Métricas", to: appRoutes.expenseManagementMetrics },
 ];
 
 const adminItems = [
-  { label: "Visao geral", to: appRoutes.adminOverview },
-  { label: "Usuarios", to: appRoutes.adminUsers },
+  { label: "Visão geral", to: appRoutes.adminOverview },
+  { label: "Usuários", to: appRoutes.adminUsers },
   { label: "Financeiro", to: appRoutes.adminFinancialMetrics },
   { label: "Assinaturas", to: appRoutes.adminSubscriptions },
   { label: "Atividade", to: appRoutes.adminActivity },
+  { label: "Notificações", to: appRoutes.adminNotifications },
 ];
 
 export default function Sidebar() {
@@ -276,7 +277,7 @@ export default function Sidebar() {
               </DropdownMenuItem>
               <DropdownMenuItem className="gap-2" onClick={() => navigate(appRoutes.settings)}>
                 <Building2 size={16} />
-                Configura\u00E7\u00F5es
+                Configurações
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/60" />
               <DropdownMenuItem

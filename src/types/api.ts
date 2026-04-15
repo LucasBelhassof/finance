@@ -975,3 +975,127 @@ export interface AdminUsersData {
     netTotal: number;
   }>;
 }
+
+export type NotificationCategory =
+  | "general"
+  | "invoice_due"
+  | "financing_due"
+  | "installment_due"
+  | "housing_due"
+  | "custom";
+
+export interface ApiNotificationItem {
+  recipientId?: number | string;
+  notificationId?: number | string;
+  title?: string;
+  message?: string;
+  category?: NotificationCategory;
+  source?: "user_self" | "admin_all" | "admin_selected";
+  triggerAt?: string | null;
+  createdAt?: string;
+  isRead?: boolean;
+  readAt?: string | null;
+  createdBy?: {
+    id?: number | string;
+    name?: string;
+  } | null;
+}
+
+export interface ApiNotificationsResponse {
+  unreadCount?: number;
+  notifications?: ApiNotificationItem[];
+}
+
+export interface NotificationItem {
+  recipientId: number | string;
+  notificationId: number | string;
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  source: "user_self" | "admin_all" | "admin_selected";
+  triggerAt: string | null;
+  createdAt: string;
+  isRead: boolean;
+  readAt: string | null;
+  createdBy: {
+    id: number | string;
+    name: string;
+  } | null;
+}
+
+export interface NotificationsData {
+  unreadCount: number;
+  notifications: NotificationItem[];
+}
+
+export interface CreateSelfNotificationInput {
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  triggerAt?: string | null;
+}
+
+export interface ApiAdminNotificationTarget {
+  id?: number | string;
+  name?: string;
+  email?: string;
+  status?: "active" | "inactive" | "suspended";
+}
+
+export interface ApiAdminNotificationTargetsResponse {
+  users?: ApiAdminNotificationTarget[];
+}
+
+export interface AdminNotificationTarget {
+  id: number | string;
+  name: string;
+  email: string;
+  status: "active" | "inactive" | "suspended";
+}
+
+export interface AdminNotificationTargetsData {
+  users: AdminNotificationTarget[];
+}
+
+export interface ApiAdminNotificationSummary {
+  id?: number | string;
+  title?: string;
+  message?: string;
+  category?: NotificationCategory;
+  source?: "admin_all" | "admin_selected";
+  triggerAt?: string | null;
+  createdAt?: string;
+  recipientsCount?: number;
+  readCount?: number;
+}
+
+export interface ApiAdminNotificationsResponse {
+  notifications?: ApiAdminNotificationSummary[];
+}
+
+export interface AdminNotificationSummary {
+  id: number | string;
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  source: "admin_all" | "admin_selected";
+  triggerAt: string | null;
+  createdAt: string;
+  recipientsCount: number;
+  readCount: number;
+}
+
+export interface AdminNotificationsData {
+  notifications: AdminNotificationSummary[];
+}
+
+export interface CreateAdminNotificationInput {
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  triggerAt?: string | null;
+  target: {
+    mode: "all" | "selected";
+    userIds?: Array<number | string>;
+  };
+}

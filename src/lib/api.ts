@@ -11,12 +11,16 @@ import type {
   ApiChatReplyResponse,
   ApiAdminActivityResponse,
   ApiAdminFinancialMetricsResponse,
+  ApiAdminNotificationsResponse,
   ApiAdminOverviewResponse,
   ApiAdminSubscriptionMetricsResponse,
+  ApiAdminNotificationTargetsResponse,
   ApiAdminUsersResponse,
   ApiDashboardResponse,
   AdminActivityData,
   AdminFinancialMetricsData,
+  AdminNotificationsData,
+  AdminNotificationTargetsData,
   AdminOverviewData,
   AdminSubscriptionMetricsData,
   AdminUsersData,
@@ -32,6 +36,7 @@ import type {
   ApiInsight,
   ApiInstallmentsOverviewResponse,
   ApiInsightsResponse,
+  ApiNotificationsResponse,
   ApiSpendingItem,
   ApiSpendingResponse,
   ApiSummaryCard,
@@ -39,6 +44,7 @@ import type {
   ApiTransactionAccount,
   ApiTransactionsResponse,
   BankItem,
+  CreateAdminNotificationInput,
   CategoryItem,
   ChatMessage,
   ChatReply,
@@ -46,6 +52,7 @@ import type {
   CreateBankConnectionInput,
   CreateCategoryInput,
   CreateHousingInput,
+  CreateSelfNotificationInput,
   CreateTransactionInput,
   DashboardData,
   HealthStatus,
@@ -64,6 +71,8 @@ import type {
   SummaryCard,
   TransactionAccount,
   TransactionItem,
+  NotificationsData,
+  NotificationItem,
   UpdateCategoryInput,
   UpdateHousingInput,
   UpdateTransactionInput,
@@ -390,6 +399,79 @@ function mapAdminUsersResponse(response: ApiAdminUsersResponse): AdminUsersData 
       lastSessionAt: item.lastSessionAt ? safeString(item.lastSessionAt) : null,
       transactionCount: safeNumber(item.transactionCount),
       netTotal: safeNumber(item.netTotal),
+    })),
+  };
+}
+
+function mapNotificationsResponse(response: ApiNotificationsResponse): NotificationsData {
+  return {
+    unreadCount: safeNumber(response.unreadCount),
+    notifications: (response.notifications ?? []).map((item) => {
+      const notification = item as Record<string, unknown>;
+
+      return {
+        recipientId: notification.recipientId ?? "",
+        notificationId: notification.notificationId ?? "",
+        title: safeString(notification.title, "Notificacao"),
+        message: safeString(notification.message),
+        category:
+          notification.category === "invoice_due" ||
+          notification.category === "financing_due" ||
+          notification.category === "installment_due" ||
+          notification.category === "housing_due" ||
+          notification.category === "custom"
+            ? notification.category
+            : "general",
+        source:
+          notification.source === "admin_all" || notification.source === "admin_selected"
+            ? notification.source
+            : "user_self",
+        triggerAt: notification.triggerAt ? safeString(notification.triggerAt) : null,
+        createdAt: safeString(notification.createdAt),
+        isRead: Boolean(notification.isRead),
+        readAt: notification.readAt ? safeString(notification.readAt) : null,
+        createdBy:
+          typeof notification.createdBy === "object" && notification.createdBy !== null
+            ? {
+                id: (notification.createdBy as Record<string, unknown>).id ?? "",
+                name: safeString((notification.createdBy as Record<string, unknown>).name, "Sistema"),
+              }
+            : null,
+      } satisfies NotificationItem;
+    }),
+  };
+}
+
+function mapAdminNotificationTargetsResponse(response: ApiAdminNotificationTargetsResponse): AdminNotificationTargetsData {
+  return {
+    users: (response.users ?? []).map((user) => ({
+      id: user.id ?? "",
+      name: safeString(user.name, "Usuario"),
+      email: safeString(user.email),
+      status: user.status === "inactive" || user.status === "suspended" ? user.status : "active",
+    })),
+  };
+}
+
+function mapAdminNotificationsResponse(response: ApiAdminNotificationsResponse): AdminNotificationsData {
+  return {
+    notifications: (response.notifications ?? []).map((item) => ({
+      id: item.id ?? "",
+      title: safeString(item.title, "Notificacao"),
+      message: safeString(item.message),
+      category:
+        item.category === "invoice_due" ||
+        item.category === "financing_due" ||
+        item.category === "installment_due" ||
+        item.category === "housing_due" ||
+        item.category === "custom"
+          ? item.category
+          : "general",
+      source: item.source === "admin_selected" ? "admin_selected" : "admin_all",
+      triggerAt: item.triggerAt ? safeString(item.triggerAt) : null,
+      createdAt: safeString(item.createdAt),
+      recipientsCount: safeNumber(item.recipientsCount),
+      readCount: safeNumber(item.readCount),
     })),
   };
 }
@@ -941,6 +1023,72 @@ export async function getAdminActivity(limit?: number) {
   );
 
   return mapAdminActivityResponse(response);
+}
+
+export async function getAdminNotificationTargets() {
+  const response = await request<ApiAdminNotificationTargetsResponse>("/api/admin/notification-targets");
+  return mapAdminNotificationTargetsResponse(response);
+}
+
+export async function getAdminNotifications(limit = 50) {
+  const response = await request<ApiAdminNotificationsResponse>(
+    buildPath("/api/admin/notifications", {
+      limit,
+    }),
+  );
+
+  return mapAdminNotificationsResponse(response);
+}
+
+export async function postAdminNotification(input: CreateAdminNotificationInput) {
+  return request<{ notificationId: number; recipientsCount: number }>("/api/admin/notifications", {
+    method: "POST",
+    body: JSON.stringify({
+      title: input.title,
+      message: input.message,
+      category: input.category,
+      triggerAt: input.triggerAt ?? null,
+      target: {
+        mode: input.target.mode,
+        userIds: input.target.userIds ?? [],
+      },
+    }),
+  });
+}
+
+export async function getNotifications(limit = 30, unreadOnly = false) {
+  const response = await request<ApiNotificationsResponse>(
+    buildPath("/api/notifications", {
+      limit,
+      unreadOnly: unreadOnly ? "true" : undefined,
+    }),
+  );
+
+  return mapNotificationsResponse(response);
+}
+
+export async function postSelfNotification(input: CreateSelfNotificationInput) {
+  return request<{ notificationId: number }>("/api/notifications/self", {
+    method: "POST",
+    body: JSON.stringify({
+      title: input.title,
+      message: input.message,
+      category: input.category,
+      triggerAt: input.triggerAt ?? null,
+    }),
+  });
+}
+
+export async function patchNotificationRead(recipientId: number | string) {
+  await request<null>(`/api/notifications/${recipientId}/read`, {
+    method: "PATCH",
+  });
+}
+
+export async function patchReadAllNotifications() {
+  return request<{ updatedCount: number }>("/api/notifications/read-all", {
+    method: "PATCH",
+  });
 }
 
 export async function getHealth() {

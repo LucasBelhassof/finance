@@ -10,6 +10,11 @@ import {
   getAdminSubscriptionMetrics,
   getAdminUsers,
 } from "./service.js";
+import {
+  createAdminNotification,
+  listAdminNotificationTargets,
+  listAdminNotifications,
+} from "../notifications/service.js";
 
 function getRequestMetadata(request: Request) {
   const forwardedFor = request.headers["x-forwarded-for"];
@@ -124,6 +129,26 @@ export function createAdminRouter() {
       limit: request.query.limit as string | undefined,
     });
     response.json(result);
+  });
+
+  router.get("/notification-targets", async (request, response) => {
+    await auditAdminAccess(request, "admin_notification_targets_viewed");
+    const result = await listAdminNotificationTargets(request.auth!.userId);
+    response.json(result);
+  });
+
+  router.get("/notifications", async (request, response) => {
+    await auditAdminAccess(request, "admin_notifications_viewed");
+    const result = await listAdminNotifications(request.auth!.userId, {
+      limit: request.query.limit as string | undefined,
+    });
+    response.json(result);
+  });
+
+  router.post("/notifications", async (request, response) => {
+    await auditAdminAccess(request, "admin_notifications_created");
+    const result = await createAdminNotification(request.auth!.userId, request.body ?? {});
+    response.status(201).json(result);
   });
 
   return router;

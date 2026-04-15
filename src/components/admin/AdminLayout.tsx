@@ -11,6 +11,7 @@ const adminTabs = [
   { label: "Financeiro", to: appRoutes.adminFinancialMetrics },
   { label: "Assinaturas", to: appRoutes.adminSubscriptions },
   { label: "Atividade", to: appRoutes.adminActivity },
+  { label: "Notificacoes", to: appRoutes.adminNotifications },
 ];
 
 export default function AdminLayout({

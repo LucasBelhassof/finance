@@ -14,7 +14,6 @@ import ForgotPasswordPage from "@/modules/auth/pages/ForgotPasswordPage";
 import LoginPage from "@/modules/auth/pages/LoginPage";
 import ResetPasswordPage from "@/modules/auth/pages/ResetPasswordPage";
 import SignupPage from "@/modules/auth/pages/SignupPage";
-import LoadingPage from "./pages/Loading.tsx";
 
 const AccountsPage = lazy(() => import("./pages/Accounts.tsx"));
 const AdminActivityPage = lazy(() => import("./pages/admin/AdminActivityPage.tsx"));
@@ -59,7 +58,6 @@ const App = () => (
             </Route>
 
             <Route element={<ProtectedRoute />}>
-              <Route path={appRoutes.loading} element={<LoadingPage />} />
               <Route path={appRoutes.dashboard} element={<Suspense fallback={<PageLoader />}><Index /></Suspense>} />
               <Route path={appRoutes.transactions} element={<Suspense fallback={<PageLoader />}><TransactionsPage /></Suspense>} />
               <Route path={appRoutes.installments} element={<Navigate to={appRoutes.expenseManagementInstallments} replace />} />

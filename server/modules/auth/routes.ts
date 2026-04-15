@@ -84,7 +84,7 @@ export async function requireAccessToken(request: Request) {
 
 export function createAuthRouter() {
   const router = Router();
-  const loginLimiter = createAuthRateLimiter("login", 5);
+  const loginLimiter = createAuthRateLimiter("login", 20);
   const signupLimiter = createAuthRateLimiter("signup", 5);
   const forgotPasswordLimiter = createAuthRateLimiter("forgot_password", 3);
   const resetPasswordLimiter = createAuthRateLimiter("reset_password", 3);

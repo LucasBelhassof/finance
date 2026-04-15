@@ -1,8 +1,12 @@
 .finly-loader-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
   background: radial-gradient(circle at top, hsl(160 60% 10% / 0.4), transparent 48%),
     linear-gradient(180deg, hsl(210 22% 6%), hsl(210 22% 4%));
 }
@@ -15,8 +19,10 @@
 }
 
 .finly-loader-text {
+  font-family: "Inter", sans-serif;
   font-size: 48px;
   font-weight: 700;
+  line-height: 1;
   letter-spacing: 8px;
   color: transparent;
   background: linear-gradient(90deg, #00ffae, #00c896);

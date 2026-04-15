@@ -35,7 +35,6 @@ function renderPublicOnlyRoute(initialPath = appRoutes.login) {
         <Route element={<PublicOnlyRoute />}>
           <Route path={appRoutes.login} element={<h1>Login</h1>} />
         </Route>
-        <Route path={appRoutes.loading} element={<h1>Loading</h1>} />
         <Route path={appRoutes.dashboard} element={<h1>Dashboard</h1>} />
       </Routes>
     </MemoryRouter>,
@@ -99,7 +98,7 @@ describe("auth route guards", () => {
 
     renderPublicOnlyRoute();
 
-    expect(await screen.findByRole("heading", { name: /loading/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /dashboard/i })).toBeInTheDocument();
   });
 
   it("renders public auth content for anonymous users", async () => {

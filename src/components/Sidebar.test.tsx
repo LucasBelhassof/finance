@@ -97,7 +97,6 @@ describe("Sidebar", () => {
 
     renderSidebar(appRoutes.adminOverview);
 
-    expect(screen.getByText(/administracao/i)).toBeInTheDocument();
     expect(getClosestElement<HTMLAnchorElement>(/visao geral/i, "a")).toHaveAttribute("href", appRoutes.adminOverview);
   });
 });

@@ -99,4 +99,34 @@ describe("Sidebar", () => {
 
     expect(getClosestElement<HTMLAnchorElement>(/visao geral/i, "a")).toHaveAttribute("href", appRoutes.adminOverview);
   });
+
+  it("shows the first steps item while onboarding is pending", () => {
+    useAuthSessionMock.mockReturnValue({
+      user: {
+        name: "Joao Silva",
+        email: "joao@finance.test",
+        role: "user",
+        hasCompletedOnboarding: false,
+      },
+    });
+
+    renderSidebar();
+
+    expect(getClosestElement<HTMLAnchorElement>(/primeiros passos/i, "a")).toHaveAttribute("href", appRoutes.onboarding);
+  });
+
+  it("hides the first steps item after onboarding is completed", () => {
+    useAuthSessionMock.mockReturnValue({
+      user: {
+        name: "Joao Silva",
+        email: "joao@finance.test",
+        role: "user",
+        hasCompletedOnboarding: true,
+      },
+    });
+
+    renderSidebar();
+
+    expect(screen.queryByText(/primeiros passos/i)).not.toBeInTheDocument();
+  });
 });

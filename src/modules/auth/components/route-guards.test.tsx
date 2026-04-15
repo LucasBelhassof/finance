@@ -175,27 +175,9 @@ describe("auth route guards", () => {
     expect(await screen.findByRole("heading", { name: /admin/i })).toBeInTheDocument();
   });
 
-  it("redirects authenticated users with onboarding pending to the first steps route", async () => {
+  it("allows access to internal routes even when onboarding is still pending", async () => {
     useBanksMock.mockReturnValue({
       data: [],
-      isLoading: false,
-    });
-    useAuthContextMock.mockReturnValue({
-      isAuthenticated: true,
-      isBootstrapping: false,
-      user: {
-        hasCompletedOnboarding: false,
-      },
-    });
-
-    renderProtectedRoute();
-
-    expect(await screen.findByRole("heading", { name: /primeiros passos/i })).toBeInTheDocument();
-  });
-
-  it("keeps authenticated users on internal routes when the first account already exists", async () => {
-    useBanksMock.mockReturnValue({
-      data: [{ id: 1, name: "Conta inicial" }],
       isLoading: false,
     });
     useAuthContextMock.mockReturnValue({
@@ -211,17 +193,58 @@ describe("auth route guards", () => {
     expect(await screen.findByRole("heading", { name: /area interna/i })).toBeInTheDocument();
   });
 
-  it("redirects authenticated users with onboarding pending away from login", async () => {
+  it("allows access to internal routes when onboarding was dismissed", async () => {
+    useBanksMock.mockReturnValue({
+      data: [{ id: 1, name: "Conta inicial" }],
+      isLoading: false,
+    });
     useAuthContextMock.mockReturnValue({
       isAuthenticated: true,
       isBootstrapping: false,
       user: {
         hasCompletedOnboarding: false,
+        onboardingProgress: {
+          dismissed: true,
+        },
+      },
+    });
+
+    renderProtectedRoute();
+
+    expect(await screen.findByRole("heading", { name: /area interna/i })).toBeInTheDocument();
+  });
+
+  it("redirects authenticated users with onboarding pending away from login to dashboard", async () => {
+    useAuthContextMock.mockReturnValue({
+      isAuthenticated: true,
+      isBootstrapping: false,
+      user: {
+        hasCompletedOnboarding: false,
+        onboardingProgress: {
+          dismissed: false,
+        },
       },
     });
 
     renderPublicOnlyRoute();
 
-    expect(await screen.findByRole("heading", { name: /primeiros passos/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /dashboard/i })).toBeInTheDocument();
+  });
+
+  it("redirects dismissed onboarding users to dashboard from login", async () => {
+    useAuthContextMock.mockReturnValue({
+      isAuthenticated: true,
+      isBootstrapping: false,
+      user: {
+        hasCompletedOnboarding: false,
+        onboardingProgress: {
+          dismissed: true,
+        },
+      },
+    });
+
+    renderPublicOnlyRoute();
+
+    expect(await screen.findByRole("heading", { name: /dashboard/i })).toBeInTheDocument();
   });
 });

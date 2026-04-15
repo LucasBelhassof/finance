@@ -1,14 +1,16 @@
-import { BellRing, Settings, ShieldCheck, UserCircle2 } from "lucide-react";
+import { BellRing, Lightbulb, Settings, ShieldCheck, UserCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { appRoutes } from "@/lib/routes";
+import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { data } = useDashboard();
+  const { user } = useAuthSession();
   const userName = data?.user.name ?? "Usuario";
   const userEmail = data?.user.email ?? "usuario@email.com";
   const userId = data?.user.id ? String(data.user.id) : "--";
@@ -24,13 +26,13 @@ export default function ProfilePage() {
             <div className="min-w-0">
               <h2 className="break-words text-2xl font-semibold text-foreground">{userName}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{userEmail}</p>
-              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">ID do usuário: {userId}</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">ID do usuario: {userId}</p>
             </div>
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
-              <p className="text-sm text-muted-foreground">Mês de referência</p>
+              <p className="text-sm text-muted-foreground">Mes de referencia</p>
               <p className="mt-2 text-lg font-semibold text-foreground">{data?.referenceMonth ?? "--"}</p>
             </div>
             <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
@@ -46,7 +48,7 @@ export default function ProfilePage() {
 
         <div className="space-y-6">
           <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
-            <h3 className="text-lg font-semibold text-foreground">Ações da conta</h3>
+            <h3 className="text-lg font-semibold text-foreground">Acoes da conta</h3>
             <div className="mt-4 space-y-3">
               <Button
                 variant="outline"
@@ -54,15 +56,25 @@ export default function ProfilePage() {
                 onClick={() => navigate(appRoutes.settings)}
               >
                 <Settings size={16} />
-                Abrir Configurações
+                Abrir configuracoes
               </Button>
+              {!user?.hasCompletedOnboarding ? (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start rounded-xl border-border/60 bg-secondary/20"
+                  onClick={() => navigate(appRoutes.onboarding)}
+                >
+                  <Lightbulb size={16} />
+                  Retomar primeiros passos
+                </Button>
+              ) : null}
               <Button variant="outline" className="w-full justify-start rounded-xl border-border/60 bg-secondary/20" disabled>
                 <BellRing size={16} />
-                Preferências de notificação
+                Preferencias de notificacao
               </Button>
               <Button variant="outline" className="w-full justify-start rounded-xl border-border/60 bg-secondary/20" disabled>
                 <ShieldCheck size={16} />
-                Segurança da conta
+                Seguranca da conta
               </Button>
             </div>
           </div>
@@ -70,8 +82,8 @@ export default function ProfilePage() {
           <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
             <h3 className="text-lg font-semibold text-foreground">Resumo</h3>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Esta área concentra informações do usuário e atalhos pessoais. Ajustes técnicos e parâmetros do ambiente
-              continuam disponíveis em Configurações.
+              Esta area concentra informacoes do usuario e atalhos pessoais. Ajustes tecnicos e parametros do ambiente
+              continuam disponiveis em Configuracoes.
             </p>
           </div>
         </div>

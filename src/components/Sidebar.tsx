@@ -82,6 +82,10 @@ export default function Sidebar() {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
   const isCollapsed = state === "collapsed";
+  const shouldShowOnboarding = user?.hasCompletedOnboarding !== true;
+  const primaryNavItems = shouldShowOnboarding
+    ? [...navItems, { icon: Lightbulb, label: "Primeiros passos", to: appRoutes.onboarding }]
+    : navItems;
   const isExpenseManagementActive = Boolean(
     location.pathname === appRoutes.transactions ||
       matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
@@ -108,7 +112,7 @@ export default function Sidebar() {
 
       <SidebarContent className="px-2">
         <SidebarMenu>
-          {navItems.map((item) => {
+          {primaryNavItems.map((item) => {
             const isActive = item.end
               ? location.pathname === item.to
               : Boolean(matchPath({ path: `${item.to}/*`, end: false }, location.pathname) || location.pathname === item.to);

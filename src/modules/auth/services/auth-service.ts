@@ -6,6 +6,7 @@ import type {
   LoginInput,
   ResetPasswordInput,
   SignupInput,
+  UpdateOnboardingProgressInput,
 } from "@/modules/auth/types/auth-types";
 
 function buildUrl(path: string) {
@@ -98,6 +99,13 @@ export async function forgotPassword(input: ForgotPasswordInput) {
 export async function resetPassword(input: ResetPasswordInput) {
   return authRequest<{ message: string }>("/api/auth/reset-password", {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateOnboardingProgress(input: UpdateOnboardingProgressInput) {
+  return authRequest<{ user: AuthSessionPayload["user"] }>("/api/auth/onboarding", {
+    method: "PATCH",
     body: JSON.stringify(input),
   });
 }

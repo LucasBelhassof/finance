@@ -15,6 +15,7 @@ const {
   logoutMock,
   refreshSessionMock,
   resetPasswordMock,
+  updateOnboardingProgressMock,
   verifyAccessTokenMock,
 } = vi.hoisted(() => ({
   forgotPasswordMock: vi.fn(),
@@ -24,6 +25,7 @@ const {
   logoutMock: vi.fn(),
   refreshSessionMock: vi.fn(),
   resetPasswordMock: vi.fn(),
+  updateOnboardingProgressMock: vi.fn(),
   verifyAccessTokenMock: vi.fn(),
 }));
 
@@ -49,6 +51,7 @@ vi.mock("./service.js", () => ({
   logout: logoutMock,
   refreshSession: refreshSessionMock,
   resetPassword: resetPasswordMock,
+  updateOnboardingProgress: updateOnboardingProgressMock,
   verifyAccessToken: verifyAccessTokenMock,
 }));
 
@@ -62,6 +65,12 @@ function buildUser(overrides: Record<string, unknown> = {}) {
     name: "Joao",
     email: "joao@finance.test",
     hasCompletedOnboarding: true,
+    onboardingProgress: {
+      currentStep: 3,
+      completedSteps: ["profile", "account", "due_dates", "dashboard"],
+      skippedSteps: [],
+      dismissed: false,
+    },
     role: "user",
     status: "active",
     isPremium: false,
@@ -123,6 +132,7 @@ describe("auth routes", () => {
     });
 
     getCurrentUserMock.mockResolvedValue(buildUser());
+    updateOnboardingProgressMock.mockResolvedValue(buildUser());
   });
 
   it("logs in and sets the refresh cookie", async () => {
@@ -174,6 +184,31 @@ describe("auth routes", () => {
       .set("Authorization", "Bearer access-token");
 
     expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      user: buildUser(),
+    });
+  });
+
+  it("updates onboarding progress for the authenticated user", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .patch("/api/auth/onboarding")
+      .set("Authorization", "Bearer access-token")
+      .send({
+        currentStep: 1,
+        completedSteps: ["profile"],
+        skippedSteps: [],
+        dismissed: false,
+      });
+
+    expect(response.status).toBe(200);
+    expect(updateOnboardingProgressMock).toHaveBeenCalledWith(7, {
+      currentStep: 1,
+      completedSteps: ["profile"],
+      skippedSteps: [],
+      dismissed: false,
+    });
     expect(response.body).toEqual({
       user: buildUser(),
     });

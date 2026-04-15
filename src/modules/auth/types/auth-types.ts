@@ -1,9 +1,19 @@
+export type OnboardingStepId = "profile" | "account" | "due_dates" | "dashboard";
+
+export interface AuthOnboardingProgress {
+  currentStep: number;
+  completedSteps: OnboardingStepId[];
+  skippedSteps: OnboardingStepId[];
+  dismissed: boolean;
+}
+
 export interface AuthUser {
   id: number | string;
   name: string;
   email: string;
   emailVerified?: boolean;
   hasCompletedOnboarding?: boolean;
+  onboardingProgress?: AuthOnboardingProgress;
   role?: "user" | "admin";
   status?: "active" | "inactive" | "suspended";
   isPremium?: boolean;
@@ -15,6 +25,8 @@ export interface AuthSessionPayload {
   accessToken: string;
   expiresAt: string;
 }
+
+export interface UpdateOnboardingProgressInput extends AuthOnboardingProgress {}
 
 export interface LoginInput {
   email: string;

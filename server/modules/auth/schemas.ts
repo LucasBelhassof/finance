@@ -42,6 +42,15 @@ export const signupSchema = z
 export const bootstrapAuthSchema = z.object({
   email: z.string().trim().email("Enter a valid email."),
   password: passwordSchema,
-  name: z.string().trim().min(1).default("Usuário"),
+  name: z.string().trim().min(1).default("Usuario"),
   userId: z.number().int().positive().optional(),
+});
+
+const onboardingStepSchema = z.enum(["profile", "account", "due_dates", "dashboard"]);
+
+export const onboardingProgressSchema = z.object({
+  currentStep: z.number().int().min(0).max(3),
+  completedSteps: z.array(onboardingStepSchema).default([]),
+  skippedSteps: z.array(onboardingStepSchema).default([]),
+  dismissed: z.boolean().default(false),
 });

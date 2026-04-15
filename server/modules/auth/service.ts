@@ -23,10 +23,11 @@ import {
   revokeSessionFamily,
   revokeUserSessions,
   touchSession,
+  updateUserOnboardingState,
   updateUserPassword,
   withTransaction,
 } from "./repository.js";
-import type { AuthSessionResult, AuthUser } from "./types.js";
+import type { AuthOnboardingProgress, AuthSessionResult, AuthUser, OnboardingStepId } from "./types.js";
 
 export interface AuthRequestMetadata {
   ipAddress: string | null;
@@ -34,6 +35,32 @@ export interface AuthRequestMetadata {
 }
 
 const accessSecret = new TextEncoder().encode(env.auth.accessTokenSecret);
+const ONBOARDING_STEPS: OnboardingStepId[] = ["profile", "account", "due_dates", "dashboard"];
+
+function normalizeOnboardingProgress(
+  value: Partial<AuthOnboardingProgress> | Record<string, unknown> | null | undefined,
+  onboardingCompletedAt?: Date | null,
+): AuthOnboardingProgress {
+  const currentStepRaw =
+    typeof value?.currentStep === "number" && Number.isInteger(value.currentStep)
+      ? value.currentStep
+      : onboardingCompletedAt
+        ? ONBOARDING_STEPS.length - 1
+        : 0;
+
+  const completedStepsRaw = Array.isArray(value?.completedSteps) ? value.completedSteps : onboardingCompletedAt ? ONBOARDING_STEPS : [];
+  const skippedStepsRaw = Array.isArray(value?.skippedSteps) ? value.skippedSteps : [];
+
+  const completedSteps = ONBOARDING_STEPS.filter((step) => completedStepsRaw.includes(step));
+  const skippedSteps = ONBOARDING_STEPS.filter((step) => skippedStepsRaw.includes(step) && !completedSteps.includes(step));
+
+  return {
+    currentStep: Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, currentStepRaw)),
+    completedSteps,
+    skippedSteps,
+    dismissed: Boolean(value?.dismissed) && onboardingCompletedAt == null,
+  };
+}
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -65,6 +92,7 @@ function toAuthUser(user: {
   email: string | null;
   emailVerifiedAt?: Date | null;
   onboardingCompletedAt?: Date | null;
+  onboardingProgress?: Record<string, unknown> | null;
   role?: "user" | "admin";
   status?: "active" | "inactive" | "suspended";
   isPremium?: boolean;
@@ -74,12 +102,15 @@ function toAuthUser(user: {
     throw new BadRequestError("user_email_missing", "The user does not have an email configured.");
   }
 
+  const onboardingProgress = normalizeOnboardingProgress(user.onboardingProgress, user.onboardingCompletedAt);
+
   return {
     id: Number(user.id),
     name: String(user.name),
     email: String(user.email),
     emailVerified: user.emailVerifiedAt != null,
     hasCompletedOnboarding: user.onboardingCompletedAt != null,
+    onboardingProgress,
     role: user.role === "admin" ? "admin" : "user",
     status:
       user.status === "inactive" || user.status === "suspended"
@@ -573,6 +604,30 @@ export async function getCurrentUser(userId: number) {
   }
 
   return toAuthUser(user);
+}
+
+export async function updateOnboardingProgress(userId: number, input: AuthOnboardingProgress) {
+  const user = await findUserById(userId);
+
+  if (!user) {
+    throw new UnauthorizedError("user_not_found", "The authenticated user was not found.");
+  }
+
+  const onboardingProgress = normalizeOnboardingProgress(input, user.onboardingCompletedAt);
+  const hasFinishedAllSteps = ONBOARDING_STEPS.every(
+    (step) => onboardingProgress.completedSteps.includes(step) || onboardingProgress.skippedSteps.includes(step),
+  );
+
+  const updatedUser = await updateUserOnboardingState(userId, {
+    onboardingProgress,
+    onboardingCompletedAt: hasFinishedAllSteps ? new Date() : null,
+  });
+
+  if (!updatedUser) {
+    throw new UnauthorizedError("user_not_found", "The authenticated user was not found.");
+  }
+
+  return toAuthUser(updatedUser);
 }
 
 export async function verifyAccessToken(accessToken: string) {

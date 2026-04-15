@@ -224,18 +224,6 @@ async function getUserById(userId, client = pool) {
   return result.rows[0] ?? null;
 }
 
-async function markUserOnboardingCompleted(userId, client = pool) {
-  await client.query(
-    `
-      UPDATE users
-      SET onboarding_completed_at = COALESCE(onboarding_completed_at, NOW()),
-          updated_at = NOW()
-      WHERE id = $1
-    `,
-    [userId],
-  );
-}
-
 async function getReferenceMonth(userId) {
   const result = await pool.query(
     `
@@ -415,8 +403,6 @@ export async function createBankConnection(userId, input) {
       normalized.statementDueDay,
     ],
   );
-
-  await markUserOnboardingCompleted(resolvedUserId);
 
   const created = await listBanks(resolvedUserId);
   const bank = created.find((item) => String(item.id) === String(result.rows[0].id));

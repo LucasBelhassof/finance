@@ -16,6 +16,7 @@ type AuthContextValue = {
   isBootstrapping: boolean;
   refreshAccessToken: () => Promise<string | null>;
   status: AuthStatus;
+  setUserState: (user: AuthUser | null) => void;
   user: AuthUser | null;
 };
 
@@ -43,6 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(null);
       setUser(null);
       setStatus("anonymous");
+    });
+  }, []);
+
+  const setUserState = useCallback((nextUser: AuthUser | null) => {
+    startTransition(() => {
+      setUser(nextUser);
     });
   }, []);
 
@@ -138,10 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: status === "authenticated",
       isBootstrapping: status === "loading",
       refreshAccessToken,
+      setUserState,
       status,
       user,
     }),
-    [accessToken, applySession, bootstrapSession, clearSession, refreshAccessToken, status, user],
+    [accessToken, applySession, bootstrapSession, clearSession, refreshAccessToken, setUserState, status, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

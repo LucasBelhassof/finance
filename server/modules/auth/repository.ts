@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 
 import { db } from "../../shared/db.js";
+import type { AuthOnboardingProgress } from "./types.js";
 
 type Queryable = Pick<Pool, "query"> | PoolClient;
 
@@ -11,6 +12,7 @@ export interface UserRecord {
   passwordHash: string | null;
   emailVerifiedAt: Date | null;
   onboardingCompletedAt: Date | null;
+  onboardingProgress: Record<string, unknown> | null;
   role: "user" | "admin";
   status: "active" | "inactive" | "suspended";
   isPremium: boolean;
@@ -54,6 +56,10 @@ function mapUser(row: Record<string, unknown>): UserRecord {
     passwordHash: row.password_hash === null || row.password_hash === undefined ? null : String(row.password_hash),
     emailVerifiedAt: row.email_verified_at ? new Date(String(row.email_verified_at)) : null,
     onboardingCompletedAt: row.onboarding_completed_at ? new Date(String(row.onboarding_completed_at)) : null,
+    onboardingProgress:
+      row.onboarding_progress && typeof row.onboarding_progress === "object"
+        ? (row.onboarding_progress as Record<string, unknown>)
+        : null,
     role: row.role === "admin" ? "admin" : "user",
     status:
       row.status === "inactive" || row.status === "suspended"
@@ -94,6 +100,10 @@ function mapSession(row: Record<string, unknown>): SessionRecord {
             row.user_password_hash === null || row.user_password_hash === undefined ? null : String(row.user_password_hash),
           emailVerifiedAt: row.user_email_verified_at ? new Date(String(row.user_email_verified_at)) : null,
           onboardingCompletedAt: row.user_onboarding_completed_at ? new Date(String(row.user_onboarding_completed_at)) : null,
+          onboardingProgress:
+            row.user_onboarding_progress && typeof row.user_onboarding_progress === "object"
+              ? (row.user_onboarding_progress as Record<string, unknown>)
+              : null,
           role: row.user_role === "admin" ? "admin" : "user",
           status:
             row.user_status === "inactive" || row.user_status === "suspended"
@@ -125,6 +135,10 @@ function mapPasswordResetToken(row: Record<string, unknown>): PasswordResetToken
             row.user_password_hash === null || row.user_password_hash === undefined ? null : String(row.user_password_hash),
           emailVerifiedAt: row.user_email_verified_at ? new Date(String(row.user_email_verified_at)) : null,
           onboardingCompletedAt: row.user_onboarding_completed_at ? new Date(String(row.user_onboarding_completed_at)) : null,
+          onboardingProgress:
+            row.user_onboarding_progress && typeof row.user_onboarding_progress === "object"
+              ? (row.user_onboarding_progress as Record<string, unknown>)
+              : null,
           role: row.user_role === "admin" ? "admin" : "user",
           status:
             row.user_status === "inactive" || row.user_status === "suspended"
@@ -156,7 +170,7 @@ export async function withTransaction<T>(callback: (client: PoolClient) => Promi
 export async function findUserByEmail(email: string, client: Queryable = db) {
   const result = await client.query(
     `
-      SELECT id, name, email, password_hash, email_verified_at, onboarding_completed_at, role, status, is_premium, premium_since
+      SELECT id, name, email, password_hash, email_verified_at, onboarding_completed_at, onboarding_progress, role, status, is_premium, premium_since
       FROM users
       WHERE LOWER(email) = LOWER($1)
       LIMIT 1
@@ -170,7 +184,7 @@ export async function findUserByEmail(email: string, client: Queryable = db) {
 export async function findUserById(userId: number, client: Queryable = db) {
   const result = await client.query(
     `
-      SELECT id, name, email, password_hash, email_verified_at, onboarding_completed_at, role, status, is_premium, premium_since
+      SELECT id, name, email, password_hash, email_verified_at, onboarding_completed_at, onboarding_progress, role, status, is_premium, premium_since
       FROM users
       WHERE id = $1
       LIMIT 1
@@ -184,7 +198,7 @@ export async function findUserById(userId: number, client: Queryable = db) {
 export async function listUsersWithoutCredentials(client: Queryable = db) {
   const result = await client.query(
     `
-      SELECT id, name, email, password_hash, email_verified_at, onboarding_completed_at, role, status, is_premium, premium_since
+      SELECT id, name, email, password_hash, email_verified_at, onboarding_completed_at, onboarding_progress, role, status, is_premium, premium_since
       FROM users
       WHERE email IS NULL OR password_hash IS NULL
       ORDER BY id ASC
@@ -206,7 +220,7 @@ export async function createUser(
     `
       INSERT INTO users (name, email, password_hash, updated_at)
       VALUES ($1, $2, $3, NOW())
-      RETURNING id, name, email, password_hash, email_verified_at, onboarding_completed_at, role, status, is_premium, premium_since
+      RETURNING id, name, email, password_hash, email_verified_at, onboarding_completed_at, onboarding_progress, role, status, is_premium, premium_since
     `,
     [input.name, input.email, input.passwordHash],
   );
@@ -231,7 +245,7 @@ export async function attachCredentialsToUser(
           password_hash = $4,
           updated_at = NOW()
       WHERE id = $1
-      RETURNING id, name, email, password_hash, email_verified_at, onboarding_completed_at, role, status, is_premium, premium_since
+      RETURNING id, name, email, password_hash, email_verified_at, onboarding_completed_at, onboarding_progress, role, status, is_premium, premium_since
     `,
     [userId, input.name, input.email, input.passwordHash],
   );
@@ -246,7 +260,7 @@ export async function updateUserPassword(userId: number, passwordHash: string, c
       SET password_hash = $2,
           updated_at = NOW()
       WHERE id = $1
-      RETURNING id, name, email, password_hash, email_verified_at, onboarding_completed_at, role, status, is_premium, premium_since
+      RETURNING id, name, email, password_hash, email_verified_at, onboarding_completed_at, onboarding_progress, role, status, is_premium, premium_since
     `,
     [userId, passwordHash],
   );
@@ -306,6 +320,7 @@ export async function findSessionByTokenHash(tokenHash: string, client: Queryabl
         u.password_hash AS user_password_hash,
         u.email_verified_at AS user_email_verified_at,
         u.onboarding_completed_at AS user_onboarding_completed_at,
+        u.onboarding_progress AS user_onboarding_progress,
         u.role AS user_role,
         u.status AS user_status,
         u.is_premium AS user_is_premium,
@@ -416,6 +431,7 @@ export async function findPasswordResetTokenByHash(tokenHash: string, client: Qu
         u.password_hash AS user_password_hash,
         u.email_verified_at AS user_email_verified_at,
         u.onboarding_completed_at AS user_onboarding_completed_at,
+        u.onboarding_progress AS user_onboarding_progress,
         u.role AS user_role,
         u.status AS user_status,
         u.is_premium AS user_is_premium,
@@ -489,4 +505,30 @@ export async function insertAuditEvent(
       JSON.stringify(input.metadata ?? {}),
     ],
   );
+}
+
+export async function updateUserOnboardingState(
+  userId: number,
+  input: {
+    onboardingProgress: AuthOnboardingProgress;
+    onboardingCompletedAt?: Date | null;
+  },
+  client: Queryable = db,
+) {
+  const result = await client.query(
+    `
+      UPDATE users
+      SET onboarding_progress = $2::jsonb,
+          onboarding_completed_at = CASE
+            WHEN $3::timestamptz IS NOT NULL THEN COALESCE(onboarding_completed_at, $3::timestamptz)
+            ELSE onboarding_completed_at
+          END,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, name, email, password_hash, email_verified_at, onboarding_completed_at, onboarding_progress, role, status, is_premium, premium_since
+    `,
+    [userId, JSON.stringify(input.onboardingProgress), input.onboardingCompletedAt?.toISOString() ?? null],
+  );
+
+  return result.rows[0] ? mapUser(result.rows[0]) : null;
 }

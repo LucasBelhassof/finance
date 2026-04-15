@@ -4,7 +4,7 @@ import rateLimit from "express-rate-limit";
 
 import { env } from "../../shared/env.js";
 import { BadRequestError, UnauthorizedError } from "../../shared/errors.js";
-import { forgotPasswordSchema, loginSchema, resetPasswordSchema, signupSchema } from "./schemas.js";
+import { forgotPasswordSchema, loginSchema, onboardingProgressSchema, resetPasswordSchema, signupSchema } from "./schemas.js";
 import {
   forgotPassword,
   getCurrentUser,
@@ -15,10 +15,12 @@ import {
   refreshSession,
   resetPassword,
   signup,
+  updateOnboardingProgress,
   verifyAccessToken,
   type AuthRequestMetadata,
 } from "./service.js";
 import { insertAuditEvent } from "./repository.js";
+import type { AuthOnboardingProgress } from "./types.js";
 
 function getRequestMetadata(request: Request): AuthRequestMetadata {
   const forwardedFor = request.headers["x-forwarded-for"];
@@ -168,6 +170,19 @@ export function createAuthRouter() {
   router.get("/me", async (request, response) => {
     const auth = await requireAccessToken(request);
     const user = await getCurrentUser(auth.userId);
+    response.json({ user });
+  });
+
+  router.patch("/onboarding", async (request, response) => {
+    const auth = await requireAccessToken(request);
+    const parsed = onboardingProgressSchema.parse(request.body ?? {});
+    const input: AuthOnboardingProgress = {
+      currentStep: parsed.currentStep ?? 0,
+      completedSteps: parsed.completedSteps ?? [],
+      skippedSteps: parsed.skippedSteps ?? [],
+      dismissed: parsed.dismissed ?? false,
+    };
+    const user = await updateOnboardingProgress(auth.userId, input);
     response.json({ user });
   });
 

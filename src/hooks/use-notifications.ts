@@ -1,27 +1,51 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  deleteNotification,
   getNotifications,
   patchNotificationRead,
+  patchNotificationUnread,
   patchReadAllNotifications,
   postSelfNotification,
 } from "@/lib/api";
-import type { CreateSelfNotificationInput, NotificationsData } from "@/types/api";
+import type { CreateSelfNotificationInput, NotificationsData, NotificationsFilters } from "@/types/api";
 
 export const notificationsQueryKey = ["notifications"] as const;
 
-export function useNotifications() {
+function buildNotificationsQueryKey(filters: NotificationsFilters = {}) {
+  return [...notificationsQueryKey, filters] as const;
+}
+
+function updateNotificationCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updater: (current: NotificationsData) => NotificationsData,
+) {
+  queryClient.setQueriesData<NotificationsData>(
+    {
+      queryKey: notificationsQueryKey,
+    },
+    (current) => {
+      if (!current) {
+        return current;
+      }
+
+      return updater(current);
+    },
+  );
+}
+
+export function useNotifications(filters: NotificationsFilters = {}) {
   return useQuery({
-    queryKey: notificationsQueryKey,
-    queryFn: () => getNotifications(30),
+    queryKey: buildNotificationsQueryKey(filters),
+    queryFn: () => getNotifications(filters),
     staleTime: 15_000,
   });
 }
 
 export function useUnreadNotifications() {
   return useQuery({
-    queryKey: [...notificationsQueryKey, "unread"],
-    queryFn: () => getNotifications(30, true),
+    queryKey: buildNotificationsQueryKey({ limit: 30, status: "unread" }),
+    queryFn: () => getNotifications({ limit: 30, status: "unread" }),
     staleTime: 15_000,
   });
 }
@@ -43,11 +67,7 @@ export function useMarkNotificationAsRead() {
   return useMutation({
     mutationFn: (recipientId: number | string) => patchNotificationRead(recipientId),
     onSuccess: (_, recipientId) => {
-      queryClient.setQueryData<NotificationsData | undefined>(notificationsQueryKey, (current) => {
-        if (!current) {
-          return current;
-        }
-
+      updateNotificationCaches(queryClient, (current) => {
         const notifications = current.notifications.map((item) =>
           String(item.recipientId) === String(recipientId)
             ? {
@@ -59,13 +79,57 @@ export function useMarkNotificationAsRead() {
         );
 
         return {
-          unreadCount: Math.max(
-            notifications.filter((item) => !item.isRead).length,
-            0,
-          ),
+          unreadCount: notifications.filter((item) => !item.isRead).length,
           notifications,
         };
       });
+      queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
+    },
+  });
+}
+
+export function useMarkNotificationAsUnread() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (recipientId: number | string) => patchNotificationUnread(recipientId),
+    onSuccess: (_, recipientId) => {
+      updateNotificationCaches(queryClient, (current) => {
+        const notifications = current.notifications.map((item) =>
+          String(item.recipientId) === String(recipientId)
+            ? {
+                ...item,
+                isRead: false,
+                readAt: null,
+              }
+            : item,
+        );
+
+        return {
+          unreadCount: notifications.filter((item) => !item.isRead).length,
+          notifications,
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
+    },
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (recipientId: number | string) => deleteNotification(recipientId),
+    onSuccess: (_, recipientId) => {
+      updateNotificationCaches(queryClient, (current) => {
+        const notifications = current.notifications.filter((item) => String(item.recipientId) !== String(recipientId));
+
+        return {
+          unreadCount: notifications.filter((item) => !item.isRead).length,
+          notifications,
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
     },
   });
 }
@@ -76,20 +140,14 @@ export function useMarkAllNotificationsAsRead() {
   return useMutation({
     mutationFn: () => patchReadAllNotifications(),
     onSuccess: () => {
-      queryClient.setQueryData<NotificationsData | undefined>(notificationsQueryKey, (current) => {
-        if (!current) {
-          return current;
-        }
-
-        return {
-          unreadCount: 0,
-          notifications: current.notifications.map((item) => ({
-            ...item,
-            isRead: true,
-            readAt: item.readAt ?? new Date().toISOString(),
-          })),
-        };
-      });
+      updateNotificationCaches(queryClient, (current) => ({
+        unreadCount: 0,
+        notifications: current.notifications.map((item) => ({
+          ...item,
+          isRead: true,
+          readAt: item.readAt ?? new Date().toISOString(),
+        })),
+      }));
       queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
     },
   });

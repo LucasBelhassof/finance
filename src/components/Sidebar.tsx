@@ -1,4 +1,5 @@
 import {
+  Bell,
   Building2,
   ChevronDown,
   Layers3,
@@ -6,6 +7,7 @@ import {
   Lightbulb,
   LogOut,
   MessageSquare,
+  Settings,
   Shield,
   UserCircle2,
 } from "lucide-react";
@@ -51,19 +53,19 @@ const secondaryNavItems = [
 ];
 
 const expenseManagementItems = [
-  { label: "Transações", to: appRoutes.transactions },
-  { label: "Habitação", to: appRoutes.expenseManagementHousing },
+  { label: "Transacoes", to: appRoutes.transactions },
+  { label: "Habitacao", to: appRoutes.expenseManagementHousing },
   { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
-  { label: "Métricas", to: appRoutes.expenseManagementMetrics },
+  { label: "Metricas", to: appRoutes.expenseManagementMetrics },
 ];
 
 const adminItems = [
-  { label: "Visão geral", to: appRoutes.adminOverview },
-  { label: "Usuários", to: appRoutes.adminUsers },
+  { label: "Visao geral", to: appRoutes.adminOverview },
+  { label: "Usuarios", to: appRoutes.adminUsers },
   { label: "Financeiro", to: appRoutes.adminFinancialMetrics },
   { label: "Assinaturas", to: appRoutes.adminSubscriptions },
   { label: "Atividade", to: appRoutes.adminActivity },
-  { label: "Notificações", to: appRoutes.adminNotifications },
+  { label: "Notificacoes", to: appRoutes.adminNotifications },
 ];
 
 export default function Sidebar() {
@@ -91,7 +93,9 @@ export default function Sidebar() {
     location.pathname === appRoutes.transactions ||
       matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
   );
-  const isAdminActive = Boolean(location.pathname === appRoutes.admin || matchPath({ path: `${appRoutes.admin}/*`, end: false }, location.pathname));
+  const isAdminActive = Boolean(
+    location.pathname === appRoutes.admin || matchPath({ path: `${appRoutes.admin}/*`, end: false }, location.pathname),
+  );
 
   useEffect(() => {
     if (isMobile && openMobile && previousPathnameRef.current !== location.pathname) {
@@ -138,50 +142,51 @@ export default function Sidebar() {
           <Collapsible asChild defaultOpen={isExpenseManagementActive}>
             <SidebarMenuItem>
               {isAdmin ? (
-            <Collapsible asChild defaultOpen={isAdminActive}>
-              <SidebarMenuItem>
-                <CollapsibleTrigger asChild>
-                  <SidebarMenuButton
-                    isActive={isAdminActive}
-                    tooltip="Administração"
-                    className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-                  >
-                    <Shield size={18} className="shrink-0" />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Admin</span>
-                    <ChevronDown
-                      size={16}
-                      className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
-                    />
-                  </SidebarMenuButton>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarMenuSub>
-                    {adminItems.map((item) => {
-                      const isActive = location.pathname === item.to;
+                <Collapsible asChild defaultOpen={isAdminActive}>
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={isAdminActive}
+                        tooltip="Administracao"
+                        className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                      >
+                        <Shield size={18} className="shrink-0" />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">Admin</span>
+                        <ChevronDown
+                          size={16}
+                          className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
+                        />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {adminItems.map((item) => {
+                          const isActive = location.pathname === item.to;
 
-                      return (
-                        <SidebarMenuSubItem key={item.label}>
-                          <SidebarMenuSubButton asChild isActive={isActive}>
-                            <NavLink to={item.to}>
-                              <span>{item.label}</span>
-                            </NavLink>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      );
-                    })}
-                  </SidebarMenuSub>
-                </CollapsibleContent>
-              </SidebarMenuItem>
-            </Collapsible>
-          ) : null}
+                          return (
+                            <SidebarMenuSubItem key={item.label}>
+                              <SidebarMenuSubButton asChild isActive={isActive}>
+                                <NavLink to={item.to}>
+                                  <span>{item.label}</span>
+                                </NavLink>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          );
+                        })}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+              ) : null}
+
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
                   isActive={isExpenseManagementActive}
-                  tooltip="Gestão de Gastos"
+                  tooltip="Gestao de Gastos"
                   className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
                 >
                   <Layers3 size={18} className="shrink-0" />
-                  <span className="truncate group-data-[collapsible=icon]:hidden">Gestão de Gastos</span>
+                  <span className="truncate group-data-[collapsible=icon]:hidden">Gestao de Gastos</span>
                   <ChevronDown
                     size={16}
                     className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
@@ -207,7 +212,6 @@ export default function Sidebar() {
               </CollapsibleContent>
             </SidebarMenuItem>
           </Collapsible>
-
 
           {secondaryNavItems.map((item) => {
             const isActive = Boolean(
@@ -275,9 +279,13 @@ export default function Sidebar() {
                 <UserCircle2 size={16} />
                 Perfil
               </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2" onClick={() => navigate(appRoutes.notifications)}>
+                <Bell size={16} />
+                Notificacoes
+              </DropdownMenuItem>
               <DropdownMenuItem className="gap-2" onClick={() => navigate(appRoutes.settings)}>
-                <Building2 size={16} />
-                Configurações
+                <Settings size={16} />
+                Configuracoes
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/60" />
               <DropdownMenuItem

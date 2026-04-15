@@ -984,6 +984,9 @@ export type NotificationCategory =
   | "housing_due"
   | "custom";
 
+export type NotificationStatusFilter = "all" | "read" | "unread";
+export type NotificationSourceFilter = "all" | "system" | "user";
+
 export interface ApiNotificationItem {
   recipientId?: number | string;
   notificationId?: number | string;
@@ -1004,6 +1007,14 @@ export interface ApiNotificationItem {
 export interface ApiNotificationsResponse {
   unreadCount?: number;
   notifications?: ApiNotificationItem[];
+}
+
+export interface NotificationsFilters {
+  limit?: number;
+  status?: NotificationStatusFilter;
+  source?: NotificationSourceFilter;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export interface NotificationItem {
@@ -1040,6 +1051,7 @@ export interface ApiAdminNotificationTarget {
   name?: string;
   email?: string;
   status?: "active" | "inactive" | "suspended";
+  isPremium?: boolean;
 }
 
 export interface ApiAdminNotificationTargetsResponse {
@@ -1051,6 +1063,7 @@ export interface AdminNotificationTarget {
   name: string;
   email: string;
   status: "active" | "inactive" | "suspended";
+  isPremium: boolean;
 }
 
 export interface AdminNotificationTargetsData {
@@ -1063,6 +1076,7 @@ export interface ApiAdminNotificationSummary {
   message?: string;
   category?: NotificationCategory;
   source?: "admin_all" | "admin_selected";
+  audience?: "all" | "premium" | "non_premium" | "selected";
   triggerAt?: string | null;
   createdAt?: string;
   recipientsCount?: number;
@@ -1079,6 +1093,7 @@ export interface AdminNotificationSummary {
   message: string;
   category: NotificationCategory;
   source: "admin_all" | "admin_selected";
+  audience: "all" | "premium" | "non_premium" | "selected";
   triggerAt: string | null;
   createdAt: string;
   recipientsCount: number;
@@ -1096,6 +1111,7 @@ export interface CreateAdminNotificationInput {
   triggerAt?: string | null;
   target: {
     mode: "all" | "selected";
+    audience?: "all" | "premium" | "non_premium";
     userIds?: Array<number | string>;
   };
 }

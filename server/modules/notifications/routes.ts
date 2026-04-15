@@ -2,9 +2,11 @@ import { Router } from "express";
 
 import {
   createSelfNotification,
+  deleteNotificationForUser,
   listNotificationsForUser,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  markNotificationAsUnread,
 } from "./service.js";
 
 function parseRecipientId(value: string | undefined) {
@@ -24,6 +26,10 @@ export function createNotificationsRouter() {
     const result = await listNotificationsForUser(request.auth!.userId, {
       limit: request.query.limit as string | undefined,
       unreadOnly: request.query.unreadOnly as string | undefined,
+      status: request.query.status,
+      source: request.query.source,
+      startDate: request.query.startDate,
+      endDate: request.query.endDate,
     });
     response.json(result);
   });
@@ -47,9 +53,37 @@ export function createNotificationsRouter() {
     response.status(204).send();
   });
 
+  router.patch("/:recipientId/unread", async (request, response) => {
+    const recipientId = parseRecipientId(request.params.recipientId);
+
+    if (!recipientId) {
+      response.status(400).json({
+        error: "invalid_notification_recipient_id",
+      });
+      return;
+    }
+
+    await markNotificationAsUnread(request.auth!.userId, recipientId);
+    response.status(204).send();
+  });
+
   router.patch("/read-all", async (request, response) => {
     const result = await markAllNotificationsAsRead(request.auth!.userId);
     response.json(result);
+  });
+
+  router.delete("/:recipientId", async (request, response) => {
+    const recipientId = parseRecipientId(request.params.recipientId);
+
+    if (!recipientId) {
+      response.status(400).json({
+        error: "invalid_notification_recipient_id",
+      });
+      return;
+    }
+
+    await deleteNotificationForUser(request.auth!.userId, recipientId);
+    response.status(204).send();
   });
 
   return router;

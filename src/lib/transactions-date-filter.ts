@@ -5,6 +5,11 @@ export type TransactionsDateRange = {
   endDate: string;
 };
 
+export type TransactionsMonthSelection = {
+  monthIndex: number;
+  year: number;
+};
+
 function pad(value: number) {
   return String(value).padStart(2, "0");
 }
@@ -79,6 +84,25 @@ export function resolvePresetRange(preset: TransactionsDateFilterPreset, now = n
         endDate: today,
       };
   }
+}
+
+export function getCurrentMonthSelection(now = new Date()): TransactionsMonthSelection {
+  return {
+    monthIndex: now.getMonth(),
+    year: now.getFullYear(),
+  };
+}
+
+export function resolveMonthYearRange(monthIndex: number, year: number): TransactionsDateRange {
+  const safeMonthIndex = Number.isInteger(monthIndex) ? Math.min(Math.max(monthIndex, 0), 11) : 0;
+  const safeYear = Number.isInteger(year) ? year : new Date().getFullYear();
+  const startDate = createLocalDate(safeYear, safeMonthIndex, 1);
+  const endDate = createLocalDate(safeYear, safeMonthIndex + 1, 0);
+
+  return {
+    startDate: getLocalDateKey(startDate),
+    endDate: getLocalDateKey(endDate),
+  };
 }
 
 export function isDateInRange(dayKey: string, range: TransactionsDateRange) {

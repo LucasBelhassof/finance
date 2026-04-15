@@ -122,6 +122,7 @@ describe("admin routes", () => {
       message: "Sistema atualizado.",
       target: {
         mode: "all",
+        audience: "premium",
       },
     });
 
@@ -130,6 +131,35 @@ describe("admin routes", () => {
       1,
       expect.objectContaining({
         title: "Comunicado",
+        target: expect.objectContaining({
+          audience: "premium",
+        }),
+      }),
+    );
+  });
+
+  it("allows sending system notifications to selected users", async () => {
+    const app = createTestApp("admin");
+
+    const response = await request(app).post("/api/admin/notifications").send({
+      title: "Aviso",
+      message: "Atualize o aplicativo.",
+      category: "custom",
+      target: {
+        mode: "selected",
+        userIds: [4, 8, 12],
+      },
+    });
+
+    expect(response.status).toBe(201);
+    expect(createAdminNotificationMock).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        category: "custom",
+        target: expect.objectContaining({
+          mode: "selected",
+          userIds: [4, 8, 12],
+        }),
       }),
     );
   });

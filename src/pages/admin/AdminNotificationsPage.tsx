@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,21 +15,40 @@ import type { NotificationCategory } from "@/types/api";
 import { toast } from "@/components/ui/sonner";
 
 const categoryOptions: Array<{ value: NotificationCategory; label: string }> = [
-  { value: "general", label: "Geral" },
-  { value: "invoice_due", label: "Vencimento de fatura" },
-  { value: "financing_due", label: "Vencimento de financiamento" },
-  { value: "installment_due", label: "Vencimento de parcelamento" },
-  { value: "housing_due", label: "Vencimento de moradia" },
-  { value: "custom", label: "Personalizado" },
+  { value: "general", label: "Sistema" },
+  { value: "custom", label: "Usuarios selecionados" },
 ];
+
+const audienceOptions = [
+  { value: "all", label: "Todos os ativos" },
+  { value: "premium", label: "Apenas premium" },
+  { value: "non_premium", label: "Apenas nao premium" },
+] as const;
+
+function getAudienceLabel(audience: "all" | "premium" | "non_premium" | "selected") {
+  switch (audience) {
+    case "premium":
+      return "Premium";
+    case "non_premium":
+      return "Nao premium";
+    case "selected":
+      return "Usuarios selecionados";
+    default:
+      return "Todos os ativos";
+  }
+}
+
+function buildNotificationDateValue(value: string) {
+  return value ? `${value}T12:00:00.000Z` : null;
+}
 
 export default function AdminNotificationsPage() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [category, setCategory] = useState<NotificationCategory>("general");
   const [triggerAt, setTriggerAt] = useState("");
-  const [targetMode, setTargetMode] = useState<"all" | "selected">("all");
-  const [selectedUserIds, setSelectedUserIds] = useState<Array<number | string>>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [audience, setAudience] = useState<(typeof audienceOptions)[number]["value"]>("all");
 
   const { data: targets } = useAdminNotificationTargets();
   const { data: notifications, isLoading } = useAdminNotifications();
@@ -36,24 +56,14 @@ export default function AdminNotificationsPage() {
 
   const selectableUsers = useMemo(() => targets?.users ?? [], [targets?.users]);
 
-  const toggleSelectedUser = (userId: number | string, checked: boolean) => {
-    setSelectedUserIds((current) => {
-      if (checked) {
-        return Array.from(new Set([...current, userId]));
-      }
-
-      return current.filter((id) => String(id) !== String(userId));
-    });
-  };
-
   const handleSubmit = async () => {
     if (!title.trim() || !message.trim()) {
       toast.error("Informe um titulo e uma mensagem.");
       return;
     }
 
-    if (targetMode === "selected" && selectedUserIds.length === 0) {
-      toast.error("Selecione ao menos um usuario.");
+    if (category === "custom" && selectedUserIds.length === 0) {
+      toast.error("Selecione pelo menos um usuario ativo.");
       return;
     }
 
@@ -62,10 +72,11 @@ export default function AdminNotificationsPage() {
         title: title.trim(),
         message: message.trim(),
         category,
-        triggerAt: triggerAt ? new Date(triggerAt).toISOString() : null,
+        triggerAt: buildNotificationDateValue(triggerAt),
         target: {
-          mode: targetMode,
-          userIds: targetMode === "selected" ? selectedUserIds : [],
+          mode: category === "custom" ? "selected" : "all",
+          audience,
+          userIds: category === "custom" ? selectedUserIds : [],
         },
       });
 
@@ -73,8 +84,8 @@ export default function AdminNotificationsPage() {
       setTitle("");
       setMessage("");
       setTriggerAt("");
-      setTargetMode("all");
       setSelectedUserIds([]);
+      setAudience("all");
     } catch (error) {
       toast.error("Nao foi possivel enviar a notificacao.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
@@ -82,8 +93,18 @@ export default function AdminNotificationsPage() {
     }
   };
 
+  const toggleSelectedUser = (userId: string, checked: boolean) => {
+    setSelectedUserIds((current) => {
+      if (checked) {
+        return current.includes(userId) ? current : [...current, userId];
+      }
+
+      return current.filter((value) => value !== userId);
+    });
+  };
+
   return (
-    <AdminLayout title="Notificacoes" description="Envie comunicados para todos os usuarios ou para um grupo especifico.">
+    <AdminLayout title="Notificacoes" description="Crie notificacoes do sistema para todos os ativos, por tipo de usuario ou para os usuarios que voce selecionar.">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
         <Card>
           <CardHeader>
@@ -113,7 +134,7 @@ export default function AdminNotificationsPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Categoria</Label>
+                <Label>Destino</Label>
                 <Select value={category} onValueChange={(value) => setCategory(value as NotificationCategory)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -129,43 +150,64 @@ export default function AdminNotificationsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notification-trigger-at">Agendar para</Label>
-                <Input
-                  id="notification-trigger-at"
-                  type="datetime-local"
-                  value={triggerAt}
-                  onChange={(event) => setTriggerAt(event.target.value)}
-                />
+                <Label>Data</Label>
+                <DatePickerInput value={triggerAt} onChange={setTriggerAt} placeholder="Selecionar data" />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Destino</Label>
-              <Select value={targetMode} onValueChange={(value) => setTargetMode(value as "all" | "selected")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os outros usuarios</SelectItem>
-                  <SelectItem value="selected">Usuarios selecionados</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {category === "general" ? (
+              <div className="space-y-2">
+                <Label>Publico</Label>
+                <Select value={audience} onValueChange={(value) => setAudience(value as (typeof audienceOptions)[number]["value"])}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {audienceOptions.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
-            {targetMode === "selected" ? (
-              <div className="space-y-3 rounded-lg border border-border/60 p-3">
-                <p className="text-sm text-muted-foreground">Selecione quem vai receber:</p>
-                <div className="max-h-56 space-y-2 overflow-y-auto">
-                  {selectableUsers.map((user) => (
-                    <label key={String(user.id)} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-secondary/40">
-                      <Checkbox
-                        checked={selectedUserIds.some((id) => String(id) === String(user.id))}
-                        onCheckedChange={(checked) => toggleSelectedUser(user.id, checked === true)}
-                      />
-                      <span className="text-sm text-foreground">{user.name}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">{user.email}</span>
-                    </label>
-                  ))}
+            {category === "custom" ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Usuarios ativos</Label>
+                  <Badge variant="outline">{selectedUserIds.length} selecionado(s)</Badge>
+                </div>
+                <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/60 p-3">
+                  {selectableUsers.map((user) => {
+                    const userId = String(user.id);
+                    const checked = selectedUserIds.includes(userId);
+
+                    return (
+                      <label
+                        key={userId}
+                        htmlFor={`notification-user-${userId}`}
+                        className="flex cursor-pointer items-start gap-3 rounded-md border border-border/40 p-3 transition-colors hover:bg-secondary/20"
+                      >
+                        <Checkbox
+                          id={`notification-user-${userId}`}
+                          checked={checked}
+                          onCheckedChange={(value) => toggleSelectedUser(userId, value === true)}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{user.name}</p>
+                          <p className="text-xs text-muted-foreground">{user.email || "Sem email"}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {user.isPremium ? "Premium" : "Nao premium"}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                  {selectableUsers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum usuario ativo disponivel.</p>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -185,7 +227,8 @@ export default function AdminNotificationsPage() {
               <div key={String(item.id)} className="rounded-lg border border-border/60 p-3">
                 <div className="flex items-center gap-2">
                   <p className="font-medium">{item.title}</p>
-                  <Badge variant="secondary">{item.source === "admin_all" ? "Todos" : "Selecionados"}</Badge>
+                  <Badge variant="secondary">Sistema</Badge>
+                  <Badge variant="outline">{getAudienceLabel(item.audience)}</Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{item.message}</p>
                 <p className="mt-2 text-xs text-muted-foreground">

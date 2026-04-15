@@ -73,6 +73,7 @@ import type {
   TransactionItem,
   NotificationsData,
   NotificationItem,
+  NotificationsFilters,
   UpdateCategoryInput,
   UpdateHousingInput,
   UpdateTransactionInput,
@@ -449,6 +450,7 @@ function mapAdminNotificationTargetsResponse(response: ApiAdminNotificationTarge
       name: safeString(user.name, "Usuario"),
       email: safeString(user.email),
       status: user.status === "inactive" || user.status === "suspended" ? user.status : "active",
+      isPremium: Boolean(user.isPremium),
     })),
   };
 }
@@ -468,6 +470,10 @@ function mapAdminNotificationsResponse(response: ApiAdminNotificationsResponse):
           ? item.category
           : "general",
       source: item.source === "admin_selected" ? "admin_selected" : "admin_all",
+      audience:
+        item.audience === "premium" || item.audience === "non_premium" || item.audience === "selected"
+          ? item.audience
+          : "all",
       triggerAt: item.triggerAt ? safeString(item.triggerAt) : null,
       createdAt: safeString(item.createdAt),
       recipientsCount: safeNumber(item.recipientsCount),
@@ -1050,17 +1056,22 @@ export async function postAdminNotification(input: CreateAdminNotificationInput)
       triggerAt: input.triggerAt ?? null,
       target: {
         mode: input.target.mode,
+        audience: input.target.audience ?? "all",
         userIds: input.target.userIds ?? [],
       },
     }),
   });
 }
 
-export async function getNotifications(limit = 30, unreadOnly = false) {
+export async function getNotifications(filters: NotificationsFilters = {}) {
   const response = await request<ApiNotificationsResponse>(
     buildPath("/api/notifications", {
-      limit,
-      unreadOnly: unreadOnly ? "true" : undefined,
+      limit: filters.limit ?? 30,
+      status: filters.status === "all" ? undefined : filters.status,
+      unreadOnly: filters.status === "unread" ? "true" : undefined,
+      source: filters.source === "all" ? undefined : filters.source,
+      startDate: filters.startDate ?? undefined,
+      endDate: filters.endDate ?? undefined,
     }),
   );
 
@@ -1082,6 +1093,18 @@ export async function postSelfNotification(input: CreateSelfNotificationInput) {
 export async function patchNotificationRead(recipientId: number | string) {
   await request<null>(`/api/notifications/${recipientId}/read`, {
     method: "PATCH",
+  });
+}
+
+export async function patchNotificationUnread(recipientId: number | string) {
+  await request<null>(`/api/notifications/${recipientId}/unread`, {
+    method: "PATCH",
+  });
+}
+
+export async function deleteNotification(recipientId: number | string) {
+  await request<null>(`/api/notifications/${recipientId}`, {
+    method: "DELETE",
   });
 }
 

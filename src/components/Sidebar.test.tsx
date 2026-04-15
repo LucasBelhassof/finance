@@ -129,4 +129,13 @@ describe("Sidebar", () => {
 
     expect(screen.queryByText(/primeiros passos/i)).not.toBeInTheDocument();
   });
+
+  it("keeps notifications out of the sidebar navigation", () => {
+    renderSidebar();
+
+    const navigationLinks = screen.getAllByRole("link");
+    const notificationsLinks = navigationLinks.filter((link) => link.getAttribute("href") === appRoutes.notifications);
+
+    expect(notificationsLinks).toHaveLength(0);
+  });
 });

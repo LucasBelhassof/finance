@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import CategoryPieChart from "@/components/CategoryPieChart";
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
-import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
+import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,14 +47,13 @@ import {
   useUpdateCategory,
   useUpdateTransaction,
 } from "@/hooks/use-transactions";
-import { resolvePresetRange } from "@/lib/transactions-date-filter";
+import { getCurrentMonthSelection, resolveMonthYearRange } from "@/lib/transactions-date-filter";
 import { DEFAULT_CATEGORY_COLOR, resolveCategoryColorPresentation } from "@/lib/category-colors";
 import { cn } from "@/lib/utils";
 import type { CreateCategoryInput, CreateTransactionInput, TransactionItem, UpdateTransactionInput } from "@/types/api";
 import { toast } from "@/components/ui/sonner";
 
 type TransactionTypeFilter = "all" | "income" | "expense";
-type TransactionsDateFilterPreset = "week" | "fifteen_days" | "month" | "year" | "custom";
 type TransactionFormState = {
   id?: string;
   description: string;
@@ -167,8 +166,8 @@ export default function TransactionsPage() {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
-  const [datePreset, setDatePreset] = useState<TransactionsDateFilterPreset>("month");
-  const [dateRange, setDateRange] = useState(() => resolvePresetRange("month"));
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState(() => getCurrentMonthSelection().monthIndex);
+  const [selectedYear, setSelectedYear] = useState(() => getCurrentMonthSelection().year);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -205,6 +204,10 @@ export default function TransactionsPage() {
             transaction.account.accountType === "cash"),
       ),
     [transactions],
+  );
+  const dateRange = useMemo(
+    () => resolveMonthYearRange(selectedMonthIndex, selectedYear),
+    [selectedMonthIndex, selectedYear],
   );
 
   const { filteredTransactions, summaryCardsData, categoryBreakdown } = useFilteredTransactionsData(visibleTransactions, categories, {
@@ -404,16 +407,6 @@ export default function TransactionsPage() {
     } finally {
       setUpdatingCategoryTransactionId(null);
     }
-  };
-
-  const handlePresetChange = (preset: Exclude<TransactionsDateFilterPreset, "custom">) => {
-    setDatePreset(preset);
-    setDateRange(resolvePresetRange(preset));
-  };
-
-  const handleCustomRangeApply = (range: { startDate: string; endDate: string }) => {
-    setDatePreset("custom");
-    setDateRange(range);
   };
 
   const handleCategoryFilterChange = (nextCategoryId: string) => {
@@ -734,12 +727,31 @@ export default function TransactionsPage() {
 
       <div className="glass-card rounded-2xl border border-border/40 p-3 sm:p-4">
         <div className="flex flex-col gap-3">
-          <TransactionsDateFilter
-            preset={datePreset}
-            range={dateRange}
-            onSelectPreset={handlePresetChange}
-            onApplyCustomRange={handleCustomRangeApply}
-          />
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+            <TransactionsMonthYearFilter
+              selectedMonthIndex={selectedMonthIndex}
+              selectedYear={selectedYear}
+              onMonthChange={setSelectedMonthIndex}
+              onYearChange={setSelectedYear}
+            />
+
+            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
+              <SelectTrigger
+                data-testid="transactions-category-filter-trigger"
+                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1"
+              >
+                <SelectValue placeholder="Todas categorias" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas categorias</SelectItem>
+                {categoriesWithBreakdown.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative flex-1">
@@ -751,40 +763,22 @@ export default function TransactionsPage() {
                 className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
               />
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                {typeFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    onClick={() => setTypeFilter(filter.value)}
-                    className={cn(
-                      "min-h-11 rounded-2xl px-3 py-2 text-center text-sm transition-colors sm:px-4 sm:py-2.5",
-                      typeFilter === filter.value
-                        ? "bg-primary/15 text-primary"
-                        : "bg-secondary/50 text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-              <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
-                <SelectTrigger
-                  data-testid="transactions-category-filter-trigger"
-                  className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 sm:min-w-[190px]"
+            <div className="grid grid-cols-3 gap-2 xl:flex xl:flex-wrap">
+              {typeFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => setTypeFilter(filter.value)}
+                  className={cn(
+                    "min-h-11 rounded-2xl px-3 py-2 text-center text-sm transition-colors sm:px-4 sm:py-2.5",
+                    typeFilter === filter.value
+                      ? "bg-primary/15 text-primary"
+                      : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+                  )}
                 >
-                  <SelectValue placeholder="Todas categorias" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas categorias</SelectItem>
-                  {categoriesWithBreakdown.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  {filter.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>

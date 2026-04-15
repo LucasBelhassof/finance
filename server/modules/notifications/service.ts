@@ -32,6 +32,7 @@ export interface AdminNotificationSummary {
   message: string;
   category: NotificationCategory;
   source: "admin_all" | "admin_selected";
+  audience: "all" | "premium" | "non_premium" | "selected";
   triggerAt: string | null;
   createdAt: string;
   recipientsCount: number;
@@ -101,6 +102,51 @@ function normalizeLimit(limit?: string | number, fallback = 30) {
   }
 
   return Math.min(Math.max(Math.trunc(parsed), 1), 200);
+}
+
+function parseNotificationStatusFilter(value: unknown): "all" | "read" | "unread" {
+  if (value === "read" || value === "unread") {
+    return value;
+  }
+
+  return "all";
+}
+
+function parseNotificationSourceFilter(value: unknown): "all" | "system" | "user" {
+  if (value === "system" || value === "user") {
+    return value;
+  }
+
+  return "all";
+}
+
+function parseDateBoundary(value: unknown, boundary: "start" | "end") {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new BadRequestError("invalid_notification_date_filter", "The notification date filter is invalid.");
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+
+  if (!match) {
+    throw new BadRequestError("invalid_notification_date_filter", "The notification date filter is invalid.");
+  }
+
+  const [, year, month, day] = match;
+  const isoValue =
+    boundary === "start"
+      ? `${year}-${month}-${day}T00:00:00.000Z`
+      : `${year}-${month}-${day}T23:59:59.999Z`;
+  const parsed = new Date(isoValue);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new BadRequestError("invalid_notification_date_filter", "The notification date filter is invalid.");
+  }
+
+  return parsed.toISOString();
 }
 
 function mapNotificationRow(row: Record<string, unknown>): NotificationItem {
@@ -180,10 +226,21 @@ export async function listNotificationsForUser(
   input: {
     limit?: string | number;
     unreadOnly?: string;
+    status?: unknown;
+    source?: unknown;
+    startDate?: unknown;
+    endDate?: unknown;
   } = {},
 ) {
   const limit = normalizeLimit(input.limit);
-  const unreadOnly = input.unreadOnly === "true";
+  const status = input.unreadOnly === "true" ? "unread" : parseNotificationStatusFilter(input.status);
+  const source = parseNotificationSourceFilter(input.source);
+  const startDate = parseDateBoundary(input.startDate, "start");
+  const endDate = parseDateBoundary(input.endDate, "end");
+
+  if (startDate && endDate && startDate > endDate) {
+    throw new BadRequestError("invalid_notification_date_range", "The notification date range is invalid.");
+  }
 
   const notificationsResult = await db.query(
     `
@@ -204,11 +261,22 @@ export async function listNotificationsForUser(
       INNER JOIN notifications n ON n.id = nr.notification_id
       LEFT JOIN users creator ON creator.id = n.created_by_user_id
       WHERE nr.user_id = $1
-        AND ($2::boolean = FALSE OR nr.is_read = FALSE)
+        AND (
+          $2::text = 'all'
+          OR ($2::text = 'read' AND nr.is_read = TRUE)
+          OR ($2::text = 'unread' AND nr.is_read = FALSE)
+        )
+        AND (
+          $3::text = 'all'
+          OR ($3::text = 'system' AND n.source IN ('admin_all', 'admin_selected'))
+          OR ($3::text = 'user' AND n.source = 'user_self')
+        )
+        AND ($4::timestamptz IS NULL OR COALESCE(n.trigger_at, n.created_at) >= $4::timestamptz)
+        AND ($5::timestamptz IS NULL OR COALESCE(n.trigger_at, n.created_at) <= $5::timestamptz)
       ORDER BY COALESCE(n.trigger_at, n.created_at) DESC, nr.id DESC
-      LIMIT $3
+      LIMIT $6
     `,
-    [userId, unreadOnly, limit],
+    [userId, status, source, startDate, endDate, limit],
   );
 
   const unreadCountResult = await db.query(
@@ -272,6 +340,68 @@ export async function markNotificationAsRead(userId: number, recipientId: number
   }
 }
 
+export async function markNotificationAsUnread(userId: number, recipientId: number) {
+  const result = await db.query(
+    `
+      UPDATE notification_recipients
+      SET is_read = FALSE,
+          read_at = NULL
+      WHERE id = $1
+        AND user_id = $2
+      RETURNING id
+    `,
+    [recipientId, userId],
+  );
+
+  if (!result.rows[0]) {
+    throw new HttpError(404, "notification_not_found", "The notification was not found.");
+  }
+}
+
+export async function deleteNotificationForUser(userId: number, recipientId: number) {
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `
+        DELETE FROM notification_recipients
+        WHERE id = $1
+          AND user_id = $2
+        RETURNING notification_id
+      `,
+      [recipientId, userId],
+    );
+
+    const notificationId = result.rows[0]?.notification_id;
+
+    if (!notificationId) {
+      throw new HttpError(404, "notification_not_found", "The notification was not found.");
+    }
+
+    await client.query(
+      `
+        DELETE FROM notifications n
+        WHERE n.id = $1
+          AND NOT EXISTS (
+            SELECT 1
+            FROM notification_recipients nr
+            WHERE nr.notification_id = n.id
+          )
+      `,
+      [notificationId],
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function markAllNotificationsAsRead(userId: number) {
   const result = await db.query(
     `
@@ -293,9 +423,10 @@ export async function markAllNotificationsAsRead(userId: number) {
 export async function listAdminNotificationTargets(adminUserId: number) {
   const result = await db.query(
     `
-      SELECT id, name, email, status
+      SELECT id, name, email, status, is_premium
       FROM users
       WHERE id <> $1
+        AND status = 'active'
       ORDER BY name ASC, id ASC
       LIMIT 500
     `,
@@ -311,8 +442,31 @@ export async function listAdminNotificationTargets(adminUserId: number) {
         row.status === "inactive" || row.status === "suspended"
           ? row.status
           : "active",
+      isPremium: Boolean(row.is_premium),
     })),
   };
+}
+
+function parseAdminNotificationAudience(value: unknown): "all" | "premium" | "non_premium" {
+  if (value === "premium" || value === "non_premium") {
+    return value;
+  }
+
+  return "all";
+}
+
+function normalizeAdminNotificationUserIds(rawUserIds: unknown, adminUserId: number) {
+  if (!Array.isArray(rawUserIds)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      rawUserIds
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0 && value !== adminUserId),
+    ),
+  );
 }
 
 export async function createAdminNotification(
@@ -329,38 +483,32 @@ export async function createAdminNotification(
   const message = normalizeText(input.message, "message");
   const category = parseNotificationCategory(input.category);
   const triggerAt = parseTriggerAt(input.triggerAt);
-  const targetMode =
-    typeof input.target === "object" && input.target !== null && (input.target as { mode?: unknown }).mode === "selected"
-      ? "selected"
-      : "all";
+  const target =
+    typeof input.target === "object" && input.target !== null ? (input.target as { mode?: unknown; audience?: unknown; userIds?: unknown[] }) : {};
+  const requestedMode = target.mode === "selected" ? "selected" : "all";
+  const targetMode = category === "custom" ? "selected" : requestedMode;
+  const targetAudience = parseAdminNotificationAudience(target.audience);
 
   const source = targetMode === "selected" ? "admin_selected" : "admin_all";
   let recipientUserIds: number[] = [];
 
   if (targetMode === "all") {
+    const premiumFilter =
+      targetAudience === "premium" ? true : targetAudience === "non_premium" ? false : null;
     const recipientsResult = await db.query(
       `
         SELECT id
         FROM users
         WHERE id <> $1
+          AND status = 'active'
+          AND ($2::boolean IS NULL OR is_premium = $2::boolean)
       `,
-      [adminUserId],
+      [adminUserId, premiumFilter],
     );
 
     recipientUserIds = recipientsResult.rows.map((row) => Number(row.id));
   } else {
-    const rawUserIds =
-      typeof input.target === "object" && input.target !== null && Array.isArray((input.target as { userIds?: unknown[] }).userIds)
-        ? ((input.target as { userIds?: unknown[] }).userIds ?? [])
-        : [];
-
-    const normalizedUserIds = Array.from(
-      new Set(
-        rawUserIds
-          .map((value) => Number(value))
-          .filter((value) => Number.isInteger(value) && value > 0 && value !== adminUserId),
-      ),
-    );
+    const normalizedUserIds = normalizeAdminNotificationUserIds(target.userIds, adminUserId);
 
     if (normalizedUserIds.length === 0) {
       throw new BadRequestError("empty_notification_recipients", "At least one selected user is required.");
@@ -371,11 +519,16 @@ export async function createAdminNotification(
         SELECT id
         FROM users
         WHERE id = ANY($1::int[])
+          AND status = 'active'
       `,
       [normalizedUserIds],
     );
 
     recipientUserIds = recipientsResult.rows.map((row) => Number(row.id));
+
+    if (recipientUserIds.length !== normalizedUserIds.length) {
+      throw new BadRequestError("invalid_notification_recipient", "Select only active users.");
+    }
   }
 
   if (recipientUserIds.length === 0) {
@@ -410,12 +563,19 @@ export async function listAdminNotifications(adminUserId: number, input: { limit
         n.message,
         n.category,
         n.source,
+        CASE
+          WHEN n.source = 'admin_selected' THEN 'selected'
+          WHEN COUNT(u.id) FILTER (WHERE u.is_premium = TRUE) = COUNT(nr.id) THEN 'premium'
+          WHEN COUNT(u.id) FILTER (WHERE u.is_premium = FALSE) = COUNT(nr.id) THEN 'non_premium'
+          ELSE 'all'
+        END AS audience,
         n.trigger_at,
         n.created_at,
         COUNT(nr.id)::INT AS recipients_count,
         COUNT(nr.id) FILTER (WHERE nr.is_read = TRUE)::INT AS read_count
       FROM notifications n
       INNER JOIN notification_recipients nr ON nr.notification_id = n.id
+      INNER JOIN users u ON u.id = nr.user_id
       WHERE n.created_by_user_id = $1
         AND n.source IN ('admin_all', 'admin_selected')
       GROUP BY n.id
@@ -432,6 +592,10 @@ export async function listAdminNotifications(adminUserId: number, input: { limit
       message: String(row.message),
       category: parseNotificationCategory(row.category),
       source: row.source === "admin_selected" ? "admin_selected" : "admin_all",
+      audience:
+        row.audience === "premium" || row.audience === "non_premium" || row.audience === "selected"
+          ? row.audience
+          : "all",
       triggerAt: row.trigger_at ? new Date(String(row.trigger_at)).toISOString() : null,
       createdAt: new Date(String(row.created_at)).toISOString(),
       recipientsCount: Number(row.recipients_count ?? 0),

@@ -45,7 +45,7 @@ vi.mock("@/components/transactions/ImportTransactionsModal", () => ({
   default: () => null,
 }));
 
-vi.mock("@/components/transactions/TransactionsDateFilter", () => ({
+vi.mock("@/components/transactions/TransactionsMonthYearFilter", () => ({
   default: () => <div>mock-date-filter</div>,
 }));
 

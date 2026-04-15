@@ -14,6 +14,7 @@ export const appRoutes = {
   expenseManagementMetrics: "/gestao-de-gastos/metricas",
   chat: "/chat",
   insights: "/insights",
+  notifications: "/notifications",
   accounts: "/accounts",
   admin: "/admin",
   adminOverview: "/admin/overview",

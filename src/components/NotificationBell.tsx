@@ -1,4 +1,5 @@
 import { Bell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMarkAllNotificationsAsRead, useMarkNotificationAsRead, useNotifications } from "@/hooks/use-notifications";
+import { appRoutes } from "@/lib/routes";
 
 export function NotificationBell() {
+  const navigate = useNavigate();
   const { data } = useNotifications();
   const markRead = useMarkNotificationAsRead();
   const markAllRead = useMarkAllNotificationsAsRead();
@@ -59,6 +62,7 @@ export function NotificationBell() {
               if (!notification.isRead) {
                 void markRead.mutateAsync(notification.recipientId);
               }
+              navigate(`${appRoutes.notifications}/${notification.recipientId}`);
             }}
           >
             <div className="flex w-full items-center gap-2">
@@ -71,6 +75,14 @@ export function NotificationBell() {
             </p>
           </DropdownMenuItem>
         ))}
+        {notifications.length > 0 ? (
+          <>
+            <DropdownMenuSeparator className="bg-border/60" />
+            <DropdownMenuItem onClick={() => navigate(appRoutes.notifications)}>
+              Ver central de notificacoes
+            </DropdownMenuItem>
+          </>
+        ) : null}
         {notifications.length === 0 ? (
           <div className="p-4 text-sm text-muted-foreground">Sem notificacoes no momento.</div>
         ) : null}

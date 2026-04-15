@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import AppShell from "@/components/AppShell";
 import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
+import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -18,7 +19,13 @@ import { useBanks } from "@/hooks/use-banks";
 import { useTransactions } from "@/hooks/use-transactions";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { resolveCategoryColorPresentation } from "@/lib/category-colors";
-import { formatDateRangeLabel, resolvePresetRange, type TransactionsDateFilterPreset } from "@/lib/transactions-date-filter";
+import {
+  formatDateRangeLabel,
+  getCurrentMonthSelection,
+  resolveMonthYearRange,
+  resolvePresetRange,
+  type TransactionsDateFilterPreset,
+} from "@/lib/transactions-date-filter";
 import { cn } from "@/lib/utils";
 import type { BankItem, TransactionItem } from "@/types/api";
 
@@ -185,6 +192,8 @@ export default function ExpenseMetricsPage() {
   const { data: transactions = [], isLoading: isTransactionsLoading, isError: isTransactionsError } = useTransactions();
   const { data: banks = [], isLoading: isBanksLoading } = useBanks();
 
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState(() => getCurrentMonthSelection().monthIndex);
+  const [selectedYear, setSelectedYear] = useState(() => getCurrentMonthSelection().year);
   const [datePreset, setDatePreset] = useState<TransactionsDateFilterPreset>("month");
   const [dateRange, setDateRange] = useState(() => resolvePresetRange("month"));
   const [selectedAccountId, setSelectedAccountId] = useState("all");
@@ -288,6 +297,18 @@ export default function ExpenseMetricsPage() {
     setDateRange(resolvePresetRange(preset));
   };
 
+  const handleMonthChange = (monthIndex: number) => {
+    setSelectedMonthIndex(monthIndex);
+    setDatePreset("month");
+    setDateRange(resolveMonthYearRange(monthIndex, selectedYear));
+  };
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    setDatePreset("month");
+    setDateRange(resolveMonthYearRange(selectedMonthIndex, year));
+  };
+
   const handleCustomRangeApply = (range: { startDate: string; endDate: string }) => {
     setDatePreset("custom");
     setDateRange(range);
@@ -313,16 +334,24 @@ export default function ExpenseMetricsPage() {
   return (
     <AppShell title="Metricas" description="Leitura operacional das despesas, receitas e concentracao por conta">
       <section className="glass-card rounded-[28px] border border-border/40 p-4">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+          <TransactionsMonthYearFilter
+            selectedMonthIndex={selectedMonthIndex}
+            selectedYear={selectedYear}
+            onMonthChange={handleMonthChange}
+            onYearChange={handleYearChange}
+          />
+
           <TransactionsDateFilter
             preset={datePreset}
             range={dateRange}
             onSelectPreset={handlePresetChange}
             onApplyCustomRange={handleCustomRangeApply}
+            showPresetButtons={false}
           />
 
           <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-            <SelectTrigger className="h-11 rounded-2xl border-border/60 bg-secondary/30">
+            <SelectTrigger className="h-11 w-full rounded-2xl border-border/60 bg-secondary/30 xl:flex-1">
               <SelectValue placeholder="Todas as contas" />
             </SelectTrigger>
             <SelectContent>
@@ -336,22 +365,24 @@ export default function ExpenseMetricsPage() {
           </Select>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          {typeFilters.map((filter) => (
-            <button
-              key={filter.value}
-              type="button"
-              onClick={() => setTypeFilter(filter.value)}
-              className={cn(
-                "min-h-11 rounded-2xl px-4 py-2.5 text-sm transition-colors sm:min-h-0",
-                typeFilter === filter.value ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {filter.label}
-            </button>
-          ))}
+        <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center">
+          <div className="grid grid-cols-3 gap-2 xl:flex xl:flex-wrap">
+            {typeFilters.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => setTypeFilter(filter.value)}
+                className={cn(
+                  "min-h-11 rounded-2xl px-4 py-2.5 text-sm transition-colors sm:min-h-0",
+                  typeFilter === filter.value ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
 
-          <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground sm:ml-auto">
+          <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground xl:ml-auto">
             {formatDateRangeLabel(dateRange, datePreset)}
           </div>
         </div>

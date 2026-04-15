@@ -27,6 +27,7 @@ type TransactionsDateFilterProps = {
   range: TransactionsDateRange;
   onApplyCustomRange: (range: TransactionsDateRange) => void;
   onSelectPreset: (preset: Exclude<TransactionsDateFilterPreset, "custom">) => void;
+  showPresetButtons?: boolean;
 };
 
 function rangeToCalendarValue(range: TransactionsDateRange): DateRange | undefined {
@@ -60,6 +61,7 @@ export default function TransactionsDateFilter({
   range,
   onApplyCustomRange,
   onSelectPreset,
+  showPresetButtons = true,
 }: TransactionsDateFilterProps) {
   const [open, setOpen] = useState(false);
   const [draftAnchorDate, setDraftAnchorDate] = useState<Date | undefined>();
@@ -119,19 +121,21 @@ export default function TransactionsDateFilter({
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-      {presetOptions.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onSelectPreset(option.value)}
-          className={cn(
-            "min-h-11 rounded-2xl px-4 py-2.5 text-sm transition-colors sm:min-h-0",
-            preset === option.value ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+      {showPresetButtons
+        ? presetOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onSelectPreset(option.value)}
+              className={cn(
+                "min-h-11 rounded-2xl px-4 py-2.5 text-sm transition-colors sm:min-h-0",
+                preset === option.value ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {option.label}
+            </button>
+          ))
+        : null}
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>

@@ -566,12 +566,8 @@ export default function AccountsPage() {
         </div>
 
         <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
-          <h3 className="text-[1.3rem] font-semibold text-foreground">Regras desta versao</h3>
+          <h3 className="text-[1.3rem] font-semibold text-foreground"></h3>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-            <p>Contas e cartoes sao cadastrados manualmente. Open Finance fica para depois.</p>
-            <p>Cartoes devem ser vinculados a uma conta bancaria pai.</p>
-            <p>Importacao de extrato aceita apenas conta bancaria. Importacao de fatura aceita apenas cartao.</p>
-            <p>O dia de fechamento e o dia de vencimento ficam salvos no cartao para uso futuro em faturas.</p>
           </div>
         </div>
       </div>

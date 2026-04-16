@@ -41,7 +41,7 @@ export function NotificationBell() {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-96 border-border/60 bg-card text-foreground" align="end">
         <DropdownMenuLabel className="flex items-center justify-between gap-2">
-          <span>Notificacoes</span>
+          <span>Notificações</span>
           {unreadCount > 0 ? (
             <Button
               variant="ghost"

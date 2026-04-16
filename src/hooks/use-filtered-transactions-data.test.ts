@@ -14,21 +14,21 @@ const transactions = [
     description: "iFood",
     amount: -67.9,
     occurredOn: "2026-04-06",
-    category: { label: "Restaurantes", groupLabel: "Alimentacao", groupColor: "bg-warning" },
+    category: { id: 1, label: "Restaurantes", groupLabel: "Alimentacao", groupColor: "bg-warning" },
   },
   {
     id: 2,
     description: "Uber",
     amount: -23.5,
     occurredOn: "2026-04-05",
-    category: { label: "Transporte", groupLabel: "Transporte", groupColor: "bg-info" },
+    category: { id: 2, label: "Transporte", groupLabel: "Transporte", groupColor: "bg-info" },
   },
   {
     id: 3,
     description: "Salario",
     amount: 6500,
     occurredOn: "2026-03-20",
-    category: { label: "Salario", groupLabel: "Receitas", groupColor: "bg-income" },
+    category: { id: 3, label: "Salario", groupLabel: "Receitas", groupColor: "bg-income" },
   },
 ];
 

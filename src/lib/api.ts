@@ -1,6 +1,7 @@
 import { TrendingDown, TrendingUp, Wallet } from "lucide-react";
 
 import { resolveInsightIcon, resolveLucideIcon } from "@/lib/icons";
+import { appRoutes } from "@/lib/routes";
 import type {
   ApiBank,
   ApiBanksResponse,
@@ -557,6 +558,17 @@ export function mapSpendingItem(item: ApiSpendingItem): SpendingItem {
 export function mapInsight(insight: ApiInsight): InsightItem {
   const colors = normalizeInsightColors(insight);
   const tone = safeString(insight.tone, "primary");
+  const priority = insight.priority === "high" || insight.priority === "medium" || insight.priority === "low" ? insight.priority : "low";
+  const insightType = safeString(insight.insightType, "general");
+  const action = insight.action;
+  const actionHref =
+    action?.kind === "review_installments"
+      ? appRoutes.expenseManagementInstallments
+      : action?.kind === "review_accounts"
+        ? appRoutes.accounts
+        : action?.kind === "review_transactions"
+          ? appRoutes.transactions
+          : null;
 
   return {
     id: insight.id ?? safeString(insight.title, "insight"),
@@ -564,7 +576,20 @@ export function mapInsight(insight: ApiInsight): InsightItem {
     description: safeString(insight.description, "Nao ha detalhes adicionais para este insight."),
     tag: safeString(insight.tag, "IA"),
     tone,
-    icon: resolveInsightIcon(tone),
+    priority,
+    priorityLabel: priority === "high" ? "Alta" : priority === "medium" ? "Media" : "Baixa",
+    toneLabel: tone === "warning" ? "Atencao" : tone === "info" ? "Analise" : tone === "success" ? "Oportunidade" : "Leitura",
+    insightType,
+    metadata: typeof insight.metadata === "object" && insight.metadata !== null ? insight.metadata : {},
+    action:
+      action && safeString(action.label)
+        ? {
+            kind: safeString(action.kind, "review_transactions"),
+            label: safeString(action.label),
+            href: actionHref,
+          }
+        : null,
+    icon: resolveInsightIcon(tone, insightType),
     iconColor: colors.iconColor,
     bgColor: colors.bgColor,
     tagColor: colors.tagColor,

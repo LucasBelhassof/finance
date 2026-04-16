@@ -25,6 +25,35 @@ export type CategoryBreakdownItem = {
   percentage: number;
 };
 
+function resolveBreakdownTransactionType(categories: CategoryItem[], filters: TransactionsDerivedFilters): "income" | "expense" {
+  if (filters.typeFilter === "income") {
+    return "income";
+  }
+
+  if (filters.typeFilter === "expense") {
+    return "expense";
+  }
+
+  if (filters.categoryFilter !== "all") {
+    const matchedCategory = categories.find((category) => {
+      const categoryKey = resolveCategoryKey(category);
+      const categoryLabel = resolveCategoryLabel(category);
+
+      return (
+        categoryKey === filters.categoryFilter ||
+        categoryLabel === filters.categoryFilter ||
+        String(category.groupLabel ?? "") === filters.categoryFilter
+      );
+    });
+
+    if (matchedCategory?.transactionType === "income") {
+      return "income";
+    }
+  }
+
+  return "expense";
+}
+
 function normalizeText(value: string) {
   return value
     .normalize("NFD")
@@ -52,8 +81,8 @@ export function getFilteredTransactionsData(
   categories: CategoryItem[],
   filters: TransactionsDerivedFilters,
 ) {
-  void categories;
   const normalizedSearch = normalizeText(filters.search);
+  const breakdownTransactionType = resolveBreakdownTransactionType(categories, filters);
 
   const contextualTransactions = transactions.filter((transaction) => {
     const matchesDate = isDateInRange(transaction.occurredOn, filters.range);
@@ -88,24 +117,26 @@ export function getFilteredTransactionsData(
 
   const groupedMap = new Map<string, { id: string; label: string; color: string; count: number; total: number }>();
 
-  contextualTransactions.forEach((transaction) => {
-    const categoryKey = resolveCategoryKey(transaction.category);
-    const current = groupedMap.get(categoryKey);
-    const transactionTotal = Math.abs(transaction.amount);
+  contextualTransactions
+    .filter((transaction) => (breakdownTransactionType === "income" ? transaction.amount > 0 : transaction.amount < 0))
+    .forEach((transaction) => {
+      const categoryKey = resolveCategoryKey(transaction.category);
+      const current = groupedMap.get(categoryKey);
+      const transactionTotal = Math.abs(transaction.amount);
 
-    if (current) {
-      current.count += 1;
-      current.total += transactionTotal;
-    } else {
-      groupedMap.set(categoryKey, {
-        id: categoryKey,
-        label: resolveCategoryLabel(transaction.category),
-        color: transaction.category.groupColor,
-        count: 1,
-        total: transactionTotal,
-      });
-    }
-  });
+      if (current) {
+        current.count += 1;
+        current.total += transactionTotal;
+      } else {
+        groupedMap.set(categoryKey, {
+          id: categoryKey,
+          label: resolveCategoryLabel(transaction.category),
+          color: transaction.category.groupColor,
+          count: 1,
+          total: transactionTotal,
+        });
+      }
+    });
 
   const totalGroupedAmount = Array.from(groupedMap.values()).reduce((sum, item) => sum + item.total, 0);
   const categoryBreakdown: CategoryBreakdownItem[] = Array.from(groupedMap.values())
@@ -123,6 +154,7 @@ export function getFilteredTransactionsData(
       totalExpenses,
       balance: totalIncomes - totalExpenses,
     },
+    breakdownTransactionType,
     categoryBreakdown,
     categoryCounts: categoryBreakdown.map(({ id, label, color, count }) => ({ id, label, color, count })),
   };

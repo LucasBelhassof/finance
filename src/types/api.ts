@@ -82,6 +82,13 @@ export interface ApiInsight {
   description?: string;
   tag?: string;
   tone?: string;
+  priority?: string;
+  insightType?: string;
+  metadata?: Record<string, unknown>;
+  action?: {
+    kind?: string;
+    label?: string;
+  } | null;
   iconColor?: string;
   bgColor?: string;
   tagColor?: string;
@@ -575,6 +582,16 @@ export interface InsightItem {
   description: string;
   tag: string;
   tone: string;
+  priority: "high" | "medium" | "low";
+  priorityLabel: string;
+  toneLabel: string;
+  insightType: string;
+  metadata: Record<string, unknown>;
+  action: {
+    kind: string;
+    label: string;
+    href: string | null;
+  } | null;
   icon: LucideIcon;
   iconColor: string;
   bgColor: string;

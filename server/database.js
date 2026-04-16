@@ -18,6 +18,8 @@ import {
 import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.js";
 import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
+import { generateInsights } from "./insights-engine.js";
+import { buildTransactionCategorySyncPlan } from "./transaction-update.js";
 
 dotenv.config();
 
@@ -1781,35 +1783,77 @@ export async function updateTransaction(userId, transactionId, input) {
     throw new Error("description, amount, occurredOn and bankConnectionId are required");
   }
 
-  const category = await resolveCategoryForTransactionInput(input.categoryId, amount);
+  const client = await pool.connect();
 
-  const bankConnection = await getBankConnectionById(resolvedUserId, bankConnectionId);
+  try {
+    await client.query("BEGIN");
 
-  if (!bankConnection) {
-    throw new Error("bank connection not found");
+    const existingTransaction = await getTransactionById(resolvedUserId, transactionId, client);
+
+    if (!existingTransaction) {
+      throw new Error("transaction not found");
+    }
+
+    const category = await resolveCategoryForTransactionInput(input.categoryId, amount, client);
+    const bankConnection = await getBankConnectionById(resolvedUserId, bankConnectionId, client);
+
+    if (!bankConnection) {
+      throw new Error("bank connection not found");
+    }
+
+    const syncPlan = buildTransactionCategorySyncPlan(existingTransaction, category.id);
+
+    if (syncPlan.syncInstallmentPurchase) {
+      await client.query(
+        `
+          UPDATE transactions
+          SET category_id = $3
+          WHERE user_id = $1
+            AND installment_purchase_id = $2
+        `,
+        [resolvedUserId, syncPlan.installmentPurchaseId, category.id],
+      );
+
+      await client.query(
+        `
+          UPDATE installment_purchases
+          SET category_id = $3,
+              updated_at = NOW()
+          WHERE user_id = $1
+            AND id = $2
+        `,
+        [resolvedUserId, syncPlan.installmentPurchaseId, category.id],
+      );
+    }
+
+    const result = await client.query(
+      `
+        UPDATE transactions
+        SET bank_connection_id = $3,
+            category_id = $4,
+            description = $5,
+            amount = $6,
+            occurred_on = $7
+        WHERE user_id = $1
+          AND id = $2
+        RETURNING id
+      `,
+      [resolvedUserId, transactionId, bankConnectionId, category.id, description, amount, occurredOn],
+    );
+
+    if (!result.rowCount) {
+      throw new Error("transaction not found");
+    }
+
+    const row = await getTransactionById(resolvedUserId, transactionId, client);
+    await client.query("COMMIT");
+    return mapTransactionRow(row, occurredOn);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-
-  const result = await pool.query(
-    `
-      UPDATE transactions
-      SET bank_connection_id = $3,
-          category_id = $4,
-          description = $5,
-          amount = $6,
-          occurred_on = $7
-      WHERE user_id = $1
-        AND id = $2
-      RETURNING id
-    `,
-    [resolvedUserId, transactionId, bankConnectionId, category.id, description, amount, occurredOn],
-  );
-
-  if (!result.rowCount) {
-    throw new Error("transaction not found");
-  }
-
-  const row = await getTransactionById(resolvedUserId, transactionId);
-  return mapTransactionRow(row, occurredOn);
 }
 
 export async function deleteTransaction(userId, transactionId) {
@@ -2164,24 +2208,53 @@ export async function listSpendingByCategory(userId) {
 
 export async function listInsights(userId) {
   const resolvedUserId = await requireUserId(userId);
-  const result = await pool.query(
-    `
-      SELECT id, title, description, tag, tone
-      FROM insights
-      WHERE user_id = $1
-      ORDER BY sort_order ASC, id ASC
-    `,
-    [resolvedUserId],
-  );
+  const [balanceResult, transactionsResult] = await Promise.all([
+    pool.query(
+      `
+        SELECT COALESCE(SUM(current_balance), 0)::NUMERIC(12, 2) AS total_balance
+        FROM bank_connections
+        WHERE user_id = $1
+      `,
+      [resolvedUserId],
+    ),
+    pool.query(
+      `
+        SELECT
+          t.id,
+          t.description,
+          ABS(t.amount)::NUMERIC(12, 2) AS amount,
+          t.occurred_on,
+          t.installment_purchase_id,
+          c.slug AS category_slug,
+          c.label AS category_label,
+          c.group_slug,
+          c.group_label
+        FROM transactions t
+        INNER JOIN categories c ON c.id = t.category_id
+        WHERE t.user_id = $1
+          AND t.amount < 0
+        ORDER BY t.occurred_on DESC, t.id DESC
+        LIMIT 500
+      `,
+      [resolvedUserId],
+    ),
+  ]);
 
-  return result.rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    tag: row.tag,
-    tone: row.tone,
-    ...mapToneToColors(row.tone),
-  }));
+  return generateInsights({
+    balances: [parseNumeric(balanceResult.rows[0]?.total_balance)],
+    transactions: transactionsResult.rows.map((row) => ({
+      id: row.id,
+      description: row.description,
+      amount: parseNumeric(row.amount),
+      occurredOn: normalizeDateValue(row.occurred_on),
+      isInstallment: Boolean(row.installment_purchase_id),
+      installmentPurchaseId: row.installment_purchase_id ?? null,
+      categorySlug: row.category_slug,
+      categoryLabel: row.category_label,
+      groupSlug: row.group_slug,
+      groupLabel: row.group_label,
+    })),
+  });
 }
 
 export async function listChatMessages(userId, limit = 20) {

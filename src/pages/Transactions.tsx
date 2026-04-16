@@ -210,7 +210,7 @@ export default function TransactionsPage() {
     [selectedMonthIndex, selectedYear],
   );
 
-  const { filteredTransactions, summaryCardsData, categoryBreakdown } = useFilteredTransactionsData(visibleTransactions, categories, {
+  const { filteredTransactions, summaryCardsData, categoryBreakdown, breakdownTransactionType } = useFilteredTransactionsData(visibleTransactions, categories, {
     search,
     typeFilter,
     categoryFilter,
@@ -220,7 +220,7 @@ export default function TransactionsPage() {
     const breakdownById = new Map(categoryBreakdown.map((item) => [item.id, item]));
 
     return categories
-      .filter((category) => typeFilter === "all" || category.transactionType === typeFilter)
+      .filter((category) => category.transactionType === breakdownTransactionType)
       .map((category) => {
         const breakdown = breakdownById.get(String(category.id));
 
@@ -233,7 +233,7 @@ export default function TransactionsPage() {
         };
       })
       .sort((left, right) => right.count - left.count || right.total - left.total || left.label.localeCompare(right.label, "pt-BR"));
-  }, [categories, categoryBreakdown, typeFilter]);
+  }, [breakdownTransactionType, categories, categoryBreakdown]);
 
   const deleteTarget = visibleTransactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
   const editingCategory = categories.find((category) => String(category.id) === editingCategoryId) ?? null;

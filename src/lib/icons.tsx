@@ -44,7 +44,25 @@ export function resolveLucideIcon(iconName?: string | null): LucideIcon {
   return iconMap[iconName] ?? CircleHelp;
 }
 
-export function resolveInsightIcon(tone?: string | null): LucideIcon {
+export function resolveInsightIcon(tone?: string | null, insightType?: string | null): LucideIcon {
+  switch (insightType) {
+    case "low_balance_risk":
+      return Wallet;
+    case "spending_spike":
+      return TrendingUp;
+    case "installment_pressure":
+      return AlertTriangle;
+    case "category_concentration":
+    case "top_category":
+      return Target;
+    case "recurring_charges":
+      return Zap;
+    case "unusual_expense":
+      return AlertTriangle;
+    default:
+      break;
+  }
+
   switch (tone) {
     case "warning":
       return AlertTriangle;

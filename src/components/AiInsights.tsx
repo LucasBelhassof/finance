@@ -1,5 +1,8 @@
 import { Lightbulb } from "lucide-react";
+import { Link } from "react-router-dom";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { InsightItem } from "@/types/api";
 
@@ -7,6 +10,31 @@ interface AiInsightsProps {
   insights?: InsightItem[];
   isLoading?: boolean;
   isError?: boolean;
+  showRecommendedActions?: boolean;
+}
+
+function getPriorityClasses(priority: InsightItem["priority"]) {
+  switch (priority) {
+    case "high":
+      return "border-warning/30 bg-warning/10 text-warning";
+    case "medium":
+      return "border-info/30 bg-info/10 text-info";
+    default:
+      return "border-border/40 bg-secondary/70 text-muted-foreground";
+  }
+}
+
+function getToneClasses(tone: string) {
+  switch (tone) {
+    case "warning":
+      return "border-warning/30 bg-warning/10 text-warning";
+    case "info":
+      return "border-info/30 bg-info/10 text-info";
+    case "success":
+      return "border-income/30 bg-income/10 text-income";
+    default:
+      return "border-primary/20 bg-primary/10 text-primary";
+  }
 }
 
 function AiInsightsSkeleton() {
@@ -40,10 +68,12 @@ function AiInsightsSkeleton() {
   );
 }
 
-export default function AiInsights({ insights = [], isLoading, isError }: AiInsightsProps) {
+export default function AiInsights({ insights = [], isLoading, isError, showRecommendedActions = false }: AiInsightsProps) {
   if (isLoading) {
     return <AiInsightsSkeleton />;
   }
+
+  const recommendedActions = [...new Map(insights.filter((item) => item.action?.href).map((item) => [item.action?.kind, item.action])).values()];
 
   return (
     <div className="glass-card animate-fade-in p-4 sm:p-5">
@@ -75,11 +105,22 @@ export default function AiInsights({ insights = [], isLoading, isError }: AiInsi
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <h4 className="text-sm font-medium text-foreground">{item.title}</h4>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${item.tagColor}`}>
-                        {item.tag}
-                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${item.tagColor}`}>{item.tag}</span>
+                      <Badge variant="outline" className={getPriorityClasses(item.priority)}>
+                        Prioridade {item.priorityLabel}
+                      </Badge>
+                      <Badge variant="outline" className={getToneClasses(item.tone)}>
+                        {item.toneLabel}
+                      </Badge>
                     </div>
                     <p className="text-xs leading-relaxed text-muted-foreground">{item.description}</p>
+                    {item.action?.href ? (
+                      <div className="mt-3">
+                        <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                          <Link to={item.action.href}>{item.action.label}</Link>
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -87,6 +128,21 @@ export default function AiInsights({ insights = [], isLoading, isError }: AiInsi
           })}
         </div>
       )}
+
+      {showRecommendedActions && recommendedActions.length ? (
+        <div className="mt-5 rounded-xl border border-border/30 bg-secondary/30 p-4">
+          <p className="text-sm font-medium text-foreground">Acoes recomendadas</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {recommendedActions.map((action) =>
+              action?.href ? (
+                <Button key={action.kind} asChild size="sm" variant="secondary" className="h-8">
+                  <Link to={action.href}>{action.label}</Link>
+                </Button>
+              ) : null,
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

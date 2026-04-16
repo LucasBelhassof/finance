@@ -27,7 +27,7 @@ export default function InsightsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <AiInsights insights={insights} isLoading={insightsLoading} isError={insightsError} />
+        <AiInsights insights={insights} isLoading={insightsLoading} isError={insightsError} showRecommendedActions />
         <div className="space-y-6">
           <SpendingChart spending={spending} isLoading={spendingLoading} isError={spendingError} />
 

@@ -61,6 +61,10 @@ vi.mock("@/components/transactions/TransactionsMonthYearFilter", () => ({
   default: () => <div>filtro de periodo</div>,
 }));
 
+vi.mock("@/components/transactions/TransactionsDateFilter", () => ({
+  default: () => <div>filtro de data</div>,
+}));
+
 vi.mock("@/components/ui/chart", () => ({
   ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   ChartTooltip: () => null,

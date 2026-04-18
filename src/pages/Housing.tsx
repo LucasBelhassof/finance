@@ -18,6 +18,8 @@ import { useMemo, useState } from "react";
 
 import AppShell from "@/components/AppShell";
 import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
+import MetricInfoTooltip from "@/components/MetricInfoTooltip";
+import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import {
   AlertDialog,
@@ -48,7 +50,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useBanks } from "@/hooks/use-banks";
 import { useCreateHousing, useDeleteHousing, useHousing, useUpdateHousing } from "@/hooks/use-housing";
 import { useCategories } from "@/hooks/use-transactions";
-import { TRANSACTIONS_YEAR_SELECTION, getCurrentMonthSelection, resolveMonthYearRange } from "@/lib/transactions-date-filter";
+import {
+  TRANSACTIONS_YEAR_SELECTION,
+  getCurrentMonthSelection,
+  resolveMonthYearRange,
+  resolvePresetRange,
+  type TransactionsDateFilterPreset,
+} from "@/lib/transactions-date-filter";
 import type { CategoryItem, CreateHousingInput, HousingExpenseType, HousingItem, UpdateHousingInput } from "@/types/api";
 
 type HousingFormState = {
@@ -337,6 +345,10 @@ export default function HousingPage() {
   const currentSelection = getCurrentMonthSelection();
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(currentSelection.monthIndex);
   const [selectedYear, setSelectedYear] = useState(currentSelection.year);
+  const [datePreset, setDatePreset] = useState<TransactionsDateFilterPreset>(
+    currentSelection.monthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month",
+  );
+  const [dateRange, setDateRange] = useState(() => resolveMonthYearRange(currentSelection.monthIndex, currentSelection.year));
   const [search, setSearch] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
@@ -345,10 +357,6 @@ export default function HousingPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [form, setForm] = useState<HousingFormState>(() => buildEmptyForm(currentSelection.monthIndex, currentSelection.year));
 
-  const dateRange = useMemo(
-    () => resolveMonthYearRange(selectedMonthIndex, selectedYear),
-    [selectedMonthIndex, selectedYear],
-  );
   const transactionAccounts = useMemo(() => banks.filter((bank) => bank.accountType !== "credit_card"), [banks]);
   const allOccurrences = useMemo(() => buildHousingOccurrences(expenses, dateRange.endDate), [dateRange.endDate, expenses]);
   const seriesById = useMemo(
@@ -448,6 +456,28 @@ export default function HousingPage() {
   const openCreate = () => {
     resetForm();
     setDialogOpen(true);
+  };
+
+  const handlePresetChange = (preset: Exclude<TransactionsDateFilterPreset, "custom">) => {
+    setDatePreset(preset);
+    setDateRange(resolvePresetRange(preset));
+  };
+
+  const handleMonthChange = (monthIndex: number) => {
+    setSelectedMonthIndex(monthIndex);
+    setDatePreset(monthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month");
+    setDateRange(resolveMonthYearRange(monthIndex, selectedYear));
+  };
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    setDatePreset(selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month");
+    setDateRange(resolveMonthYearRange(selectedMonthIndex, year));
+  };
+
+  const handleCustomRangeApply = (range: { startDate: string; endDate: string }) => {
+    setDatePreset("custom");
+    setDateRange(range);
   };
 
   const startEditExpense = (expense: HousingItem) => {
@@ -713,8 +743,16 @@ export default function HousingPage() {
           <TransactionsMonthYearFilter
             selectedMonthIndex={selectedMonthIndex}
             selectedYear={selectedYear}
-            onMonthChange={setSelectedMonthIndex}
-            onYearChange={setSelectedYear}
+            onMonthChange={handleMonthChange}
+            onYearChange={handleYearChange}
+          />
+
+          <TransactionsDateFilter
+            preset={datePreset}
+            range={dateRange}
+            onSelectPreset={handlePresetChange}
+            onApplyCustomRange={handleCustomRangeApply}
+            showPresetButtons={false}
           />
 
           <div className="relative w-full xl:flex-1">
@@ -771,7 +809,10 @@ export default function HousingPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Compromisso do periodo</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Compromisso do periodo</span>
+              <MetricInfoTooltip content="Soma de todas as cobrancas de habitacao geradas dentro do periodo e dos filtros aplicados." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
               <Wallet size={18} />
             </div>
@@ -782,7 +823,10 @@ export default function HousingPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Series ativas</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Series ativas</span>
+              <MetricInfoTooltip content="Quantidade de despesas de habitacao com pelo menos uma ocorrencia dentro do recorte filtrado." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Building2 size={18} />
             </div>
@@ -793,7 +837,10 @@ export default function HousingPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Media por vencimento</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Media por vencimento</span>
+              <MetricInfoTooltip content="Media calculada dividindo o compromisso total do periodo pela quantidade de ocorrencias de habitacao geradas no recorte." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <CalendarRange size={18} />
             </div>
@@ -804,7 +851,10 @@ export default function HousingPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Proximo vencimento</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Proximo vencimento</span>
+              <MetricInfoTooltip content="Indica se existe uma proxima cobranca futura dentro do recorte atual e destaca a primeira ocorrencia encontrada." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <Home size={18} />
             </div>

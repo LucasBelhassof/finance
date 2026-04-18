@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import CategoryPieChart from "@/components/CategoryPieChart";
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
+import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
+import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBanks } from "@/hooks/use-banks";
 import { useFilteredTransactionsData } from "@/hooks/use-filtered-transactions-data";
 import {
@@ -48,7 +51,13 @@ import {
   useUpdateCategory,
   useUpdateTransaction,
 } from "@/hooks/use-transactions";
-import { getCurrentMonthSelection, resolveMonthYearRange } from "@/lib/transactions-date-filter";
+import {
+  TRANSACTIONS_YEAR_SELECTION,
+  getCurrentMonthSelection,
+  resolveMonthYearRange,
+  resolvePresetRange,
+  type TransactionsDateFilterPreset,
+} from "@/lib/transactions-date-filter";
 import { DEFAULT_CATEGORY_COLOR, resolveCategoryColorPresentation } from "@/lib/category-colors";
 import { cn } from "@/lib/utils";
 import type { CreateCategoryInput, CreateTransactionInput, TransactionItem, UpdateTransactionInput } from "@/types/api";
@@ -174,6 +183,12 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(() => getCurrentMonthSelection().monthIndex);
   const [selectedYear, setSelectedYear] = useState(() => getCurrentMonthSelection().year);
+  const [datePreset, setDatePreset] = useState<TransactionsDateFilterPreset>(
+    getCurrentMonthSelection().monthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month",
+  );
+  const [dateRange, setDateRange] = useState(() =>
+    resolveMonthYearRange(getCurrentMonthSelection().monthIndex, getCurrentMonthSelection().year),
+  );
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -214,11 +229,6 @@ export default function TransactionsPage() {
       ),
     [transactions],
   );
-  const dateRange = useMemo(
-    () => resolveMonthYearRange(selectedMonthIndex, selectedYear),
-    [selectedMonthIndex, selectedYear],
-  );
-
   const { filteredTransactions, summaryCardsData, categoryBreakdown, breakdownTransactionType } = useFilteredTransactionsData(visibleTransactions, categories, {
     search,
     typeFilter,
@@ -257,6 +267,28 @@ export default function TransactionsPage() {
   const openCreateTransaction = (type: "income" | "expense") => {
     setTransactionForm(emptyTransactionForm(type));
     setTransactionDialogOpen(true);
+  };
+
+  const handlePresetChange = (preset: Exclude<TransactionsDateFilterPreset, "custom">) => {
+    setDatePreset(preset);
+    setDateRange(resolvePresetRange(preset));
+  };
+
+  const handleMonthChange = (monthIndex: number) => {
+    setSelectedMonthIndex(monthIndex);
+    setDatePreset(monthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month");
+    setDateRange(resolveMonthYearRange(monthIndex, selectedYear));
+  };
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    setDatePreset(selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month");
+    setDateRange(resolveMonthYearRange(selectedMonthIndex, year));
+  };
+
+  const handleCustomRangeApply = (range: { startDate: string; endDate: string }) => {
+    setDatePreset("custom");
+    setDateRange(range);
   };
 
   const openEditTransaction = (transaction: TransactionItem) => {
@@ -425,6 +457,127 @@ export default function TransactionsPage() {
 
   const handleCategoryFilterChange = (nextCategoryId: string) => {
     setCategoryFilter((current) => (current === nextCategoryId ? "all" : nextCategoryId));
+  };
+
+  const renderTransactionsTable = () => {
+    if (!filteredTransactions.length) {
+      return (
+        <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
+          {isError ? "Nao foi possivel carregar as transacoes agora." : "Nenhuma transacao encontrada para os filtros atuais."}
+        </div>
+      );
+    }
+
+    return (
+      <Table className="min-w-[1080px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Transacao</TableHead>
+            <TableHead>Categoria</TableHead>
+            <TableHead>Conta</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead className="text-center">Status</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+            <TableHead className="w-[96px] text-right">Acoes</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredTransactions.map((transaction) => {
+            const accentColor = transaction.amount >= 0 ? "text-income" : "text-expense";
+            const categoryColor = resolveCategoryColorPresentation(transaction.category.groupColor || transaction.category.color);
+            const transactionCategories = categories.filter(
+              (category) => category.transactionType === (transaction.amount >= 0 ? "income" : "expense"),
+            );
+            const isEditingCategory = editingCategoryTransactionId === String(transaction.id);
+            const isUpdatingCategory = updatingCategoryTransactionId === String(transaction.id);
+
+            return (
+              <TableRow key={transaction.id}>
+                <TableCell>
+                  <div className="space-y-1">
+                    <button type="button" onClick={() => openEditTransaction(transaction)} className="text-left font-medium text-foreground transition-colors hover:text-primary">
+                      {transaction.description}
+                    </button>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {transaction.isRecurring ? <span className="rounded-full bg-income/10 px-2 py-0.5 font-medium text-income">Recorrente</span> : null}
+                      {transaction.isRecurringProjection ? <span>Ocorrencia gerada automaticamente</span> : null}
+                      {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount ? (
+                        <span className="rounded-full bg-info/10 px-2 py-0.5 font-medium text-info">
+                          {transaction.installmentNumber}/{transaction.installmentCount}
+                        </span>
+                      ) : null}
+                      {transaction.isInstallment && transaction.purchaseOccurredOn ? (
+                        <span>Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {isEditingCategory ? (
+                    <div className="min-w-[168px]">
+                      <Select
+                        open={isEditingCategory}
+                        onOpenChange={(open) => {
+                          if (!open) {
+                            setEditingCategoryTransactionId(null);
+                          }
+                        }}
+                        value={String(transaction.category.id)}
+                        onValueChange={(value) => {
+                          void handleInlineCategoryChange(transaction, value);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-full rounded-lg border-border/60 bg-secondary/35 text-xs">
+                          <SelectValue placeholder="Categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {transactionCategories.map((category) => (
+                            <SelectItem key={category.id} value={String(category.id)}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="max-w-full rounded-md px-1.5 py-0.5 text-left font-medium transition-colors hover:bg-secondary/50"
+                      style={{ color: categoryColor.text }}
+                      onClick={() => {
+                        if (isUpdatingCategory) {
+                          return;
+                        }
+                        setEditingCategoryTransactionId(String(transaction.id));
+                      }}
+                      disabled={isUpdatingCategory}
+                    >
+                      {isUpdatingCategory ? "Atualizando..." : transaction.category.label}
+                    </button>
+                  )}
+                </TableCell>
+                <TableCell>{transaction.account.name}</TableCell>
+                <TableCell>{transaction.occurredOn.split("-").reverse().join("/")}</TableCell>
+                <TableCell className="text-center text-sm text-muted-foreground">
+                  {transaction.amount >= 0 ? "Receita" : "Despesa"}
+                </TableCell>
+                <TableCell className={cn("text-right font-semibold", accentColor)}>
+                  {transaction.amount >= 0 ? "+ " : "- "}
+                  {formatCurrency(Math.abs(transaction.amount))}
+                </TableCell>
+                <TableCell>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openEditTransaction(transaction)}>
+                      <Pencil size={14} />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    );
   };
 
   if (isLoading) {
@@ -732,51 +885,120 @@ export default function TransactionsPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-        <Button
-          variant="outline"
-          className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
-          onClick={() => setImportDialogOpen(true)}
-        >
-          Importar CSV
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
-          onClick={() => openCreateTransaction("income")}
-        >
-          <ArrowUpCircle size={14} />
-          Receita
-        </Button>
-        <Button className="w-full rounded-xl bg-income text-background hover:bg-income/90 sm:w-auto" onClick={() => openCreateTransaction("expense")}>
-          <ArrowDownCircle size={14} />
-          Despesa
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
-          <p className="text-sm text-muted-foreground">Total Receitas</p>
-          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.totalIncomes)}</p>
-        </div>
-        <div className="glass-card rounded-2xl border border-border/40 p-5">
-          <p className="text-sm text-muted-foreground">Total Despesas</p>
-          <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summaryCardsData.totalExpenses)}</p>
-        </div>
-        <div className="glass-card rounded-2xl border border-border/40 p-5">
-          <p className="text-sm text-muted-foreground">Saldo</p>
-          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.balance)}</p>
-        </div>
-      </div>
-
-      <div className="glass-card rounded-2xl border border-border/40 p-3 sm:p-4">
+      <div className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
             <TransactionsMonthYearFilter
               selectedMonthIndex={selectedMonthIndex}
               selectedYear={selectedYear}
-              onMonthChange={setSelectedMonthIndex}
-              onYearChange={setSelectedYear}
+              onMonthChange={handleMonthChange}
+              onYearChange={handleYearChange}
+            />
+
+            <TransactionsDateFilter
+              preset={datePreset}
+              range={dateRange}
+              onSelectPreset={handlePresetChange}
+              onApplyCustomRange={handleCustomRangeApply}
+              showPresetButtons={false}
+            />
+
+            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
+              <SelectTrigger
+                data-testid="transactions-category-filter-trigger-hidden"
+                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1"
+              >
+                <SelectValue placeholder="Todas categorias" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas categorias</SelectItem>
+                {categoriesWithBreakdown.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="relative flex-1">
+              <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar transacao..."
+                className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 xl:flex xl:flex-wrap">
+              {typeFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => setTypeFilter(filter.value)}
+                  className={cn(
+                    "min-h-11 rounded-2xl px-3 py-2 text-center text-sm transition-colors sm:px-4 sm:py-2.5",
+                    typeFilter === filter.value
+                      ? "bg-primary/15 text-primary"
+                      : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+              {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
+            </div>
+            
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Total Receitas</p>
+            <MetricInfoTooltip content="Soma de todas as transacoes de receita visiveis com os filtros atuais de periodo, busca, tipo e categoria." />
+          </div>
+          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.totalIncomes)}</p>
+        </div>
+        <div className="glass-card rounded-2xl border border-border/40 p-5">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Total Despesas</p>
+            <MetricInfoTooltip content="Soma de todas as transacoes de despesa visiveis com os filtros atuais de periodo, busca, tipo e categoria." />
+          </div>
+          <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summaryCardsData.totalExpenses)}</p>
+        </div>
+        <div className="glass-card rounded-2xl border border-border/40 p-5">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Saldo</p>
+            <MetricInfoTooltip content="Resultado entre o total de receitas e o total de despesas dentro dos filtros aplicados na tela." />
+          </div>
+          <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.balance)}</p>
+        </div>
+      </div>
+
+      <div hidden className="hidden rounded-2xl border border-border/40 p-3 sm:p-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+            <TransactionsMonthYearFilter
+              selectedMonthIndex={selectedMonthIndex}
+              selectedYear={selectedYear}
+              onMonthChange={handleMonthChange}
+              onYearChange={handleYearChange}
+            />
+
+            <TransactionsDateFilter
+              preset={datePreset}
+              range={dateRange}
+              onSelectPreset={handlePresetChange}
+              onApplyCustomRange={handleCustomRangeApply}
+              showPresetButtons={false}
             />
 
             <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
@@ -832,124 +1054,29 @@ export default function TransactionsPage() {
         <div className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-[1.35rem] font-semibold text-foreground sm:text-[1.7rem]">Todas as Transações</h2>
-            <span className="text-sm text-muted-foreground">{filteredTransactions.length} transações</span>
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <Button
+                variant="outline"
+                className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
+                onClick={() => setImportDialogOpen(true)}
+              >
+                Importar CSV
+              </Button>
+            <Button
+                variant="outline"
+                className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
+                onClick={() => openCreateTransaction("income")}
+              >
+                <ArrowUpCircle size={14} />
+                /
+                <ArrowDownCircle size={14} />
+              </Button>
+            </div>
           </div>
-
-          {!filteredTransactions.length ? (
-            <div className="rounded-xl border border-border/30 bg-secondary/20 p-4 text-sm text-muted-foreground">
-              {isError ? "Nao foi possivel carregar as transacoes agora." : "Nenhuma transacao encontrada para os filtros atuais."}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredTransactions.map((transaction) => {
-                const Icon = transaction.amount >= 0 ? ArrowUpCircle : ArrowDownCircle;
-                const accentColor = transaction.amount >= 0 ? "text-income" : "text-expense";
-                const categoryColor = resolveCategoryColorPresentation(transaction.category.groupColor || transaction.category.color);
-                const transactionCategories = categories.filter(
-                  (category) => category.transactionType === (transaction.amount >= 0 ? "income" : "expense"),
-                );
-                const isEditingCategory = editingCategoryTransactionId === String(transaction.id);
-                const isUpdatingCategory = updatingCategoryTransactionId === String(transaction.id);
-
-                return (
-                  <div
-                    key={transaction.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openEditTransaction(transaction)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openEditTransaction(transaction);
-                      }
-                    }}
-                    className="group flex w-full flex-col gap-3 rounded-2xl border border-border/30 px-3 py-3 text-left transition-colors hover:bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-primary/40 sm:flex-row sm:items-center sm:gap-4 sm:px-4 sm:py-4"
-                  >
-                    <div className="flex items-start gap-3 sm:flex-1 sm:items-center">
-                      <div className={cn("mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:mt-0", accentColor)}>
-                        <Icon size={18} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start gap-2">
-                          <p className="min-w-0 flex-1 break-words text-[1rem] font-medium leading-snug text-foreground sm:text-[1.15rem]">{transaction.description}</p>
-                          {transaction.isRecurring ? (
-                            <span className="shrink-0 rounded-full bg-income/10 px-2 py-0.5 text-xs font-medium text-income">
-                              Recorrente
-                            </span>
-                          ) : null}
-                          {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount ? (
-                            <span className="shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
-                              {transaction.installmentNumber}/{transaction.installmentCount}
-                            </span>
-                          ) : null}
-                          <Pencil size={14} className="mt-0.5 shrink-0 text-muted-foreground opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100" />
-                        </div>
-                        <div className="mt-2 flex flex-col gap-2 text-sm sm:mt-1">
-                          <div className="flex flex-wrap items-center gap-2.5">
-                        {isEditingCategory ? (
-                          <div className="w-full min-w-0 sm:w-auto sm:min-w-[168px]" onClick={(event) => event.stopPropagation()}>
-                            <Select
-                              open={isEditingCategory}
-                              onOpenChange={(open) => {
-                                if (!open) {
-                                  setEditingCategoryTransactionId(null);
-                                }
-                              }}
-                              value={String(transaction.category.id)}
-                              onValueChange={(value) => {
-                                void handleInlineCategoryChange(transaction, value);
-                              }}
-                            >
-                              <SelectTrigger className="h-8 w-full rounded-lg border-border/60 bg-secondary/35 text-xs">
-                                <SelectValue placeholder="Categoria" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {transactionCategories.map((category) => (
-                                  <SelectItem key={category.id} value={String(category.id)}>
-                                    {category.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="max-w-full rounded-md px-1.5 py-0.5 text-left font-medium transition-colors hover:bg-secondary/50"
-                            style={{ color: categoryColor.text }}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (isUpdatingCategory) {
-                                return;
-                              }
-                              setEditingCategoryTransactionId(String(transaction.id));
-                            }}
-                            disabled={isUpdatingCategory}
-                          >
-                            {isUpdatingCategory ? "Atualizando..." : transaction.category.label}
-                          </button>
-                        )}
-                            <span className="break-words text-muted-foreground">{transaction.account.name}</span>
-                          </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground sm:text-sm">
-                          <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
-                          {transaction.isRecurringProjection ? <span>Ocorrencia gerada automaticamente</span> : null}
-                          {transaction.isInstallment && transaction.purchaseOccurredOn ? (
-                            <span>Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}</span>
-                          ) : null}
-                        </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={cn("w-full text-right text-base font-semibold sm:w-auto sm:text-lg", accentColor)}>
-                      {transaction.amount >= 0 ? "+ " : "- "}
-                      {formatCurrency(Math.abs(transaction.amount))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {renderTransactionsTable()}
+          <div className="flex flex-col sm:flex-row sm:justify-end">
+          <span className="text-sm text-muted-foreground sm:justify-end">{filteredTransactions.length} transações</span>
+          </div>
         </div>
 
         <div className="glass-card rounded-2xl border border-border/40 p-5">

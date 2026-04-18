@@ -1,9 +1,10 @@
 import { ArrowDownRight, ArrowUpRight, CalendarRange, Landmark, Scale, TrendingDown, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 
 import AppShell from "@/components/AppShell";
 import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
+import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,6 +37,10 @@ type TrendPoint = {
   label: string;
   amount: number;
   formattedAmount: string;
+  incomeAmount: number;
+  expenseAmount: number;
+  formattedIncomeAmount: string;
+  formattedExpenseAmount: string;
 };
 
 const typeFilters: Array<{ label: string; value: MetricTypeFilter }> = [
@@ -89,21 +94,34 @@ function calculateMedian(values: number[]) {
 }
 
 function createTrendSeries(transactions: TransactionItem[], preset: TransactionsDateFilterPreset): TrendPoint[] {
-  const grouped = new Map<string, number>();
+  const grouped = new Map<string, { incomeAmount: number; expenseAmount: number }>();
   const useMonthlyBuckets = preset === "year";
 
   transactions.forEach((transaction) => {
     const key = useMonthlyBuckets ? getMonthKey(transaction.occurredOn) : transaction.occurredOn;
-    grouped.set(key, (grouped.get(key) ?? 0) + Math.abs(transaction.amount));
+    const current = grouped.get(key) ?? { incomeAmount: 0, expenseAmount: 0 };
+
+    grouped.set(key, {
+      incomeAmount: current.incomeAmount + (transaction.amount > 0 ? transaction.amount : 0),
+      expenseAmount: current.expenseAmount + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0),
+    });
   });
 
   return Array.from(grouped.entries())
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, amount]) => ({
-      label: useMonthlyBuckets ? formatShortMonth(key) : formatShortDay(key),
-      amount,
-      formattedAmount: formatCurrency(amount),
-    }));
+    .map(([key, totals]) => {
+      const amount = totals.incomeAmount + totals.expenseAmount;
+
+      return {
+        label: useMonthlyBuckets ? formatShortMonth(key) : formatShortDay(key),
+        amount,
+        formattedAmount: formatCurrency(amount),
+        incomeAmount: totals.incomeAmount,
+        expenseAmount: totals.expenseAmount,
+        formattedIncomeAmount: formatCurrency(totals.incomeAmount),
+        formattedExpenseAmount: formatCurrency(totals.expenseAmount),
+      };
+    });
 }
 
 function createCategoryBreakdown(transactions: TransactionItem[]): CategoryPieChartItem[] {
@@ -279,10 +297,30 @@ export default function ExpenseMetricsPage() {
     () => ({
       amount: {
         label: typeFilter === "income" ? "Receitas" : "Movimentacao",
-        color: typeFilter === "income" ? "hsl(var(--income))" : "hsl(var(--primary))",
+        color: typeFilter === "income" ? "hsl(var(--income))" : typeFilter === "expense" ? "#ef4444" : "hsl(var(--primary))",
+      },
+      incomeAmount: {
+        label: "Receitas",
+        color: "hsl(var(--income))",
+      },
+      expenseAmount: {
+        label: "Gastos",
+        color: "#ef4444",
       },
     }),
     [typeFilter],
+  );
+  const topCategoriesConfig = useMemo<ChartConfig>(
+    () =>
+      metrics.categoryBreakdown.slice(0, 6).reduce<ChartConfig>((config, category) => {
+        config[String(category.id)] = {
+          label: category.label,
+          color: resolveCategoryColorPresentation(category.color).solid,
+        };
+
+        return config;
+      }, {}),
+    [metrics.categoryBreakdown],
   );
 
   const accountOptions = useMemo(
@@ -383,7 +421,7 @@ export default function ExpenseMetricsPage() {
             ))}
           </div>
 
-          <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground xl:ml-auto">
+          <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
             {formatDateRangeLabel(dateRange, datePreset)}
           </div>
         </div>
@@ -392,7 +430,10 @@ export default function ExpenseMetricsPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Despesas no periodo</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Despesas no periodo</span>
+              <MetricInfoTooltip content="Soma de todas as despesas visiveis no recorte filtrado por periodo, conta e tipo." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-expense/10 text-expense">
               <TrendingDown size={18} />
             </div>
@@ -405,7 +446,10 @@ export default function ExpenseMetricsPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Saldo filtrado</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Saldo filtrado</span>
+              <MetricInfoTooltip content="Resultado das receitas menos as despesas considerando apenas as movimentacoes dentro dos filtros atuais." />
+            </div>
             <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", metrics.balance >= 0 ? "bg-income/10 text-income" : "bg-expense/10 text-expense")}>
               {metrics.balance >= 0 ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
             </div>
@@ -418,7 +462,10 @@ export default function ExpenseMetricsPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Ticket medio de despesa</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Ticket medio de despesa</span>
+              <MetricInfoTooltip content="Media das despesas individuais do recorte. A mediana exibida abaixo representa o valor central dessas despesas ordenadas." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Scale size={18} />
             </div>
@@ -429,7 +476,10 @@ export default function ExpenseMetricsPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Dias com movimentacao</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Dias com movimentacao</span>
+              <MetricInfoTooltip content="Quantidade de dias distintos que tiveram ao menos uma movimentacao dentro dos filtros aplicados." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-warning/10 text-warning">
               <CalendarRange size={18} />
             </div>
@@ -452,10 +502,24 @@ export default function ExpenseMetricsPage() {
                 {datePreset === "year" ? "Consolidado mensal" : "Consolidado diario"} da faixa selecionada
               </p>
             </div>
-            <div className="rounded-2xl bg-secondary/50 px-3 py-2 text-right">
-              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pico</div>
-              <div className="text-sm font-medium text-foreground">
-                {chartData.length ? chartData.reduce((highest, item) => (item.amount > highest.amount ? item : highest)).formattedAmount : "--"}
+            <div className="flex flex-wrap items-center gap-3">
+              {typeFilter === "all" ? (
+                <div className="flex items-center gap-3 rounded-2xl bg-secondary/50 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <span className="h-2.5 w-2.5 rounded-full bg-income" />
+                    Receitas
+                  </div>
+                  <div className="flex items-center gap-2 text-foreground">
+                    <span className="h-2.5 w-2.5 rounded-full bg-expense" />
+                    Gastos
+                  </div>
+                </div>
+              ) : null}
+              <div className="rounded-2xl bg-secondary/50 px-3 py-2 text-right">
+                <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pico</div>
+                <div className="text-sm font-medium text-foreground">
+                  {chartData.length ? chartData.reduce((highest, item) => (item.amount > highest.amount ? item : highest)).formattedAmount : "--"}
+                </div>
               </div>
             </div>
           </div>
@@ -485,16 +549,37 @@ export default function ExpenseMetricsPage() {
                         const payload = item.payload as TrendPoint;
 
                         return (
-                          <div className="flex min-w-[8rem] items-center justify-between gap-3">
-                            <span className="text-muted-foreground">{payload.label}</span>
-                            <span className="font-medium text-foreground">{payload.formattedAmount}</span>
+                          <div className="min-w-[10rem] space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-muted-foreground">{payload.label}</span>
+                              <span className="font-medium text-foreground">{payload.formattedAmount}</span>
+                            </div>
+                            {typeFilter === "all" ? (
+                              <>
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                  <span className="text-income">Receitas</span>
+                                  <span className="font-medium text-foreground">{payload.formattedIncomeAmount}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                  <span className="text-expense">Gastos</span>
+                                  <span className="font-medium text-foreground">{payload.formattedExpenseAmount}</span>
+                                </div>
+                              </>
+                            ) : null}
                           </div>
                         );
                       }}
                     />
                   }
                 />
-                <Bar dataKey="amount" radius={[12, 12, 4, 4]} fill="var(--color-amount)" maxBarSize={isMobile ? 24 : 40} />
+                {typeFilter === "all" ? (
+                  <>
+                    <Bar dataKey="incomeAmount" radius={[12, 12, 4, 4]} fill="var(--color-incomeAmount)" maxBarSize={isMobile ? 18 : 28} />
+                    <Bar dataKey="expenseAmount" radius={[12, 12, 4, 4]} fill="var(--color-expenseAmount)" maxBarSize={isMobile ? 18 : 28} />
+                  </>
+                ) : (
+                  <Bar dataKey="amount" radius={[12, 12, 4, 4]} fill="var(--color-amount)" maxBarSize={isMobile ? 24 : 40} />
+                )}
               </BarChart>
             </ChartContainer>
           )}
@@ -513,6 +598,81 @@ export default function ExpenseMetricsPage() {
             chartClassName="mb-2 h-[200px] sm:h-[240px]"
           />
         </div>
+      </section>
+
+      <section className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">Top categorias</h2>
+            <p className="text-sm text-muted-foreground">Leitura visual do peso relativo das categorias de despesa</p>
+          </div>
+          <div className="rounded-2xl bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">
+            Concentracao: {Math.round(metrics.concentrationRatio * 100)}%
+          </div>
+        </div>
+
+        {!metrics.categoryBreakdown.length ? (
+          <div className="rounded-2xl border border-border/30 bg-secondary/25 p-4 text-sm text-muted-foreground">
+            Nao ha categorias suficientes para exibir o ranking detalhado.
+          </div>
+        ) : (
+          <ChartContainer config={topCategoriesConfig} className="h-[260px] w-full sm:h-[320px]">
+            <BarChart
+              data={metrics.categoryBreakdown.slice(0, 6).map((category) => ({
+                ...category,
+                fill: resolveCategoryColorPresentation(category.color).solid,
+              }))}
+              layout="vertical"
+              margin={isMobile ? { top: 8, right: 8, left: 8, bottom: 0 } : { top: 8, right: 16, left: 16, bottom: 0 }}
+            >
+              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+              <XAxis
+                type="number"
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value: number) => `${Math.round(value)}%`}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+              />
+              <YAxis
+                type="category"
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                width={isMobile ? 92 : 140}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    formatter={(_, __, item) => {
+                      const payload = item.payload as CategoryPieChartItem;
+
+                      return (
+                        <div className="min-w-[10rem] space-y-1">
+                          <div className="font-medium text-foreground">{payload.label}</div>
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-muted-foreground">Total</span>
+                            <span className="font-medium text-foreground">{payload.formattedTotal}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-muted-foreground">Participacao</span>
+                            <span className="font-medium text-foreground">{payload.percentage}%</span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                }
+              />
+              <Bar dataKey="percentage" radius={[0, 14, 14, 0]} maxBarSize={28}>
+                {metrics.categoryBreakdown.slice(0, 6).map((category) => (
+                  <Cell key={category.id} fill={resolveCategoryColorPresentation(category.color).solid} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        )}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
@@ -603,51 +763,6 @@ export default function ExpenseMetricsPage() {
         </div>
       </section>
 
-      <section className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Top categorias</h2>
-            <p className="text-sm text-muted-foreground">Leitura tabular do peso relativo das categorias de despesa</p>
-          </div>
-          <div className="rounded-2xl bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">
-            Concentracao: {Math.round(metrics.concentrationRatio * 100)}%
-          </div>
-        </div>
-
-        {!metrics.categoryBreakdown.length ? (
-          <div className="rounded-2xl border border-border/30 bg-secondary/25 p-4 text-sm text-muted-foreground">
-            Nao ha categorias suficientes para exibir o ranking detalhado.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {metrics.categoryBreakdown.slice(0, 6).map((category) => {
-              const color = resolveCategoryColorPresentation(category.color);
-
-              return (
-                <div
-                  key={category.id}
-                  className="grid items-center gap-3 rounded-2xl border border-border/30 bg-secondary/20 px-4 py-3 md:grid-cols-[minmax(0,1fr)_120px_88px]"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color.solid }} />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{category.label}</p>
-                      <p className="text-sm text-muted-foreground">{category.formattedTotal}</p>
-                    </div>
-                  </div>
-                  <div className="hidden text-right text-sm text-muted-foreground md:block">{category.percentage}% do total</div>
-                  <div className="flex items-center gap-2 md:justify-end">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary/70 md:max-w-[72px]">
-                      <div className="h-full rounded-full" style={{ width: `${category.percentage}%`, backgroundColor: color.solid }} />
-                    </div>
-                    <span className="text-sm font-medium text-foreground">{category.percentage}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
     </AppShell>
   );
 }

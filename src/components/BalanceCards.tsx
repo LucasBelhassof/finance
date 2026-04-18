@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 
+import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SummaryCard } from "@/types/api";
 
@@ -10,6 +11,24 @@ interface BalanceCardsProps {
 }
 
 const fallbackLabels = ["Saldo Total", "Receitas", "Despesas"];
+
+function getDashboardCardExplanation(label: string) {
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("saldo")) {
+    return "Saldo total calculado a partir do balanco atual consolidado das contas e movimentacoes do periodo.";
+  }
+
+  if (normalized.includes("receita")) {
+    return "Soma de todas as entradas classificadas como receita no periodo atual, comparada com o mes anterior.";
+  }
+
+  if (normalized.includes("despesa")) {
+    return "Soma de todas as saidas classificadas como despesa no periodo atual, comparada com o mes anterior.";
+  }
+
+  return "Valor resumido do dashboard calculado com base nas movimentacoes consolidadas do periodo.";
+}
 
 function BalanceCardsSkeleton() {
   return (
@@ -60,7 +79,10 @@ export default function BalanceCards({ cards = [], isLoading, isError }: Balance
           className="glass-card group animate-fade-in p-4 transition-all duration-300 hover:glow-border sm:p-5"
         >
           <div className="mb-3 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">{card.label}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{card.label}</span>
+              <MetricInfoTooltip content={getDashboardCardExplanation(card.label)} />
+            </div>
             <div
               className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                 card.positive ? "bg-income/10" : "bg-expense/10"

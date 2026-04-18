@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 
 import AppShell from "@/components/AppShell";
 import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
+import MetricInfoTooltip from "@/components/MetricInfoTooltip";
+import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import {
   AlertDialog,
@@ -39,7 +41,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useBanks } from "@/hooks/use-banks";
 import { useCategories, useCreateTransaction, useDeleteTransaction, useTransactions, useUpdateTransaction } from "@/hooks/use-transactions";
 import { resolveCategoryColorPresentation } from "@/lib/category-colors";
-import { TRANSACTIONS_YEAR_SELECTION, getCurrentMonthSelection, resolveMonthYearRange } from "@/lib/transactions-date-filter";
+import {
+  TRANSACTIONS_YEAR_SELECTION,
+  getCurrentMonthSelection,
+  resolveMonthYearRange,
+  resolvePresetRange,
+  type TransactionsDateFilterPreset,
+} from "@/lib/transactions-date-filter";
 import { cn } from "@/lib/utils";
 import type { CreateTransactionInput, TransactionItem, UpdateTransactionInput } from "@/types/api";
 import { toast } from "@/components/ui/sonner";
@@ -238,6 +246,12 @@ export default function RecurringIncomePage() {
 
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(() => getCurrentMonthSelection().monthIndex);
   const [selectedYear, setSelectedYear] = useState(() => getCurrentMonthSelection().year);
+  const [datePreset, setDatePreset] = useState<TransactionsDateFilterPreset>(
+    getCurrentMonthSelection().monthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month",
+  );
+  const [dateRange, setDateRange] = useState(() =>
+    resolveMonthYearRange(getCurrentMonthSelection().monthIndex, getCurrentMonthSelection().year),
+  );
   const [search, setSearch] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
@@ -245,11 +259,6 @@ export default function RecurringIncomePage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [form, setForm] = useState<RecurringIncomeFormState>(() =>
     emptyRecurringIncomeForm(getCurrentMonthSelection().monthIndex, getCurrentMonthSelection().year),
-  );
-
-  const dateRange = useMemo(
-    () => resolveMonthYearRange(selectedMonthIndex, selectedYear),
-    [selectedMonthIndex, selectedYear],
   );
 
   const accountOptions = useMemo(
@@ -384,6 +393,8 @@ export default function RecurringIncomePage() {
 
   const handleMonthChange = (monthIndex: number) => {
     setSelectedMonthIndex(monthIndex);
+    setDatePreset(monthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month");
+    setDateRange(resolveMonthYearRange(monthIndex, selectedYear));
     setForm((current) =>
       current.id
         ? current
@@ -396,6 +407,8 @@ export default function RecurringIncomePage() {
 
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
+    setDatePreset(selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month");
+    setDateRange(resolveMonthYearRange(selectedMonthIndex, year));
     setForm((current) =>
       current.id
         ? current
@@ -409,6 +422,16 @@ export default function RecurringIncomePage() {
   const openCreate = () => {
     setForm(emptyRecurringIncomeForm(selectedMonthIndex, selectedYear));
     setDialogOpen(true);
+  };
+
+  const handlePresetChange = (preset: Exclude<TransactionsDateFilterPreset, "custom">) => {
+    setDatePreset(preset);
+    setDateRange(resolvePresetRange(preset));
+  };
+
+  const handleCustomRangeApply = (range: { startDate: string; endDate: string }) => {
+    setDatePreset("custom");
+    setDateRange(range);
   };
 
   const openEdit = (transaction: TransactionItem) => {
@@ -598,6 +621,14 @@ export default function RecurringIncomePage() {
             onYearChange={handleYearChange}
           />
 
+          <TransactionsDateFilter
+            preset={datePreset}
+            range={dateRange}
+            onSelectPreset={handlePresetChange}
+            onApplyCustomRange={handleCustomRangeApply}
+            showPresetButtons={false}
+          />
+
           <div className="relative w-full xl:flex-1">
             <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -652,7 +683,10 @@ export default function RecurringIncomePage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Receitas no periodo</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Receitas no periodo</span>
+              <MetricInfoTooltip content="Soma de todas as ocorrencias de receitas recorrentes que caem dentro do periodo e dos filtros aplicados." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-income/10 text-income">
               <TrendingUp size={18} />
             </div>
@@ -663,7 +697,10 @@ export default function RecurringIncomePage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Series ativas</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Series ativas</span>
+              <MetricInfoTooltip content="Quantidade de series unicas de receita recorrente presentes no recorte filtrado." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Repeat size={18} />
             </div>
@@ -674,7 +711,10 @@ export default function RecurringIncomePage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Media por ocorrencia</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Media por ocorrencia</span>
+              <MetricInfoTooltip content="Media calculada dividindo o total de receitas recorrentes do recorte pela quantidade de ocorrencias filtradas." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <Wallet size={18} />
             </div>
@@ -685,7 +725,10 @@ export default function RecurringIncomePage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">Proximas ocorrencias</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Proximas ocorrencias</span>
+              <MetricInfoTooltip content="Quantidade das tres primeiras ocorrencias recorrentes encontradas no periodo filtrado, ordenadas por data." />
+            </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <CalendarRange size={18} />
             </div>

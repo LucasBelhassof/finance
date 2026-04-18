@@ -49,6 +49,10 @@ vi.mock("@/components/transactions/TransactionsMonthYearFilter", () => ({
   default: () => <div>mock-date-filter</div>,
 }));
 
+vi.mock("@/components/transactions/TransactionsDateFilter", () => ({
+  default: () => <div>mock-range-filter</div>,
+}));
+
 vi.mock("@/components/ui/date-picker-input", () => ({
   DatePickerInput: ({
     value,

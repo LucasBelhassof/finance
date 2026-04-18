@@ -7,6 +7,7 @@ import InstallmentsInsights from "@/components/installments/InstallmentsInsights
 import InstallmentsSummaryCards from "@/components/installments/InstallmentsSummaryCards";
 import InstallmentsTable from "@/components/installments/InstallmentsTable";
 import AppShell from "@/components/AppShell";
+import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInstallmentsOverview } from "@/hooks/use-installments";
@@ -202,7 +203,10 @@ export default function InstallmentsPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {next3Months.map((item) => (
               <div key={item.month} className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
-                <p className="text-sm text-muted-foreground">{formatMonthKey(item.month)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">{formatMonthKey(item.month)}</p>
+                  <MetricInfoTooltip content="Soma das parcelas projetadas para vencer neste mes, considerando os parcelamentos filtrados." />
+                </div>
                 <p className="mt-2 text-xl font-semibold text-foreground">{formatCurrency(item.amount)}</p>
               </div>
             ))}

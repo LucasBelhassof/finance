@@ -218,7 +218,7 @@ export function createApp() {
       return;
     }
 
-    await deleteTransaction(getAuthenticatedUserId(request), transactionId.value);
+    await deleteTransaction(getAuthenticatedUserId(request), transactionId.value, request.body ?? {});
     response.status(204).send();
   });
 

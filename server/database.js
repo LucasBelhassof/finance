@@ -20,6 +20,12 @@ import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
 import { generateInsights } from "./insights-engine.js";
 import { buildTransactionCategorySyncPlan } from "./transaction-update.js";
+import {
+  buildPreviousMonthEndDate,
+  buildTransactionRowsWithRecurringProjections,
+  shouldSplitRecurringTransaction,
+  shouldTruncateRecurringTransaction,
+} from "./recurring-income.js";
 
 dotenv.config();
 
@@ -150,6 +156,7 @@ function mapTransactionRow(row, referenceDate) {
     isRecurring: Boolean(row.is_recurring),
     isRecurringProjection: Boolean(row.is_recurring_projection),
     sourceTransactionId: row.recurring_source_transaction_id ?? row.id,
+    recurrenceEndsOn: normalizeDateValue(row.recurrence_ends_on),
     housingId: row.housing_id ?? null,
     isInstallment: Boolean(row.installment_purchase_id),
     installmentPurchaseId: row.installment_purchase_id ?? null,
@@ -174,72 +181,6 @@ function mapTransactionRow(row, referenceDate) {
       color: row.bank_color,
     },
   };
-}
-
-function clampDayToMonth(year, monthIndex, day) {
-  return Math.min(day, new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate());
-}
-
-function buildRecurringProjectionDate(value, monthOffset) {
-  const baseDate = parseDateOnly(value);
-  const targetDate = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth() + monthOffset, 1));
-  targetDate.setUTCDate(clampDayToMonth(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), baseDate.getUTCDate()));
-  return targetDate.toISOString().slice(0, 10);
-}
-
-function sortTransactionRowsDesc(left, right) {
-  const dateDiff = new Date(right.occurred_on).getTime() - new Date(left.occurred_on).getTime();
-
-  if (dateDiff !== 0) {
-    return dateDiff;
-  }
-
-  return String(right.id).localeCompare(String(left.id), undefined, { numeric: true });
-}
-
-function buildTransactionRowsWithRecurringProjections(rows, { projectionEndDate, projectionLimit = null } = {}) {
-  const normalizedProjectionEndDate = normalizeDateValue(projectionEndDate);
-
-  if (!normalizedProjectionEndDate) {
-    return [...rows].sort(sortTransactionRowsDesc);
-  }
-
-  const expandedRows = [...rows];
-
-  rows.forEach((row) => {
-    if (!row.is_recurring || parseNumeric(row.amount) <= 0) {
-      return;
-    }
-
-    const baseDate = parseDateOnly(row.occurred_on);
-    const endDate = parseDateOnly(normalizedProjectionEndDate);
-    const monthDiff =
-      (endDate.getUTCFullYear() - baseDate.getUTCFullYear()) * 12 + (endDate.getUTCMonth() - baseDate.getUTCMonth());
-
-    for (let monthOffset = 1; monthOffset <= monthDiff; monthOffset += 1) {
-      const projectedOccurredOn = buildRecurringProjectionDate(row.occurred_on, monthOffset);
-
-      if (projectedOccurredOn > normalizedProjectionEndDate) {
-        continue;
-      }
-
-      expandedRows.push({
-        ...row,
-        id: `recurring:${row.id}:${projectedOccurredOn}`,
-        occurred_on: projectedOccurredOn,
-        is_recurring_projection: true,
-        recurring_source_transaction_id: row.id,
-      });
-    }
-  });
-
-  expandedRows.sort(sortTransactionRowsDesc);
-
-  if (Number.isInteger(projectionLimit) && projectionLimit > 0) {
-    return expandedRows.slice(0, projectionLimit);
-  }
-
-  return expandedRows;
 }
 
 function mapTransactionRows(rows) {
@@ -385,7 +326,8 @@ export async function getSummaryCards(userId) {
           t.id,
           t.amount,
           t.occurred_on,
-          t.is_recurring
+          t.is_recurring,
+          t.recurrence_ends_on
         FROM transactions t
         WHERE t.user_id = $1
           AND (
@@ -639,6 +581,7 @@ export async function listRecentTransactions(userId, limit = 8) {
         c.group_label,
         c.group_color,
         t.is_recurring,
+        t.recurrence_ends_on,
         ip.installment_count,
         ip.purchase_occurred_on
       FROM transactions t
@@ -686,6 +629,7 @@ export async function listTransactions(userId, limit) {
         c.group_label,
         c.group_color,
         t.is_recurring,
+        t.recurrence_ends_on,
         ip.installment_count,
         ip.purchase_occurred_on
       FROM transactions t
@@ -1840,6 +1784,7 @@ async function getTransactionById(userId, transactionId, client = pool) {
         c.group_label,
         c.group_color,
         t.is_recurring,
+        t.recurrence_ends_on,
         ip.installment_count,
         ip.purchase_occurred_on
       FROM transactions t
@@ -1876,6 +1821,10 @@ export async function createTransaction(userId, input) {
     throw new Error("bank connection not found");
   }
 
+  if (amount > 0 && bankConnection.account_type === "credit_card") {
+    throw new Error("income transactions cannot use credit cards");
+  }
+
   const result = await pool.query(
     `
       INSERT INTO transactions (user_id, bank_connection_id, category_id, description, amount, occurred_on, is_recurring)
@@ -1887,6 +1836,22 @@ export async function createTransaction(userId, input) {
 
   const row = await getTransactionById(resolvedUserId, result.rows[0].id);
   return mapTransactionRow(row, occurredOn);
+}
+
+async function createRecurringTransactionSeries(
+  { userId, bankConnectionId, categoryId, description, amount, occurredOn, isRecurring },
+  client = pool,
+) {
+  const result = await client.query(
+    `
+      INSERT INTO transactions (user_id, bank_connection_id, category_id, description, amount, occurred_on, is_recurring)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+    `,
+    [userId, bankConnectionId, categoryId, description, amount, occurredOn, isRecurring],
+  );
+
+  return result.rows[0]?.id ?? null;
 }
 
 export async function updateTransaction(userId, transactionId, input) {
@@ -1919,6 +1884,10 @@ export async function updateTransaction(userId, transactionId, input) {
       throw new Error("bank connection not found");
     }
 
+    if (amount > 0 && bankConnection.account_type === "credit_card") {
+      throw new Error("income transactions cannot use credit cards");
+    }
+
     const syncPlan = buildTransactionCategorySyncPlan(existingTransaction, category.id);
 
     if (syncPlan.syncInstallmentPurchase) {
@@ -1944,6 +1913,47 @@ export async function updateTransaction(userId, transactionId, input) {
       );
     }
 
+    if (
+      shouldSplitRecurringTransaction({
+        existingOccurredOn: existingTransaction.occurred_on,
+        nextOccurredOn: occurredOn,
+        existingIsRecurring: existingTransaction.is_recurring,
+        nextIsRecurring: isRecurring,
+        nextAmount: amount,
+      })
+    ) {
+      await client.query(
+        `
+          UPDATE transactions
+          SET recurrence_ends_on = $3
+          WHERE user_id = $1
+            AND id = $2
+        `,
+        [resolvedUserId, transactionId, buildPreviousMonthEndDate(occurredOn)],
+      );
+
+      const nextTransactionId = await createRecurringTransactionSeries(
+        {
+          userId: resolvedUserId,
+          bankConnectionId,
+          categoryId: category.id,
+          description,
+          amount,
+          occurredOn,
+          isRecurring,
+        },
+        client,
+      );
+
+      if (!nextTransactionId) {
+        throw new Error("transaction not found");
+      }
+
+      const row = await getTransactionById(resolvedUserId, nextTransactionId, client);
+      await client.query("COMMIT");
+      return mapTransactionRow(row, occurredOn);
+    }
+
     const result = await client.query(
       `
         UPDATE transactions
@@ -1952,7 +1962,8 @@ export async function updateTransaction(userId, transactionId, input) {
             description = $5,
             amount = $6,
             occurred_on = $7,
-            is_recurring = $8
+            is_recurring = $8,
+            recurrence_ends_on = NULL
         WHERE user_id = $1
           AND id = $2
         RETURNING id
@@ -1975,19 +1986,60 @@ export async function updateTransaction(userId, transactionId, input) {
   }
 }
 
-export async function deleteTransaction(userId, transactionId) {
+export async function deleteTransaction(userId, transactionId, input = {}) {
   const resolvedUserId = await requireUserId(userId);
-  const result = await pool.query(
-    `
-      DELETE FROM transactions
-      WHERE user_id = $1
-        AND id = $2
-    `,
-    [resolvedUserId, transactionId],
-  );
+  const effectiveOccurredOn = normalizeDateValue(input.occurredOn);
+  const client = await pool.connect();
 
-  if (!result.rowCount) {
-    throw new Error("transaction not found");
+  try {
+    await client.query("BEGIN");
+
+    const existingTransaction = await getTransactionById(resolvedUserId, transactionId, client);
+
+    if (!existingTransaction) {
+      throw new Error("transaction not found");
+    }
+
+    if (
+      shouldTruncateRecurringTransaction({
+        existingOccurredOn: existingTransaction.occurred_on,
+        effectiveOccurredOn,
+        existingIsRecurring: existingTransaction.is_recurring,
+      })
+    ) {
+      await client.query(
+        `
+          UPDATE transactions
+          SET recurrence_ends_on = $3
+          WHERE user_id = $1
+            AND id = $2
+        `,
+        [resolvedUserId, transactionId, buildPreviousMonthEndDate(effectiveOccurredOn)],
+      );
+
+      await client.query("COMMIT");
+      return;
+    }
+
+    const result = await client.query(
+      `
+        DELETE FROM transactions
+        WHERE user_id = $1
+          AND id = $2
+      `,
+      [resolvedUserId, transactionId],
+    );
+
+    if (!result.rowCount) {
+      throw new Error("transaction not found");
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
 }
 

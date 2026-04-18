@@ -460,6 +460,11 @@ export interface UpdateTransactionInput extends CreateTransactionInput {
   id: number | string;
 }
 
+export interface DeleteTransactionInput {
+  id: number | string;
+  occurredOn?: string;
+}
+
 export interface ImportPreviewItem {
   rowIndex: number;
   description: string;

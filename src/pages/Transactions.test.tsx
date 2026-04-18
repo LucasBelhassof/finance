@@ -66,6 +66,8 @@ vi.mock("@/components/ui/sonner", () => ({
   },
 }));
 
+window.HTMLElement.prototype.scrollIntoView = vi.fn();
+
 const banks: BankItem[] = [
   {
     id: 1,
@@ -80,6 +82,22 @@ const banks: BankItem[] = [
     color: "bg-primary",
     currentBalance: 1000,
     formattedBalance: "R$ 1.000,00",
+  },
+  {
+    id: 2,
+    slug: "nubank-ultravioleta",
+    name: "Nubank Ultravioleta",
+    accountType: "credit_card",
+    parentBankConnectionId: 1,
+    parentAccountName: "Nubank",
+    statementCloseDay: 25,
+    statementDueDay: 1,
+    connected: true,
+    color: "bg-primary",
+    currentBalance: -500,
+    formattedBalance: "-R$ 500,00",
+    creditLimit: 10000,
+    formattedCreditLimit: "R$ 10.000,00",
   },
 ];
 
@@ -386,6 +404,37 @@ describe("TransactionsPage", () => {
           amount: 5000,
         }),
       );
+    });
+  });
+
+  it("does not list credit cards when creating an income transaction", async () => {
+    render(<TransactionsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Receita" }));
+    fireEvent.click(screen.getAllByRole("combobox")[0]!);
+
+    await waitFor(() => {
+      expect(screen.queryAllByText("Nubank").length).toBeGreaterThan(0);
+    });
+
+    expect(screen.queryByText("Nubank Ultravioleta")).not.toBeInTheDocument();
+  });
+
+  it("deletes a projected recurring income using the effective occurrence date", async () => {
+    const deleteTransaction = createMutation();
+    mockUseDeleteTransaction.mockReturnValue(deleteTransaction);
+
+    render(<TransactionsPage />);
+
+    fireEvent.click(screen.getAllByText("Salario")[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Excluir" }).at(-1)!);
+
+    await waitFor(() => {
+      expect(deleteTransaction.mutateAsync).toHaveBeenCalledWith({
+        id: 13,
+        occurredOn: "2026-04-10",
+      });
     });
   });
 });

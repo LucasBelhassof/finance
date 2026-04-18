@@ -18,6 +18,7 @@ import type {
   CategoryItem,
   CreateCategoryInput,
   CreateTransactionInput,
+  DeleteTransactionInput,
   ImportCommitItem,
   ImportPreviewData,
   UpdateCategoryInput,
@@ -122,7 +123,7 @@ export function useDeleteTransaction(limit?: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number | string) => deleteTransaction(id),
+    mutationFn: (input: DeleteTransactionInput) => deleteTransaction(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey(limit) });
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey() });

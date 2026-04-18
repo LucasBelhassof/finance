@@ -53,6 +53,20 @@ vi.mock("@/components/AppShell", () => ({
   ),
 }));
 
+vi.mock("@/components/CategoryPieChart", () => ({
+  default: () => <div>grafico pizza</div>,
+}));
+
+vi.mock("@/components/transactions/TransactionsMonthYearFilter", () => ({
+  default: () => <div>filtro de periodo</div>,
+}));
+
+vi.mock("@/components/ui/chart", () => ({
+  ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  ChartTooltip: () => null,
+  ChartTooltipContent: () => null,
+}));
+
 vi.mock("@/components/ui/sonner", () => ({
   toast: {
     error: vi.fn(),
@@ -70,6 +84,28 @@ vi.mock("@/components/ui/date-picker-input", () => ({
     onChange: (value: string) => void;
     placeholder?: string;
   }) => <input aria-label={placeholder ?? "data"} value={value} onChange={(event) => onChange(event.target.value)} />,
+}));
+
+vi.mock("@/components/ui/dialog", () => ({
+  Dialog: ({ children, open }: { children: ReactNode; open?: boolean }) => <>{open ? children : null}</>,
+  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/ui/alert-dialog", () => ({
+  AlertDialog: ({ children, open }: { children: ReactNode; open?: boolean }) => <>{open ? children : null}</>,
+  AlertDialogAction: ({ children, onClick }: { children: ReactNode; onClick?: (event: { preventDefault: () => void }) => void }) => (
+    <button onClick={() => onClick?.({ preventDefault: () => undefined })}>{children}</button>
+  ),
+  AlertDialogCancel: ({ children }: { children: ReactNode }) => <button>{children}</button>,
+  AlertDialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("@/components/ui/select", () => ({
@@ -129,6 +165,18 @@ vi.mock("@/hooks/use-transactions", () => ({
         groupLabel: "Moradia",
         groupColor: "bg-primary",
       },
+      {
+        id: 21,
+        slug: "energia",
+        label: "Energia",
+        transactionType: "expense",
+        iconName: "Zap",
+        icon: vi.fn(),
+        color: "text-warning",
+        groupSlug: "moradia",
+        groupLabel: "Moradia",
+        groupColor: "bg-primary",
+      },
     ],
   }),
 }));
@@ -161,9 +209,10 @@ describe("HousingPage", () => {
     mockDeleteHousing.mockResolvedValue(undefined);
   });
 
-  it("creates a housing expense through the housing API", async () => {
+  it("creates a housing expense through the modal", async () => {
     render(<HousingPage />);
 
+    fireEvent.click(screen.getByRole("button", { name: /nova despesa recorrente/i }));
     fireEvent.change(screen.getByPlaceholderText(/financiamento do apartamento/i), {
       target: { value: "Aluguel" },
     });
@@ -200,6 +249,7 @@ describe("HousingPage", () => {
   it("requires installment count for financing expenses", async () => {
     render(<HousingPage />);
 
+    fireEvent.click(screen.getByRole("button", { name: /nova despesa recorrente/i }));
     fireEvent.change(screen.getByPlaceholderText(/financiamento do apartamento/i), {
       target: { value: "Financiamento do carro" },
     });
@@ -243,6 +293,7 @@ describe("HousingPage", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /excluir financiamento do carro/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /^excluir$/i })[0]);
 
     await waitFor(() => {
       expect(mockDeleteHousing).toHaveBeenCalledWith(99);

@@ -23,16 +23,17 @@ vi.mock("@/modules/auth/pages/ForgotPasswordPage", () => ({ default: () => <h1>E
 vi.mock("@/modules/auth/pages/ResetPasswordPage", () => ({ default: () => <h1>Redefinir senha</h1> }));
 vi.mock("./pages/Accounts.tsx", () => ({ default: () => <h1>Contas</h1> }));
 vi.mock("./pages/Chat.tsx", () => ({ default: () => <h1>Chat IA</h1> }));
-vi.mock("./pages/ExpenseMetrics.tsx", () => ({ default: () => <h1>Métricas</h1> }));
-vi.mock("./pages/Housing.tsx", () => ({ default: () => <h1>Habitação</h1> }));
+vi.mock("./pages/ExpenseMetrics.tsx", () => ({ default: () => <h1>Metricas</h1> }));
+vi.mock("./pages/Housing.tsx", () => ({ default: () => <h1>Habitacao</h1> }));
 vi.mock("./pages/Installments.tsx", () => ({ default: () => <h1>Parcelamentos</h1> }));
 vi.mock("./pages/Index.tsx", () => ({ default: () => <h1>Dashboard</h1> }));
 vi.mock("./pages/Insights.tsx", () => ({ default: () => <h1>Insights</h1> }));
 vi.mock("./pages/NotFound.tsx", () => ({ default: () => <h1>Not found</h1> }));
 vi.mock("./pages/Onboarding.tsx", () => ({ default: () => <h1>Primeiros passos</h1> }));
 vi.mock("./pages/Profile.tsx", () => ({ default: () => <h1>Perfil</h1> }));
-vi.mock("./pages/Settings.tsx", () => ({ default: () => <h1>Configurações</h1> }));
-vi.mock("./pages/Transactions.tsx", () => ({ default: () => <h1>Transações</h1> }));
+vi.mock("./pages/RecurringIncome.tsx", () => ({ default: () => <h1>Receitas recorrentes</h1> }));
+vi.mock("./pages/Settings.tsx", () => ({ default: () => <h1>Configuracoes</h1> }));
+vi.mock("./pages/Transactions.tsx", () => ({ default: () => <h1>Transacoes</h1> }));
 
 describe("App routes", () => {
   beforeEach(() => {
@@ -53,7 +54,7 @@ describe("App routes", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /habitação/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /habitacao/i })).toBeInTheDocument();
     expect(window.location.pathname).toBe(appRoutes.expenseManagementHousing);
   });
 
@@ -62,7 +63,7 @@ describe("App routes", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /habitação/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /habitacao/i })).toBeInTheDocument();
   });
 
   it("renders the metrics placeholder route", async () => {
@@ -70,6 +71,14 @@ describe("App routes", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /métricas/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /metricas/i })).toBeInTheDocument();
+  });
+
+  it("renders the recurring income route", async () => {
+    window.history.pushState({}, "", appRoutes.expenseManagementRecurringIncome);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: /receitas recorrentes/i })).toBeInTheDocument();
   });
 });

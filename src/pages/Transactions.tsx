@@ -194,11 +194,14 @@ export default function TransactionsPage() {
   });
   const transactionBanks = useMemo(
     () =>
-      banks.filter(
-        (bank) =>
-          bank.accountType === "bank_account" || bank.accountType === "credit_card" || bank.accountType === "cash",
-      ),
-    [banks],
+      banks.filter((bank) => {
+        if (transactionForm.type === "income") {
+          return bank.accountType === "bank_account" || bank.accountType === "cash";
+        }
+
+        return bank.accountType === "bank_account" || bank.accountType === "credit_card" || bank.accountType === "cash";
+      }),
+    [banks, transactionForm.type],
   );
   const visibleTransactions = useMemo(
     () =>
@@ -345,12 +348,15 @@ export default function TransactionsPage() {
   };
 
   const handleDeleteTransaction = async () => {
-    if (!deleteTargetId) {
+    if (!deleteTarget) {
       return;
     }
 
     try {
-      await removeTransaction.mutateAsync(deleteTargetId);
+      await removeTransaction.mutateAsync({
+        id: deleteTarget.sourceTransactionId ?? deleteTarget.id,
+        occurredOn: deleteTarget.occurredOn,
+      });
       setDeleteTargetId(null);
       setTransactionDialogOpen(false);
       toast.success("Transacao removida.");
@@ -505,6 +511,14 @@ export default function TransactionsPage() {
                       setTransactionForm((current) => ({
                         ...current,
                         type: option.value,
+                        bankConnectionId:
+                          option.value === "income" &&
+                          banks.some(
+                            (bank) =>
+                              String(bank.id) === current.bankConnectionId && bank.accountType === "credit_card",
+                          )
+                            ? ""
+                            : current.bankConnectionId,
                         categoryId: "",
                         isRecurring: option.value === "income" ? current.isRecurring : false,
                       }))
@@ -542,7 +556,7 @@ export default function TransactionsPage() {
               onValueChange={(value) => setTransactionForm((current) => ({ ...current, bankConnectionId: value }))}
               >
                 <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-                  <SelectValue placeholder="Conta, cartao ou caixa" />
+                  <SelectValue placeholder={transactionForm.type === "income" ? "Conta ou caixa" : "Conta, cartao ou caixa"} />
                 </SelectTrigger>
               <SelectContent>
                 {transactionBanks.map((bank) => (
@@ -599,7 +613,7 @@ export default function TransactionsPage() {
                 <Button
                   variant="ghost"
                   className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => setDeleteTargetId(transactionForm.sourceTransactionId ?? transactionForm.id ?? null)}
+                  onClick={() => setDeleteTargetId(transactionForm.id ?? null)}
                   disabled={removeTransaction.isPending}
                 >
                   <Trash2 size={14} />

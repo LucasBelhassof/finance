@@ -55,6 +55,7 @@ import type {
   CreateHousingInput,
   CreateSelfNotificationInput,
   CreateTransactionInput,
+  DeleteTransactionInput,
   DashboardData,
   HealthStatus,
   HousingExpenseType,
@@ -1354,9 +1355,12 @@ export async function patchTransaction(input: UpdateTransactionInput) {
   return mapTransaction(response);
 }
 
-export async function deleteTransaction(id: number | string) {
-  await request<null>(`/api/transactions/${id}`, {
+export async function deleteTransaction(input: DeleteTransactionInput) {
+  await request<null>(`/api/transactions/${input.id}`, {
     method: "DELETE",
+    body: JSON.stringify({
+      ...(input.occurredOn ? { occurredOn: input.occurredOn } : {}),
+    }),
   });
 }
 

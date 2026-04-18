@@ -117,6 +117,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession, clearSession]);
 
   useEffect(() => {
+    authService.configureAuthService({
+      getAccessToken: () => accessTokenRef.current,
+      onAuthFailure: handleAuthFailure,
+      refreshAccessToken,
+    });
+
     configureApiAuth({
       getAccessToken: () => accessTokenRef.current,
       onAuthFailure: handleAuthFailure,
@@ -124,6 +130,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      authService.configureAuthService({
+        getAccessToken: () => null,
+        onAuthFailure: () => undefined,
+        refreshAccessToken: async () => null,
+      });
+
       configureApiAuth({
         getAccessToken: () => null,
         onAuthFailure: () => undefined,

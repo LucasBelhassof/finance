@@ -67,7 +67,7 @@ function buildUser(overrides: Record<string, unknown> = {}) {
     hasCompletedOnboarding: true,
     onboardingProgress: {
       currentStep: 3,
-      completedSteps: ["profile", "account", "due_dates", "dashboard"],
+      completedSteps: ["welcome", "account", "first_transaction", "result"],
       skippedSteps: [],
       dismissed: false,
     },
@@ -197,7 +197,7 @@ describe("auth routes", () => {
       .set("Authorization", "Bearer access-token")
       .send({
         currentStep: 1,
-        completedSteps: ["profile"],
+        completedSteps: ["welcome"],
         skippedSteps: [],
         dismissed: false,
       });
@@ -205,7 +205,7 @@ describe("auth routes", () => {
     expect(response.status).toBe(200);
     expect(updateOnboardingProgressMock).toHaveBeenCalledWith(7, {
       currentStep: 1,
-      completedSteps: ["profile"],
+      completedSteps: ["welcome"],
       skippedSteps: [],
       dismissed: false,
     });

@@ -1,33 +1,43 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   ChevronLeft,
-  CreditCard,
   LayoutDashboard,
-  SkipForward,
-  UserCircle2,
-  Wallet,
+  PiggyBank,
+  Receipt,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
-import { useBanks, useCreateBankConnection, useUpdateBankConnection } from "@/hooks/use-banks";
-import { ACCOUNT_COLOR_PRESETS, getSuggestedAccountColor } from "@/lib/account-colors";
-import { appRoutes } from "@/lib/routes";
-import { cn } from "@/lib/utils";
-import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
-import * as authService from "@/modules/auth/services/auth-service";
-import type { AuthOnboardingProgress, OnboardingStepId } from "@/modules/auth/types/auth-types";
-import type { CreateBankConnectionInput, UpdateBankConnectionInput } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { ColorField } from "@/components/ui/color-field";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { useBanks, useCreateBankConnection } from "@/hooks/use-banks";
+import { useDashboard, dashboardQueryKey } from "@/hooks/use-dashboard";
+import { insightsQueryKey, spendingQueryKey } from "@/hooks/use-insights";
+import {
+  transactionsQueryKey,
+  useCategories,
+  useCreateTransaction,
+  useTransactions,
+} from "@/hooks/use-transactions";
+import { ACCOUNT_COLOR_PRESETS, getSuggestedAccountColor } from "@/lib/account-colors";
+import { appRoutes } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
+import * as authService from "@/modules/auth/services/auth-service";
+import type { AuthOnboardingProgress, OnboardingStepId } from "@/modules/auth/types/auth-types";
+import type { CreateBankConnectionInput, CreateTransactionInput } from "@/types/api";
 
 type StarterAccountType = "bank_account" | "cash";
-type StepStatus = "completed" | "current" | "upcoming" | "skipped";
+type TransactionType = "income" | "expense";
+type StepStatus = "completed" | "current" | "upcoming";
 
 type StarterForm = {
   name: string;
@@ -36,45 +46,53 @@ type StarterForm = {
   color: string;
 };
 
-type BillingForm = {
-  cardId: string;
-  statementCloseDay: string;
-  statementDueDay: string;
+type TransactionForm = {
+  transactionType: TransactionType;
+  description: string;
+  amount: string;
+  occurredOn: string;
+  categoryId: string;
+  bankConnectionId: string;
 };
 
 const STEP_DEFS: Array<{
   id: OnboardingStepId;
   title: string;
   description: string;
-  hint?: string;
-  icon: typeof UserCircle2;
+  icon: typeof Sparkles;
 }> = [
   {
-    id: "profile",
-    title: "Completar perfil",
-    description: "Revise seus dados e confira os atalhos principais da conta.",
-    icon: UserCircle2,
+    id: "welcome",
+    title: "Boas-vindas",
+    description: "Entenda o fluxo e siga para a ativacao minima com conta, primeira movimentacao e resultado real.",
+    icon: Sparkles,
   },
   {
     id: "account",
-    title: "Adicionar conta ou cartao",
-    description: "Cadastre sua primeira conta para comecar a organizar saldo e lancamentos.",
-    icon: Wallet,
+    title: "Criar primeira conta",
+    description: "Cadastre uma conta simples com saldo inicial para criar a base do dashboard.",
+    icon: PiggyBank,
   },
   {
-    id: "due_dates",
-    title: "Configurar vencimentos",
-    description: "Se voce usa cartao, informe fechamento e vencimento para organizar as proximas faturas.",
-    hint: "Sem cartao agora? Pule esta etapa e volte depois.",
-    icon: CreditCard,
+    id: "first_transaction",
+    title: "Criar primeira transacao",
+    description: "Registre sua primeira entrada ou saida para ver o produto funcionando com dados reais.",
+    icon: Receipt,
   },
   {
-    id: "dashboard",
-    title: "Visualizar dashboard",
-    description: "Abra o painel inicial e veja onde acompanhar saldo, entradas e saidas.",
+    id: "result",
+    title: "Ver resultado",
+    description: "Confira o impacto imediato no resumo e finalize o onboarding abrindo o dashboard.",
     icon: LayoutDashboard,
   },
 ];
+
+function formatDateInput(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function parseCurrencyInput(value: string) {
   const normalized = value.replace(/\./g, "").replace(",", ".");
@@ -82,11 +100,31 @@ function parseCurrencyInput(value: string) {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
-function uniqueSteps(steps: OnboardingStepId[]) {
-  return STEP_DEFS.map((step) => step.id).filter((stepId) => steps.includes(stepId));
+function normalizeOnboardingStep(step: unknown): OnboardingStepId | null {
+  switch (step) {
+    case "welcome":
+    case "account":
+    case "first_transaction":
+    case "result":
+      return step;
+    case "profile":
+      return "welcome";
+    case "dashboard":
+      return "result";
+    default:
+      return null;
+  }
 }
 
-function normalizeProgress(progress?: AuthOnboardingProgress | null): AuthOnboardingProgress {
+function uniqueSteps(steps: unknown[]) {
+  const normalized = steps
+    .map((step) => normalizeOnboardingStep(step))
+    .filter((step): step is OnboardingStepId => step !== null);
+
+  return STEP_DEFS.map((step) => step.id).filter((stepId) => normalized.includes(stepId));
+}
+
+function normalizeProgress(progress?: Partial<AuthOnboardingProgress> | null): AuthOnboardingProgress {
   return {
     currentStep: Math.max(0, Math.min(STEP_DEFS.length - 1, progress?.currentStep ?? 0)),
     completedSteps: uniqueSteps(progress?.completedSteps ?? []),
@@ -97,70 +135,91 @@ function normalizeProgress(progress?: AuthOnboardingProgress | null): AuthOnboar
 
 function getDefaultAccountForm(accountType: StarterAccountType = "bank_account"): StarterForm {
   return {
-    name: "",
+    name: accountType === "cash" ? "Carteira" : "Conta principal",
     accountType,
     currentBalance: "0,00",
     color: getSuggestedAccountColor("", accountType),
   };
 }
 
-function getDefaultBillingForm(): BillingForm {
+function getDefaultTransactionForm(): TransactionForm {
   return {
-    cardId: "",
-    statementCloseDay: "",
-    statementDueDay: "",
+    transactionType: "expense",
+    description: "",
+    amount: "",
+    occurredOn: formatDateInput(),
+    categoryId: "",
+    bankConnectionId: "",
   };
 }
 
-function getRecommendedStepIndex(progress: AuthOnboardingProgress, hasAccount: boolean, hasDueDates: boolean) {
-  const states: Record<OnboardingStepId, boolean> = {
-    profile: progress.completedSteps.includes("profile"),
-    account: progress.completedSteps.includes("account") || hasAccount,
-    due_dates: progress.completedSteps.includes("due_dates") || hasDueDates,
-    dashboard: progress.completedSteps.includes("dashboard"),
-  };
+function getRecommendedStepIndex(progress: AuthOnboardingProgress, hasAccount: boolean, hasTransaction: boolean) {
+  if (!progress.completedSteps.includes("welcome")) {
+    return 0;
+  }
 
-  const nextIndex = STEP_DEFS.findIndex((step) => !states[step.id] && !progress.skippedSteps.includes(step.id));
-  return nextIndex === -1 ? STEP_DEFS.length - 1 : nextIndex;
+  if (!hasAccount) {
+    return 1;
+  }
+
+  if (!hasTransaction) {
+    return 2;
+  }
+
+  return 3;
 }
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, setUserState } = useAuthSession();
   const { data: banks = [] } = useBanks(Boolean(user));
+  const { data: dashboardData, isLoading: isDashboardLoading } = useDashboard();
+  const { data: transactions = [] } = useTransactions(5);
+  const { data: categories = [] } = useCategories();
   const createBankConnection = useCreateBankConnection();
-  const updateBankConnection = useUpdateBankConnection();
+  const createTransaction = useCreateTransaction();
 
+  const [welcomeGoal, setWelcomeGoal] = useState("");
   const [accountForm, setAccountForm] = useState<StarterForm>(getDefaultAccountForm());
-  const [billingForm, setBillingForm] = useState<BillingForm>(getDefaultBillingForm());
-  const [activeStepId, setActiveStepId] = useState<OnboardingStepId>("profile");
+  const [transactionForm, setTransactionForm] = useState<TransactionForm>(getDefaultTransactionForm());
+  const [activeStepId, setActiveStepId] = useState<OnboardingStepId>("welcome");
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [hasManualAccountColorSelection, setHasManualAccountColorSelection] = useState(false);
 
   const onboardingProgress = useMemo(() => normalizeProgress(user?.onboardingProgress), [user?.onboardingProgress]);
-  const creditCards = useMemo(() => banks.filter((bank) => bank.accountType === "credit_card"), [banks]);
   const hasAnyAccount = banks.length > 0;
-  const hasConfiguredDueDates = creditCards.some((card) => card.statementCloseDay && card.statementDueDay);
-  const recommendedStepIndex = getRecommendedStepIndex(onboardingProgress, hasAnyAccount, hasConfiguredDueDates);
-  const recommendedStepId = STEP_DEFS[recommendedStepIndex]?.id ?? "dashboard";
+  const hasAnyTransaction = transactions.length > 0;
+  const recommendedStepIndex = getRecommendedStepIndex(onboardingProgress, hasAnyAccount, hasAnyTransaction);
+  const recommendedStepId = STEP_DEFS[recommendedStepIndex]?.id ?? "result";
+  const transactionAccounts = useMemo(
+    () =>
+      banks.filter((bank) =>
+        transactionForm.transactionType === "income" ? bank.accountType !== "credit_card" : true,
+      ),
+    [banks, transactionForm.transactionType],
+  );
+  const availableCategories = useMemo(
+    () => categories.filter((category) => category.transactionType === transactionForm.transactionType),
+    [categories, transactionForm.transactionType],
+  );
+  const balanceCard = dashboardData?.summaryCards.find((card) => card.label.toLowerCase().includes("saldo")) ?? null;
+  const latestTransaction = dashboardData?.recentTransactions[0] ?? transactions[0] ?? null;
 
   const steps = STEP_DEFS.map((step, index) => {
     const completed =
       step.id === "account"
         ? onboardingProgress.completedSteps.includes(step.id) || hasAnyAccount
-        : step.id === "due_dates"
-          ? onboardingProgress.completedSteps.includes(step.id) || hasConfiguredDueDates
-          : step.id === "dashboard"
-            ? onboardingProgress.completedSteps.includes(step.id) || user?.hasCompletedOnboarding === true
+        : step.id === "first_transaction"
+          ? onboardingProgress.completedSteps.includes(step.id) || hasAnyTransaction
+          : step.id === "result"
+            ? user?.hasCompletedOnboarding === true || onboardingProgress.completedSteps.includes(step.id)
             : onboardingProgress.completedSteps.includes(step.id);
-    const skipped = onboardingProgress.skippedSteps.includes(step.id) && !completed;
 
     let status: StepStatus = "upcoming";
 
     if (completed) {
       status = "completed";
-    } else if (skipped) {
-      status = "skipped";
     } else if (step.id === activeStepId) {
       status = "current";
     }
@@ -169,63 +228,61 @@ export default function OnboardingPage() {
       ...step,
       index,
       completed,
-      skipped,
       status,
-      isRecommended: step.id === recommendedStepId && !completed && !skipped,
+      isRecommended: step.id === recommendedStepId && !completed,
     };
   });
 
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[recommendedStepIndex];
-  const progressValue = Math.round((steps.filter((step) => step.completed || step.skipped).length / steps.length) * 100);
-  const selectedCard = creditCards.find((card) => String(card.id) === billingForm.cardId) ?? creditCards[0] ?? null;
-
-  const goToNextStep = () => {
-    const nextPendingStep = steps.slice(activeStep.index + 1).find((step) => !step.completed && !step.skipped);
-    const nextSequentialStep = steps[activeStep.index + 1];
-    const nextStep = nextPendingStep ?? nextSequentialStep ?? steps[steps.length - 1];
-
-    if (nextStep) {
-      setActiveStepId(nextStep.id);
-    }
-  };
+  const completedStepsCount = steps.filter((step) => step.completed).length;
+  const progressValue = Math.round((completedStepsCount / steps.length) * 100);
 
   useEffect(() => {
-    const persistedStepId = STEP_DEFS[onboardingProgress.currentStep]?.id ?? recommendedStepId;
-    setActiveStepId(persistedStepId);
+    const nextStepId = STEP_DEFS[onboardingProgress.currentStep]?.id ?? recommendedStepId;
+    setActiveStepId(nextStepId);
   }, [onboardingProgress.currentStep, recommendedStepId]);
 
   useEffect(() => {
-    const currentStep = steps.find((step) => step.id === activeStepId);
-
-    if (!currentStep) {
-      setActiveStepId(recommendedStepId);
-    }
-  }, [activeStepId, recommendedStepId, steps]);
-
-  useEffect(() => {
-    if (!selectedCard) {
-      setBillingForm(getDefaultBillingForm());
+    if (!transactionAccounts.length) {
+      setTransactionForm((current) => ({ ...current, bankConnectionId: "" }));
       return;
     }
 
-    setBillingForm((current) => {
-      if (current.cardId === String(selectedCard.id)) {
+    setTransactionForm((current) => {
+      if (transactionAccounts.some((bank) => String(bank.id) === current.bankConnectionId)) {
         return current;
       }
 
       return {
-        cardId: String(selectedCard.id),
-        statementCloseDay: selectedCard.statementCloseDay ? String(selectedCard.statementCloseDay) : "",
-        statementDueDay: selectedCard.statementDueDay ? String(selectedCard.statementDueDay) : "",
+        ...current,
+        bankConnectionId: String(transactionAccounts[0].id),
       };
     });
-  }, [selectedCard]);
+  }, [transactionAccounts]);
+
+  useEffect(() => {
+    if (!availableCategories.length) {
+      setTransactionForm((current) => ({ ...current, categoryId: "" }));
+      return;
+    }
+
+    setTransactionForm((current) => {
+      if (availableCategories.some((category) => String(category.id) === current.categoryId)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        categoryId: String(availableCategories[0].id),
+      };
+    });
+  }, [availableCategories]);
 
   const persistProgress = async (
     transform: (current: AuthOnboardingProgress) => AuthOnboardingProgress,
     options?: {
       hasAccount?: boolean;
-      hasDueDates?: boolean;
+      hasTransaction?: boolean;
       preserveDismissed?: boolean;
       preserveCurrentStep?: boolean;
     },
@@ -252,12 +309,12 @@ export default function OnboardingPage() {
         : getRecommendedStepIndex(
             sanitized,
             options?.hasAccount ?? hasAnyAccount,
-            options?.hasDueDates ?? hasConfiguredDueDates,
+            options?.hasTransaction ?? hasAnyTransaction,
           );
 
       const response = await authService.updateOnboardingProgress(sanitized);
       setUserState(response.user);
-      setActiveStepId(STEP_DEFS[sanitized.currentStep]?.id ?? "dashboard");
+      setActiveStepId(STEP_DEFS[sanitized.currentStep]?.id ?? "result");
       return response.user;
     } catch (error) {
       toast.error("Nao foi possivel salvar seu progresso.", {
@@ -269,15 +326,22 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleProfileStep = async () => {
+  const goBack = () => {
+    const previous = steps[activeStep.index - 1];
+    if (previous) {
+      setActiveStepId(previous.id);
+    }
+  };
+
+  const handleWelcomeStep = async () => {
     const nextUser = await persistProgress((current) => ({
       ...current,
-      completedSteps: [...current.completedSteps, "profile"],
-      skippedSteps: current.skippedSteps.filter((step) => step !== "profile"),
+      completedSteps: [...current.completedSteps, "welcome"],
+      skippedSteps: current.skippedSteps.filter((step) => step !== "welcome"),
     }));
 
     if (nextUser) {
-      navigate(appRoutes.profile);
+      toast.success("Vamos criar a base da sua conta.");
     }
   };
 
@@ -285,7 +349,7 @@ export default function OnboardingPage() {
     const currentBalance = parseCurrencyInput(accountForm.currentBalance);
 
     if (!accountForm.name.trim() || !Number.isFinite(currentBalance)) {
-      toast.error("Informe um nome e um saldo inicial validos.");
+      toast.error("Informe um nome e um saldo inicial valido.");
       return;
     }
 
@@ -307,7 +371,7 @@ export default function OnboardingPage() {
         { hasAccount: true },
       );
 
-      toast.success("Conta criada. Vamos para o proximo passo.");
+      toast.success("Conta criada. Agora vamos registrar a primeira movimentacao.");
       setAccountForm(getDefaultAccountForm());
       setHasManualAccountColorSelection(false);
     } catch (error) {
@@ -317,84 +381,86 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleDueDatesStep = async () => {
-    if (!selectedCard) {
-      await handleSkipDueDates();
+  const handleFirstTransactionStep = async () => {
+    const parsedAmount = parseCurrencyInput(transactionForm.amount);
+
+    if (!transactionForm.description.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0 || !transactionForm.bankConnectionId) {
+      toast.error("Preencha descricao, valor e conta para continuar.");
       return;
     }
 
-    const statementCloseDay = Number(billingForm.statementCloseDay);
-    const statementDueDay = Number(billingForm.statementDueDay);
-
-    if (
-      !Number.isInteger(statementCloseDay) ||
-      !Number.isInteger(statementDueDay) ||
-      statementCloseDay < 1 ||
-      statementCloseDay > 31 ||
-      statementDueDay < 1 ||
-      statementDueDay > 31
-    ) {
-      toast.error("Informe dias validos entre 1 e 31.");
+    if (transactionForm.transactionType === "income" && !transactionForm.categoryId) {
+      toast.error("Selecione uma categoria para a receita.");
       return;
     }
+
+    const signedAmount = transactionForm.transactionType === "income" ? Math.abs(parsedAmount) : -Math.abs(parsedAmount);
 
     try {
-      await updateBankConnection.mutateAsync({
-        id: selectedCard.id,
-        name: selectedCard.name,
-        accountType: selectedCard.accountType,
-        currentBalance: selectedCard.currentBalance,
-        creditLimit: selectedCard.creditLimit,
-        color: selectedCard.color,
-        connected: selectedCard.connected,
-        parentBankConnectionId: selectedCard.parentBankConnectionId,
-        statementCloseDay,
-        statementDueDay,
-      } satisfies UpdateBankConnectionInput);
+      await createTransaction.mutateAsync({
+        description: transactionForm.description.trim(),
+        amount: signedAmount,
+        occurredOn: transactionForm.occurredOn,
+        bankConnectionId: transactionForm.bankConnectionId,
+        categoryId: transactionForm.categoryId || undefined,
+      } satisfies CreateTransactionInput);
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: transactionsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: dashboardQueryKey }),
+        queryClient.invalidateQueries({ queryKey: spendingQueryKey }),
+        queryClient.invalidateQueries({ queryKey: insightsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: ["housing"] }),
+        queryClient.invalidateQueries({ queryKey: ["installments", "overview"] }),
+      ]);
 
       await persistProgress(
         (current) => ({
           ...current,
-          completedSteps: [...current.completedSteps, "due_dates"],
-          skippedSteps: current.skippedSteps.filter((step) => step !== "due_dates"),
+          completedSteps: [...current.completedSteps, "first_transaction"],
+          skippedSteps: current.skippedSteps.filter((step) => step !== "first_transaction"),
         }),
-        { hasDueDates: true },
+        { hasTransaction: true },
       );
 
-      toast.success("Vencimentos salvos.");
+      toast.success("Primeira movimentacao registrada.");
+      setTransactionForm(getDefaultTransactionForm());
     } catch (error) {
-      toast.error("Nao foi possivel salvar os vencimentos.", {
+      toast.error("Nao foi possivel salvar a transacao.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
   };
 
-  const handleSkipDueDates = async () => {
-    const nextUser = await persistProgress((current) => ({
-      ...current,
-      skippedSteps: [...current.skippedSteps, "due_dates"],
-      completedSteps: current.completedSteps.filter((step) => step !== "due_dates"),
-    }));
-
-    if (nextUser) {
-      toast.success("Etapa pulada. Voce pode configurar isso depois.");
+  const handleResultStep = async () => {
+    if (!hasAnyAccount) {
+      toast.error("Crie uma conta antes de concluir o onboarding.");
+      setActiveStepId("account");
+      return;
     }
-  };
 
-  const handleDashboardStep = async () => {
+    if (!hasAnyTransaction) {
+      toast.error("Registre a primeira transacao antes de concluir o onboarding.");
+      setActiveStepId("first_transaction");
+      return;
+    }
+
     const nextUser = await persistProgress(
       (current) => ({
         ...current,
-        completedSteps: [...current.completedSteps, "dashboard"],
-        skippedSteps: current.skippedSteps.filter((step) => step !== "dashboard"),
+        completedSteps: [...current.completedSteps, "result"],
+        skippedSteps: current.skippedSteps.filter((step) => step !== "result"),
       }),
-      { hasAccount: hasAnyAccount, hasDueDates: hasConfiguredDueDates },
+      { hasAccount: hasAnyAccount, hasTransaction: hasAnyTransaction },
     );
 
-    if (nextUser) {
-      toast.success("Primeiros passos concluidos.");
+    if (nextUser?.hasCompletedOnboarding) {
+      toast.success("Tudo pronto. Sua conta ja esta ativa.");
       navigate(appRoutes.dashboard, { replace: true });
+      return;
     }
+
+    toast.error("Ainda nao foi possivel concluir o onboarding com seguranca.");
   };
 
   const handleDismiss = async () => {
@@ -408,21 +474,14 @@ export default function OnboardingPage() {
     );
 
     if (nextUser) {
-      navigate(appRoutes.dashboard, { replace: true });
-    }
-  };
-
-  const goBack = () => {
-    const previous = steps[activeStep.index - 1];
-    if (previous) {
-      setActiveStepId(previous.id);
+      toast.success("Progresso salvo. Quando voltar, retomaremos deste ponto.");
     }
   };
 
   return (
     <AppShell
       title="Primeiros passos"
-      description="Complete no seu ritmo. O dashboard continua liberado enquanto voce configura a conta."
+      description="Ative a conta com uma base real: primeira conta, primeira transacao e impacto imediato no dashboard."
     >
       <div className="space-y-6">
         <div className="rounded-3xl border border-border/50 bg-card/85 p-5 shadow-sm backdrop-blur sm:p-8">
@@ -430,21 +489,18 @@ export default function OnboardingPage() {
             <div className="max-w-3xl space-y-3">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">Primeiros passos</p>
               <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                {user?.name ? `${user.name}, vamos ativar sua conta` : "Vamos ativar sua conta"}
+                {user?.name ? `${user.name}, vamos mostrar valor logo no primeiro uso` : "Vamos mostrar valor logo no primeiro uso"}
               </h1>
               <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
-                Siga este passo a passo para configurar o basico do produto. Voce pode entrar no dashboard a qualquer momento.
+                O objetivo aqui e simples: sair deste fluxo com uma conta criada, uma movimentacao registrada e o dashboard refletindo isso de imediato.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-              {!user?.hasCompletedOnboarding ? (
-                <Button variant="ghost" onClick={() => void handleDismiss()} disabled={isSavingProgress}>
-                  <SkipForward size={16} />
-                  Pular e retomar depois
-                </Button>
-              ) : null}
-            </div>
+            {!user?.hasCompletedOnboarding ? (
+              <Button variant="ghost" onClick={() => void handleDismiss()} disabled={isSavingProgress}>
+                Salvar e retomar depois
+              </Button>
+            ) : null}
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -482,9 +538,7 @@ export default function OnboardingPage() {
                         ? "border-primary/40 bg-primary/10"
                         : step.completed
                           ? "border-income/25 bg-income/10"
-                          : step.skipped
-                            ? "border-border/50 bg-secondary/30"
-                            : "border-border/40 bg-secondary/15 hover:bg-secondary/30",
+                          : "border-border/40 bg-secondary/15 hover:bg-secondary/30",
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -495,9 +549,7 @@ export default function OnboardingPage() {
                             ? "bg-primary text-primary-foreground"
                             : step.completed
                               ? "bg-income text-background"
-                              : step.skipped
-                                ? "bg-secondary text-muted-foreground"
-                                : "bg-background text-primary",
+                              : "bg-background text-primary",
                         )}
                       >
                         {step.completed ? <CheckCircle2 size={18} /> : <Icon size={18} />}
@@ -506,9 +558,16 @@ export default function OnboardingPage() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-semibold text-foreground">{step.title}</p>
-                          {step.completed ? <span className="rounded-full bg-income/15 px-2 py-0.5 text-[11px] font-medium text-income">Concluido</span> : null}
-                          {!step.completed && step.skipped ? <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Pulado</span> : null}
-                          {step.isRecommended ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">Recomendado</span> : null}
+                          {step.completed ? (
+                            <span className="rounded-full bg-income/15 px-2 py-0.5 text-[11px] font-medium text-income">
+                              Concluido
+                            </span>
+                          ) : null}
+                          {step.isRecommended ? (
+                            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
+                              Recomendado
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
                       </div>
@@ -526,34 +585,43 @@ export default function OnboardingPage() {
                 <h2 className="text-2xl font-semibold text-foreground">{activeStep.title}</h2>
                 <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">{activeStep.description}</p>
               </div>
-
-              {activeStep.hint ? (
-                <div className="rounded-2xl border border-border/40 bg-secondary/20 px-4 py-3 text-sm text-muted-foreground sm:max-w-sm">
-                  {activeStep.hint}
-                </div>
-              ) : null}
             </div>
 
             <div className="mt-6">
-              {activeStep.id === "profile" ? (
+              {activeStep.id === "welcome" ? (
                 <div className="space-y-5">
                   <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-                    <p className="text-sm text-muted-foreground">Confira estes pontos antes de seguir:</p>
+                    <p className="text-sm text-muted-foreground">Voce vai sair daqui com:</p>
                     <div className="mt-3 space-y-2 text-sm text-foreground">
-                      <p>1. Nome e e-mail corretos.</p>
-                      <p>2. Atalhos de conta e configuracoes acessiveis.</p>
-                      <p>3. Base pronta para o primeiro uso.</p>
+                      <p>1. Uma conta inicial cadastrada.</p>
+                      <p>2. A primeira movimentacao registrada.</p>
+                      <p>3. O dashboard com saldo e atividade reais.</p>
                     </div>
                   </div>
+
+                  <Textarea
+                    value={welcomeGoal}
+                    onChange={(event) => setWelcomeGoal(event.target.value)}
+                    placeholder="Objetivo opcional. Ex.: controlar gastos do mes."
+                    className="min-h-[96px] rounded-2xl border-border/60 bg-secondary/30"
+                  />
+
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button onClick={() => void handleProfileStep()} disabled={isSavingProgress}>Abrir perfil</Button>
-                    <Button variant="outline" onClick={goToNextStep}>Continuar no onboarding</Button>
+                    <Button onClick={() => void handleWelcomeStep()} disabled={isSavingProgress}>
+                      Continuar
+                    </Button>
                   </div>
                 </div>
               ) : null}
 
               {activeStep.id === "account" ? (
                 <div className="space-y-5">
+                  {hasAnyAccount ? (
+                    <div className="rounded-2xl border border-income/20 bg-income/10 p-4 text-sm text-foreground">
+                      Voce ja possui ao menos uma conta cadastrada. Se quiser, siga direto para a primeira transacao.
+                    </div>
+                  ) : null}
+
                   <div className="grid gap-4 lg:grid-cols-2">
                     <Select
                       value={accountForm.accountType}
@@ -561,7 +629,11 @@ export default function OnboardingPage() {
                         setAccountForm((current) => ({
                           ...current,
                           accountType: value,
-                          color: value === "cash" || !hasManualAccountColorSelection ? getSuggestedAccountColor(current.name, value) : current.color,
+                          name: current.name || (value === "cash" ? "Carteira" : "Conta principal"),
+                          color:
+                            value === "cash" || !hasManualAccountColorSelection
+                              ? getSuggestedAccountColor(current.name, value)
+                              : current.color,
                         }))
                       }
                     >
@@ -580,22 +652,33 @@ export default function OnboardingPage() {
                         setAccountForm((current) => ({
                           ...current,
                           name: event.target.value,
-                          color: hasManualAccountColorSelection ? current.color : getSuggestedAccountColor(event.target.value, current.accountType),
+                          color: hasManualAccountColorSelection
+                            ? current.color
+                            : getSuggestedAccountColor(event.target.value, current.accountType),
                         }))
                       }
-                      placeholder="Ex.: Nubank, Itau, Carteira"
+                      placeholder="Ex.: Conta principal"
                       className="h-11 rounded-xl border-border/60 bg-secondary/30"
                     />
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                    <Input
-                      value={accountForm.currentBalance}
-                      onChange={(event) => setAccountForm((current) => ({ ...current, currentBalance: event.target.value }))}
-                      placeholder="Saldo inicial"
-                      inputMode="decimal"
-                      className="h-11 rounded-xl border-border/60 bg-secondary/30"
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground" htmlFor="onboarding-account-balance">
+                        Saldo atual da conta
+                      </label>
+                      <Input
+                        id="onboarding-account-balance"
+                        value={accountForm.currentBalance}
+                        onChange={(event) => setAccountForm((current) => ({ ...current, currentBalance: event.target.value }))}
+                        placeholder="Ex.: 1500,00"
+                        inputMode="decimal"
+                        className="h-11 rounded-xl border-border/60 bg-secondary/30"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Informe quanto ja existe nessa conta agora. Esse valor sera usado como base do saldo no dashboard.
+                      </p>
+                    </div>
                     <ColorField
                       label="Cor da conta"
                       value={accountForm.color}
@@ -612,129 +695,182 @@ export default function OnboardingPage() {
                   <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4 text-sm text-muted-foreground">
                     {accountForm.accountType === "cash"
                       ? "Use caixa para dinheiro fisico ou reserva fora do banco."
-                      : "Use conta bancaria para saldo de conta corrente, poupanca ou conta digital."}
+                      : "Use conta bancaria para conta corrente, poupanca ou conta digital."}
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <Button onClick={() => void handleAccountStep()} disabled={createBankConnection.isPending || isSavingProgress}>
-                      {createBankConnection.isPending ? "Salvando..." : "Salvar e continuar"}
+                      {createBankConnection.isPending ? "Salvando..." : hasAnyAccount ? "Criar outra conta e continuar" : "Salvar e continuar"}
                     </Button>
                     <Button variant="outline" onClick={goBack} disabled={activeStep.index === 0}>
                       <ChevronLeft size={16} />
                       Voltar
                     </Button>
+                    {hasAnyAccount ? (
+                      <Button variant="outline" onClick={() => setActiveStepId("first_transaction")}>
+                        Usar conta existente
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
 
-              {activeStep.id === "due_dates" ? (
+              {activeStep.id === "first_transaction" ? (
                 <div className="space-y-5">
-                  {creditCards.length ? (
+                  {!hasAnyAccount ? (
                     <>
-                      <div className="grid gap-4 lg:grid-cols-3">
+                      <div className="rounded-2xl border border-border/40 bg-secondary/20 p-5 text-sm text-muted-foreground">
+                        Crie uma conta primeiro para associar a sua primeira movimentacao.
+                      </div>
+                      <Button onClick={() => setActiveStepId("account")}>Ir para conta</Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid gap-4 lg:grid-cols-2">
                         <Select
-                          value={billingForm.cardId}
-                          onValueChange={(value) => {
-                            const nextCard = creditCards.find((card) => String(card.id) === value);
-                            setBillingForm({
-                              cardId: value,
-                              statementCloseDay: nextCard?.statementCloseDay ? String(nextCard.statementCloseDay) : "",
-                              statementDueDay: nextCard?.statementDueDay ? String(nextCard.statementDueDay) : "",
-                            });
-                          }}
+                          value={transactionForm.transactionType}
+                          onValueChange={(value: TransactionType) =>
+                            setTransactionForm((current) => ({
+                              ...current,
+                              transactionType: value,
+                            }))
+                          }
                         >
                           <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/30">
-                            <SelectValue placeholder="Selecione o cartao" />
+                            <SelectValue placeholder="Tipo da movimentacao" />
                           </SelectTrigger>
                           <SelectContent>
-                            {creditCards.map((card) => (
-                              <SelectItem key={card.id} value={String(card.id)}>
-                                {card.name}
+                            <SelectItem value="expense">Despesa</SelectItem>
+                            <SelectItem value="income">Receita</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={transactionForm.bankConnectionId}
+                          onValueChange={(value) => setTransactionForm((current) => ({ ...current, bankConnectionId: value }))}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/30">
+                            <SelectValue placeholder="Conta de origem" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {transactionAccounts.map((bank) => (
+                              <SelectItem key={bank.id} value={String(bank.id)}>
+                                {bank.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                      </div>
 
+                      <div className="grid gap-4 lg:grid-cols-2">
                         <Input
-                          value={billingForm.statementCloseDay}
-                          onChange={(event) => setBillingForm((current) => ({ ...current, statementCloseDay: event.target.value }))}
-                          placeholder="Dia de fechamento"
-                          inputMode="numeric"
+                          value={transactionForm.description}
+                          onChange={(event) =>
+                            setTransactionForm((current) => ({ ...current, description: event.target.value }))
+                          }
+                          placeholder={transactionForm.transactionType === "income" ? "Ex.: Salario" : "Ex.: Mercado"}
                           className="h-11 rounded-xl border-border/60 bg-secondary/30"
                         />
 
                         <Input
-                          value={billingForm.statementDueDay}
-                          onChange={(event) => setBillingForm((current) => ({ ...current, statementDueDay: event.target.value }))}
-                          placeholder="Dia de vencimento"
-                          inputMode="numeric"
+                          value={transactionForm.amount}
+                          onChange={(event) => setTransactionForm((current) => ({ ...current, amount: event.target.value }))}
+                          placeholder="Valor"
+                          inputMode="decimal"
                           className="h-11 rounded-xl border-border/60 bg-secondary/30"
                         />
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <Input
+                          type="date"
+                          value={transactionForm.occurredOn}
+                          onChange={(event) =>
+                            setTransactionForm((current) => ({ ...current, occurredOn: event.target.value }))
+                          }
+                          className="h-11 rounded-xl border-border/60 bg-secondary/30"
+                        />
+
+                        <Select
+                          value={transactionForm.categoryId}
+                          onValueChange={(value) => setTransactionForm((current) => ({ ...current, categoryId: value }))}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/30">
+                            <SelectValue placeholder="Categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableCategories.map((category) => (
+                              <SelectItem key={category.id} value={String(category.id)}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                        Esses dias ajudam a organizar o cartao desde o primeiro mes de uso.
+                        {transactionForm.transactionType === "income"
+                          ? "Receitas aumentam o saldo total e ajudam a mostrar entradas no dashboard."
+                          : "Despesas mostram imediatamente a saida no dashboard e no resumo de gastos."}
                       </div>
 
                       <div className="flex flex-col gap-3 sm:flex-row">
-                        <Button onClick={() => void handleDueDatesStep()} disabled={updateBankConnection.isPending || isSavingProgress}>
-                          {updateBankConnection.isPending ? "Salvando..." : "Salvar vencimentos"}
+                        <Button onClick={() => void handleFirstTransactionStep()} disabled={createTransaction.isPending || isSavingProgress}>
+                          {createTransaction.isPending ? "Salvando..." : "Salvar e continuar"}
                         </Button>
-                        <Button variant="outline" onClick={() => void handleSkipDueDates()} disabled={isSavingProgress}>
-                          Pular por agora
+                        <Button variant="outline" onClick={goBack} disabled={activeStep.index === 0}>
+                          <ChevronLeft size={16} />
+                          Voltar
                         </Button>
-                        <Button variant="outline" onClick={() => navigate(appRoutes.accounts)}>
-                          Ir para contas
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="rounded-2xl border border-border/40 bg-secondary/20 p-5 text-sm text-muted-foreground">
-                        Voce ainda nao tem cartao cadastrado. Pule esta etapa agora e volte quando adicionar um cartao.
-                      </div>
-                      <div className="flex flex-col gap-3 sm:flex-row">
-                        <Button onClick={() => void handleSkipDueDates()} disabled={isSavingProgress}>Pular por agora</Button>
-                        <Button variant="outline" onClick={() => navigate(appRoutes.accounts)}>Ir para contas</Button>
                       </div>
                     </>
                   )}
                 </div>
               ) : null}
 
-              {activeStep.id === "dashboard" ? (
+              {activeStep.id === "result" ? (
                 <div className="space-y-5">
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-                      <p className="text-sm text-muted-foreground">Perfil</p>
-                      <p className="mt-2 font-semibold text-foreground">{steps.find((step) => step.id === "profile")?.completed ? "Pronto" : "Pendente"}</p>
-                    </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
                       <p className="text-sm text-muted-foreground">Conta inicial</p>
-                      <p className="mt-2 font-semibold text-foreground">{steps.find((step) => step.id === "account")?.completed ? "Pronta" : "Pendente"}</p>
+                      <p className="mt-2 font-semibold text-foreground">{hasAnyAccount ? "Criada" : "Pendente"}</p>
                     </div>
                     <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-                      <p className="text-sm text-muted-foreground">Vencimentos</p>
+                      <p className="text-sm text-muted-foreground">Primeira transacao</p>
+                      <p className="mt-2 font-semibold text-foreground">{hasAnyTransaction ? "Registrada" : "Pendente"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
+                      <p className="text-sm text-muted-foreground">Saldo atualizado</p>
                       <p className="mt-2 font-semibold text-foreground">
-                        {steps.find((step) => step.id === "due_dates")?.completed
-                          ? "Prontos"
-                          : steps.find((step) => step.id === "due_dates")?.skipped
-                            ? "Pulado"
-                            : "Pendente"}
+                        {isDashboardLoading ? "Carregando..." : balanceCard?.formattedValue ?? "--"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    O dashboard fica sempre liberado. Use esta etapa para encerrar o onboarding quando quiser.
+                  <div className="rounded-2xl border border-income/20 bg-income/10 p-4">
+                    <p className="font-semibold text-foreground">Tudo pronto. Sua conta ja esta ativa.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {hasAnyTransaction
+                        ? "Seu saldo ja foi atualizado com a primeira movimentacao. Agora voce pode acompanhar tudo no dashboard."
+                        : "Finalize a primeira movimentacao para ver o resumo completo com dados reais."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
+                    <p className="text-sm text-muted-foreground">Ultima movimentacao registrada</p>
+                    <p className="mt-2 font-semibold text-foreground">
+                      {latestTransaction ? latestTransaction.description : "Nenhuma movimentacao encontrada ainda"}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {latestTransaction
+                        ? `${latestTransaction.formattedAmount} em ${latestTransaction.relativeDate}`
+                        : "Assim que a primeira transacao for criada, o resumo aparece aqui."}
+                    </p>
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button onClick={() => void handleDashboardStep()} disabled={isSavingProgress}>
-                      Concluir e abrir dashboard
-                    </Button>
-                    <Button variant="outline" onClick={() => navigate(appRoutes.dashboard)}>
-                      Ir para o dashboard agora
+                    <Button onClick={() => void handleResultStep()} disabled={isSavingProgress}>
+                      Abrir dashboard
                     </Button>
                     <Button variant="outline" onClick={goBack} disabled={activeStep.index === 0}>
                       <ChevronLeft size={16} />

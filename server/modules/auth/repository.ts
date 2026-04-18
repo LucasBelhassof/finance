@@ -624,10 +624,7 @@ export async function updateUserOnboardingState(
     `
       UPDATE users
       SET onboarding_progress = $2::jsonb,
-          onboarding_completed_at = CASE
-            WHEN $3::timestamptz IS NOT NULL THEN COALESCE(onboarding_completed_at, $3::timestamptz)
-            ELSE onboarding_completed_at
-          END,
+          onboarding_completed_at = $3::timestamptz,
           updated_at = NOW()
       WHERE id = $1
       RETURNING ${USER_SELECT_COLUMNS}
@@ -637,6 +634,31 @@ export async function updateUserOnboardingState(
 
   return result.rows[0] ? mapUser(result.rows[0]) : null;
 }
+
+export async function getUserOnboardingStateSnapshot(userId: number, client: Queryable = db) {
+  const result = await client.query(
+    `
+      SELECT
+        EXISTS(
+          SELECT 1
+          FROM bank_connections
+          WHERE user_id = $1
+        ) AS has_account,
+        EXISTS(
+          SELECT 1
+          FROM transactions
+          WHERE user_id = $1
+        ) AS has_transaction
+    `,
+    [userId],
+  );
+
+  return {
+    hasAccount: Boolean(result.rows[0]?.has_account),
+    hasTransaction: Boolean(result.rows[0]?.has_transaction),
+  };
+}
+
 export async function findUserByEmailExcludingUserId(email: string, userId: number, client: Queryable = db) {
   const result = await client.query(
     `

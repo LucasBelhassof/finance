@@ -26,6 +26,7 @@ import {
   touchSession,
   updateUserAccount,
   updateUserContact,
+  getUserOnboardingStateSnapshot,
   updateUserOnboardingState,
   updateUserPassword,
   withTransaction,
@@ -38,7 +39,23 @@ export interface AuthRequestMetadata {
 }
 
 const accessSecret = new TextEncoder().encode(env.auth.accessTokenSecret);
-const ONBOARDING_STEPS: OnboardingStepId[] = ["profile", "account", "due_dates", "dashboard"];
+const ONBOARDING_STEPS: OnboardingStepId[] = ["welcome", "account", "first_transaction", "result"];
+
+function normalizeOnboardingStepId(step: unknown): OnboardingStepId | null {
+  switch (step) {
+    case "welcome":
+    case "account":
+    case "first_transaction":
+    case "result":
+      return step;
+    case "profile":
+      return "welcome";
+    case "dashboard":
+      return "result";
+    default:
+      return null;
+  }
+}
 
 function normalizeOnboardingProgress(
   value: Partial<AuthOnboardingProgress> | Record<string, unknown> | null | undefined,
@@ -53,9 +70,15 @@ function normalizeOnboardingProgress(
 
   const completedStepsRaw = Array.isArray(value?.completedSteps) ? value.completedSteps : onboardingCompletedAt ? ONBOARDING_STEPS : [];
   const skippedStepsRaw = Array.isArray(value?.skippedSteps) ? value.skippedSteps : [];
+  const normalizedCompletedSteps = completedStepsRaw
+    .map((step) => normalizeOnboardingStepId(step))
+    .filter((step): step is OnboardingStepId => step !== null);
+  const normalizedSkippedSteps = skippedStepsRaw
+    .map((step) => normalizeOnboardingStepId(step))
+    .filter((step): step is OnboardingStepId => step !== null);
 
-  const completedSteps = ONBOARDING_STEPS.filter((step) => completedStepsRaw.includes(step));
-  const skippedSteps = ONBOARDING_STEPS.filter((step) => skippedStepsRaw.includes(step) && !completedSteps.includes(step));
+  const completedSteps = ONBOARDING_STEPS.filter((step) => normalizedCompletedSteps.includes(step));
+  const skippedSteps = ONBOARDING_STEPS.filter((step) => normalizedSkippedSteps.includes(step) && !completedSteps.includes(step));
 
   return {
     currentStep: Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, currentStepRaw)),
@@ -89,7 +112,7 @@ function resolveRefreshExpiry(rememberMe: boolean) {
   return new Date(Date.now() + resolveRefreshTtlMs(rememberMe));
 }
 
-function toAuthUser(user: {
+async function toAuthUser(user: {
   id: number;
   name: string;
   email: string | null;
@@ -109,19 +132,24 @@ function toAuthUser(user: {
   addressState?: string | null;
   addressPostalCode?: string | null;
   addressCountry?: string | null;
-}): AuthUser {
+}): Promise<AuthUser> {
   if (!user.email) {
     throw new BadRequestError("user_email_missing", "The user does not have an email configured.");
   }
 
   const onboardingProgress = normalizeOnboardingProgress(user.onboardingProgress, user.onboardingCompletedAt);
+  const onboardingSnapshot = await getUserOnboardingStateSnapshot(Number(user.id));
+  const hasCompletedOnboarding =
+    onboardingSnapshot.hasAccount &&
+    onboardingSnapshot.hasTransaction &&
+    onboardingProgress.completedSteps.includes("result");
 
   return {
     id: Number(user.id),
     name: String(user.name),
     email: String(user.email),
     emailVerified: user.emailVerifiedAt != null,
-    hasCompletedOnboarding: user.onboardingCompletedAt != null,
+    hasCompletedOnboarding,
     onboardingProgress,
     role: user.role === "admin" ? "admin" : "user",
     status:
@@ -230,7 +258,7 @@ export async function login(
     throw new UnauthorizedError("invalid_credentials", "Invalid email or password.");
   }
 
-  const authUser = toAuthUser(user);
+  const authUser = await toAuthUser(user);
   const refreshToken = buildRefreshToken();
   const refreshTokenHash = sha256(refreshToken);
   const sessionFamilyId = randomUUID();
@@ -315,7 +343,7 @@ export async function signup(
       client,
     );
 
-    const authUser = toAuthUser(user);
+    const authUser = await toAuthUser(user);
     const refreshToken = buildRefreshToken();
     const refreshTokenHash = sha256(refreshToken);
     const sessionFamilyId = randomUUID();
@@ -458,7 +486,7 @@ export async function refreshSession(refreshToken: string | undefined, metadata:
       client,
     );
 
-    const authUser = toAuthUser(session.user);
+    const authUser = await toAuthUser(session.user);
     const accessToken = await createAccessToken(authUser);
 
     return {
@@ -624,7 +652,7 @@ export async function getCurrentUser(userId: number) {
     throw new UnauthorizedError("user_not_found", "The authenticated user was not found.");
   }
 
-  return toAuthUser(user);
+  return await toAuthUser(user);
 }
 
 export async function updateOnboardingProgress(userId: number, input: AuthOnboardingProgress) {
@@ -635,20 +663,22 @@ export async function updateOnboardingProgress(userId: number, input: AuthOnboar
   }
 
   const onboardingProgress = normalizeOnboardingProgress(input, user.onboardingCompletedAt);
-  const hasFinishedAllSteps = ONBOARDING_STEPS.every(
-    (step) => onboardingProgress.completedSteps.includes(step) || onboardingProgress.skippedSteps.includes(step),
-  );
+  const onboardingSnapshot = await getUserOnboardingStateSnapshot(userId);
+  const hasCompletedOnboarding =
+    onboardingSnapshot.hasAccount &&
+    onboardingSnapshot.hasTransaction &&
+    onboardingProgress.completedSteps.includes("result");
 
   const updatedUser = await updateUserOnboardingState(userId, {
     onboardingProgress,
-    onboardingCompletedAt: hasFinishedAllSteps ? new Date() : null,
+    onboardingCompletedAt: hasCompletedOnboarding ? user.onboardingCompletedAt ?? new Date() : null,
   });
 
   if (!updatedUser) {
     throw new UnauthorizedError("user_not_found", "The authenticated user was not found.");
   }
 
-  return toAuthUser(updatedUser);
+  return await toAuthUser(updatedUser);
 }
 
 export async function updateAccountSettings(
@@ -697,7 +727,7 @@ export async function updateAccountSettings(
     },
   });
 
-  return toAuthUser(updatedUser);
+  return await toAuthUser(updatedUser);
 }
 
 export async function updateContactSettings(
@@ -736,7 +766,7 @@ export async function updateContactSettings(
     userAgent: metadata.userAgent,
   });
 
-  return toAuthUser(updatedUser);
+  return await toAuthUser(updatedUser);
 }
 
 export async function changePassword(
@@ -860,7 +890,7 @@ export async function bootstrapUserCredentials(input: {
 
       return {
         action: "attached" as const,
-        user: toAuthUser(attachedUser),
+        user: await toAuthUser(attachedUser),
       };
     }
 
@@ -876,7 +906,7 @@ export async function bootstrapUserCredentials(input: {
 
       return {
         action: "created" as const,
-        user: toAuthUser(createdUser),
+        user: await toAuthUser(createdUser),
       };
     }
 
@@ -897,7 +927,7 @@ export async function bootstrapUserCredentials(input: {
 
       return {
         action: "attached" as const,
-        user: toAuthUser(attachedUser),
+        user: await toAuthUser(attachedUser),
       };
     }
 

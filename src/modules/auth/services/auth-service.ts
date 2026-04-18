@@ -12,6 +12,24 @@ import type {
   UpdateOnboardingProgressInput,
 } from "@/modules/auth/types/auth-types";
 
+type AuthServiceConfig = {
+  getAccessToken: () => string | null;
+  refreshAccessToken: () => Promise<string | null>;
+  onAuthFailure: () => void | Promise<void>;
+};
+
+const defaultAuthServiceConfig: AuthServiceConfig = {
+  getAccessToken: () => null,
+  refreshAccessToken: async () => null,
+  onAuthFailure: () => undefined,
+};
+
+let authServiceConfig: AuthServiceConfig = defaultAuthServiceConfig;
+
+export function configureAuthService(config: AuthServiceConfig) {
+  authServiceConfig = config;
+}
+
 function buildUrl(path: string) {
   return `${apiBaseUrl}${path}`;
 }
@@ -44,11 +62,25 @@ function getErrorMessage(body: Record<string, unknown> | null, fallback: string)
   return fallback;
 }
 
-async function authRequest<T>(path: string, init?: RequestInit) {
+type AuthRequestOptions = {
+  allowRefreshRetry?: boolean;
+  requiresAccessToken?: boolean;
+};
+
+async function authRequest<T>(path: string, init?: RequestInit, options: AuthRequestOptions = {}) {
   const headers = new Headers(init?.headers);
+  const requiresAccessToken = options.requiresAccessToken ?? false;
 
   if (init?.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+
+  if (requiresAccessToken) {
+    const accessToken = authServiceConfig.getAccessToken();
+
+    if (accessToken && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${accessToken}`);
+    }
   }
 
   const response = await fetch(buildUrl(path), {
@@ -56,6 +88,19 @@ async function authRequest<T>(path: string, init?: RequestInit) {
     headers,
     credentials: "include",
   });
+
+  if (response.status === 401 && requiresAccessToken && options.allowRefreshRetry !== false) {
+    const refreshedAccessToken = await authServiceConfig.refreshAccessToken();
+
+    if (refreshedAccessToken) {
+      return authRequest<T>(path, init, {
+        ...options,
+        allowRefreshRetry: false,
+      });
+    }
+
+    await authServiceConfig.onAuthFailure();
+  }
 
   const body = await parseResponseBody(response);
 
@@ -110,26 +155,26 @@ export async function updateOnboardingProgress(input: UpdateOnboardingProgressIn
   return authRequest<{ user: AuthSessionPayload["user"] }>("/api/auth/onboarding", {
     method: "PATCH",
     body: JSON.stringify(input),
-  });
+  }, { requiresAccessToken: true });
 }
 
 export async function updateAccount(input: UpdateAccountInput) {
   return authRequest<{ user: AuthSessionPayload["user"] }>("/api/auth/account", {
     method: "PATCH",
     body: JSON.stringify(input),
-  });
+  }, { requiresAccessToken: true });
 }
 
 export async function updateContact(input: UpdateContactInput) {
   return authRequest<{ user: AuthSessionPayload["user"] }>("/api/auth/contact", {
     method: "PATCH",
     body: JSON.stringify(input),
-  });
+  }, { requiresAccessToken: true });
 }
 
 export async function changePassword(input: ChangePasswordInput) {
   return authRequest<{ message: string }>("/api/auth/change-password", {
     method: "POST",
     body: JSON.stringify(input),
-  });
+  }, { requiresAccessToken: true });
 }

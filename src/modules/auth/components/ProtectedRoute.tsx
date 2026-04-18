@@ -6,7 +6,7 @@ import { useAuthContext } from "@/modules/auth/components/AuthProvider";
 
 export function ProtectedRoute() {
   const location = useLocation();
-  const { isAuthenticated, isBootstrapping } = useAuthContext();
+  const { isAuthenticated, isBootstrapping, user } = useAuthContext();
 
   if (isBootstrapping) {
     return <AppBootLoader />;
@@ -22,6 +22,10 @@ export function ProtectedRoute() {
         }}
       />
     );
+  }
+
+  if (user?.hasCompletedOnboarding !== true && location.pathname !== appRoutes.onboarding) {
+    return <Navigate to={appRoutes.onboarding} replace />;
   }
 
   return <Outlet />;

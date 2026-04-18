@@ -31,12 +31,28 @@ type ProfilePreferences = {
 };
 
 const PROFILE_PREFERENCES_STORAGE_KEY = "finance.profile.preferences";
-const ONBOARDING_STEP_IDS: OnboardingStepId[] = ["profile", "account", "due_dates", "dashboard"];
+const ONBOARDING_STEP_IDS: OnboardingStepId[] = ["welcome", "account", "first_transaction", "result"];
 const DEFAULT_PREFERENCES: ProfilePreferences = {
   notificationsEnabled: true,
   weeklyDigestEnabled: false,
   productTipsEnabled: true,
 };
+
+function normalizeOnboardingStep(step: unknown): OnboardingStepId | null {
+  switch (step) {
+    case "welcome":
+    case "account":
+    case "first_transaction":
+    case "result":
+      return step;
+    case "profile":
+      return "welcome";
+    case "dashboard":
+      return "result";
+    default:
+      return null;
+  }
+}
 
 function formatDateLabel(value?: string | null) {
   if (!value) {
@@ -74,8 +90,14 @@ function formatMonthReference(value?: string | null) {
 }
 
 function normalizeProgress(progress?: AuthOnboardingProgress | null): AuthOnboardingProgress {
-  const completedSteps = ONBOARDING_STEP_IDS.filter((stepId) => progress?.completedSteps?.includes(stepId));
-  const skippedSteps = ONBOARDING_STEP_IDS.filter((stepId) => progress?.skippedSteps?.includes(stepId) && !completedSteps.includes(stepId));
+  const completedSteps = ONBOARDING_STEP_IDS.filter((stepId) =>
+    (progress?.completedSteps ?? []).some((step) => normalizeOnboardingStep(step) === stepId),
+  );
+  const skippedSteps = ONBOARDING_STEP_IDS.filter(
+    (stepId) =>
+      (progress?.skippedSteps ?? []).some((step) => normalizeOnboardingStep(step) === stepId) &&
+      !completedSteps.includes(stepId),
+  );
 
   return {
     currentStep: Math.max(0, Math.min(ONBOARDING_STEP_IDS.length - 1, progress?.currentStep ?? 0)),

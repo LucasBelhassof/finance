@@ -46,7 +46,7 @@ export const bootstrapAuthSchema = z.object({
   userId: z.number().int().positive().optional(),
 });
 
-const onboardingStepSchema = z.enum(["profile", "account", "due_dates", "dashboard"]);
+const onboardingStepSchema = z.enum(["welcome", "account", "first_transaction", "result"]);
 
 export const onboardingProgressSchema = z.object({
   currentStep: z.number().int().min(0).max(3),

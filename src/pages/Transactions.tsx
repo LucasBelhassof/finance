@@ -885,7 +885,7 @@ export default function TransactionsPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="glass-card rounded-[28px] border border-border/40 p-4">
+      <div data-tour-id="transactions-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
             <TransactionsMonthYearFilter
@@ -959,7 +959,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div data-tour-id="transactions-summary" className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">Total Receitas</p>
@@ -967,14 +967,14 @@ export default function TransactionsPage() {
           </div>
           <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.totalIncomes)}</p>
         </div>
-        <div className="glass-card rounded-2xl border border-border/40 p-5">
+        <div data-tour-id="transactions-table" className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">Total Despesas</p>
             <MetricInfoTooltip content="Soma de todas as transacoes de despesa visiveis com os filtros atuais de periodo, busca, tipo e categoria." />
           </div>
           <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summaryCardsData.totalExpenses)}</p>
         </div>
-        <div className="glass-card rounded-2xl border border-border/40 p-5">
+        <div data-tour-id="transactions-categories" className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">Saldo</p>
             <MetricInfoTooltip content="Resultado entre o total de receitas e o total de despesas dentro dos filtros aplicados na tela." />

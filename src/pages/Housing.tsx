@@ -301,7 +301,7 @@ function buildHousingOccurrences(expenses: HousingItem[], endDate: string) {
 function HousingSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="glass-card rounded-[28px] border border-border/40 p-4">
+      <div data-tour-id="housing-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_220px]">
           <Skeleton className="h-11 w-full rounded-xl" />
           <Skeleton className="h-11 w-full rounded-xl" />
@@ -810,7 +810,7 @@ export default function HousingPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section data-tour-id="housing-summary" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -872,7 +872,7 @@ export default function HousingPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+      <section data-tour-id="housing-trend" className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
         <div className="glass-card rounded-[28px] border border-border/40 p-5">
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-foreground">Evolucao das despesas</h2>
@@ -914,7 +914,7 @@ export default function HousingPage() {
         </div>
       </section>
 
-      <section className="glass-card rounded-[28px] border border-border/40 p-5">
+      <section data-tour-id="housing-table" className="glass-card rounded-[28px] border border-border/40 p-5">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Tabela de despesas recorrentes</h2>

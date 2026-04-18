@@ -125,7 +125,7 @@ function AccountTypeIcon({ accountType }: { accountType: AccountType }) {
 function AccountsSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div data-tour-id="accounts-summary" className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
           <div key={index} className="glass-card p-5">
             <Skeleton className="mb-3 h-4 w-24" />
@@ -464,7 +464,7 @@ export default function AccountsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
+        <div data-tour-id="accounts-structure" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-[1.35rem] font-semibold text-foreground sm:text-[1.6rem]">Estrutura financeira</h2>
@@ -565,7 +565,7 @@ export default function AccountsPage() {
           )}
         </div>
 
-        <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
+        <div data-tour-id="accounts-support" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
           <h3 className="text-[1.3rem] font-semibold text-foreground"></h3>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
           </div>

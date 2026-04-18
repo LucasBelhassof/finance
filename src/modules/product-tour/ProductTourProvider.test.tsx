@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -47,9 +47,11 @@ describe("ProductTourProvider", () => {
     vi.useRealTimers();
     Element.prototype.scrollIntoView = vi.fn();
 
-    updateProductTourProgressMock.mockResolvedValue({
-      user: buildUser(),
-    });
+    updateProductTourProgressMock.mockImplementation(async (nextProgress) => ({
+      user: buildUser({
+        onboardingProgress: nextProgress,
+      }),
+    }));
 
     useAuthSessionMock.mockReturnValue({
       isAuthenticated: true,
@@ -68,6 +70,32 @@ describe("ProductTourProvider", () => {
     );
 
     expect(await screen.findByRole("dialog", { name: /resumo financeiro/i })).toBeInTheDocument();
+  });
+
+  it("opens the pending step of the current route on first visit", async () => {
+    useAuthSessionMock.mockReturnValue({
+      isAuthenticated: true,
+      user: buildUser({
+        onboardingProgress: {
+          currentStep: 4,
+          completedSteps: ["dashboard_summary", "dashboard_transactions", "dashboard_insights", "dashboard_accounts"],
+          skippedSteps: [],
+          dismissed: false,
+        },
+      }),
+      setUserState: setUserStateMock,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/accounts"]}>
+        <ProductTourProvider>
+          <div data-tour-id="accounts-summary">Contas</div>
+        </ProductTourProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("dialog", { name: /contas/i })).toBeInTheDocument();
+    expect(screen.getByText(/passo 1 de 3/i)).toBeInTheDocument();
   });
 
   it("persists dismissed state when the user closes the tour", async () => {
@@ -122,12 +150,46 @@ describe("ProductTourProvider", () => {
     );
 
     await waitFor(() => {
-      expect(updateProductTourProgressMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          currentStep: 1,
-          skippedSteps: ["dashboard_overview"],
-        }),
-      );
+        expect(updateProductTourProgressMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentStep: 1,
+            skippedSteps: ["dashboard_summary"],
+          }),
+        );
     }, { timeout: 1500 });
   }, 10000);
+
+  it("closes after finishing the last pending step of the current route", async () => {
+    useAuthSessionMock.mockReturnValue({
+      isAuthenticated: true,
+      user: buildUser({
+        onboardingProgress: {
+          currentStep: 4,
+          completedSteps: ["dashboard_summary", "dashboard_transactions", "dashboard_insights", "dashboard_accounts"],
+          skippedSteps: [],
+          dismissed: false,
+        },
+      }),
+      setUserState: setUserStateMock,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/accounts"]}>
+        <ProductTourProvider>
+          <div data-tour-id="accounts-summary">Contas</div>
+        </ProductTourProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /proximo/i }));
+
+    await waitFor(() => {
+      expect(updateProductTourProgressMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          completedSteps: expect.arrayContaining(["accounts_summary"]),
+          currentStep: 5,
+        }),
+      );
+    });
+  });
 });

@@ -184,21 +184,27 @@ export default function InstallmentsPage() {
     <AppShell title="Parcelamentos" description="Acompanhe compras parceladas e compromissos futuros">
       {overview ? (
         <>
-          <InstallmentsSummaryCards overview={overview} />
+          <div data-tour-id="installments-summary">
+            <InstallmentsSummaryCards overview={overview} />
+          </div>
 
-          <InstallmentsFilters
-            filters={draftFilters}
-            periodPreset={draftPeriodPreset}
-            overview={overview}
-            onChange={handleFiltersChange}
-            onPeriodPresetChange={handlePeriodPresetChange}
-            onCustomPeriodChange={handleCustomPeriodChange}
-            onApplyFilters={handleApplyFilters}
-            onResetFilters={handleResetFilters}
-            onExportCsv={() => buildCsv(appliedFilters, overview.items)}
-          />
+          <div data-tour-id="installments-filters">
+            <InstallmentsFilters
+              filters={draftFilters}
+              periodPreset={draftPeriodPreset}
+              overview={overview}
+              onChange={handleFiltersChange}
+              onPeriodPresetChange={handlePeriodPresetChange}
+              onCustomPeriodChange={handleCustomPeriodChange}
+              onApplyFilters={handleApplyFilters}
+              onResetFilters={handleResetFilters}
+              onExportCsv={() => buildCsv(appliedFilters, overview.items)}
+            />
+          </div>
 
-          <InstallmentsInsights overview={overview} />
+          <div data-tour-id="installments-insights">
+            <InstallmentsInsights overview={overview} />
+          </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {next3Months.map((item) => (
@@ -215,7 +221,9 @@ export default function InstallmentsPage() {
           {overview.items.length ? (
             <>
               <InstallmentsCharts overview={overview} />
-              <InstallmentsTable items={overview.items} />
+              <div data-tour-id="installments-table">
+                <InstallmentsTable items={overview.items} />
+              </div>
             </>
           ) : (
             <div className="glass-card rounded-2xl border border-border/40 p-6 text-center sm:p-8">

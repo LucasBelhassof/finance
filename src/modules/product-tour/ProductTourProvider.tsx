@@ -35,24 +35,96 @@ export const ProductTourContext = createContext<ProductTourContextValue | null>(
 
 function normalizeLegacyStep(step: unknown): OnboardingStepId | null {
   switch (step) {
-    case "dashboard_overview":
-    case "recent_transactions":
-    case "insights":
-    case "accounts_nav":
-    case "expense_management_nav":
-    case "notifications":
+    case "dashboard_summary":
+    case "dashboard_transactions":
+    case "dashboard_insights":
+    case "dashboard_accounts":
+    case "accounts_summary":
+    case "accounts_structure":
+    case "accounts_support":
+    case "transactions_filters":
+    case "transactions_summary":
+    case "transactions_table":
+    case "transactions_categories":
+    case "recurring_income_filters":
+    case "recurring_income_summary":
+    case "recurring_income_chart":
+    case "recurring_income_table":
+    case "installments_summary":
+    case "installments_filters":
+    case "installments_insights":
+    case "installments_table":
+    case "housing_filters":
+    case "housing_summary":
+    case "housing_trend":
+    case "housing_table":
+    case "expense_metrics_filters":
+    case "expense_metrics_summary":
+    case "expense_metrics_trend":
+    case "expense_metrics_ranking":
+    case "insights_summary":
+    case "insights_recommendations":
+    case "insights_spending":
+    case "notifications_filters":
+    case "notifications_inbox":
+    case "notifications_details":
+    case "notifications_form":
+    case "chat_conversation":
+    case "chat_suggestions":
+    case "profile_identity":
+    case "profile_account":
+    case "profile_shortcuts":
+    case "settings_account":
+    case "settings_security":
+    case "settings_contact":
+    case "settings_preferences":
       return step;
     case "profile":
     case "welcome":
-      return "dashboard_overview";
+      return "dashboard_summary";
     case "account":
+      return "accounts_summary";
     case "first_transaction":
-      return "recent_transactions";
+      return "transactions_filters";
     case "due_dates":
-      return "expense_management_nav";
+      return "housing_filters";
+    case "insights":
+      return "dashboard_insights";
+    case "accounts_nav":
+      return "accounts_summary";
+    case "expense_management_nav":
+      return "transactions_filters";
+    case "notifications":
+      return "notifications_filters";
     case "dashboard":
     case "result":
-      return "notifications";
+      return "dashboard_summary";
+    case "dashboard_overview":
+      return "dashboard_summary";
+    case "recent_transactions":
+      return "dashboard_transactions";
+    case "accounts_page":
+      return "accounts_summary";
+    case "transactions_page":
+      return "transactions_filters";
+    case "recurring_income_page":
+      return "recurring_income_filters";
+    case "installments_page":
+      return "installments_summary";
+    case "housing_page":
+      return "housing_filters";
+    case "expense_metrics_page":
+      return "expense_metrics_filters";
+    case "insights_page":
+      return "insights_summary";
+    case "notifications_page":
+      return "notifications_filters";
+    case "chat_page":
+      return "chat_conversation";
+    case "profile_page":
+      return "profile_identity";
+    case "settings_page":
+      return "settings_account";
     default:
       return null;
   }
@@ -75,12 +147,36 @@ function normalizeProgress(progress?: Partial<AuthOnboardingProgress> | null): A
   };
 }
 
-function findNextOpenStepIndex(progress: AuthOnboardingProgress) {
-  const nextIndex = PRODUCT_TOUR_STEPS.findIndex(
-    (step) => !progress.completedSteps.includes(step.id) && !progress.skippedSteps.includes(step.id),
-  );
+function isStepPending(progress: AuthOnboardingProgress, stepId: OnboardingStepId) {
+  return !progress.completedSteps.includes(stepId) && !progress.skippedSteps.includes(stepId);
+}
+
+function routeMatches(stepRoute: string, currentPathname: string) {
+  return currentPathname === stepRoute || currentPathname.startsWith(`${stepRoute}/`);
+}
+
+function findFirstPendingStepIndex(progress: AuthOnboardingProgress) {
+  const nextIndex = PRODUCT_TOUR_STEPS.findIndex((step) => isStepPending(progress, step.id));
 
   return nextIndex === -1 ? PRODUCT_TOUR_STEPS.length - 1 : nextIndex;
+}
+
+function findPendingStepIndexForRoute(progress: AuthOnboardingProgress, route: string) {
+  return PRODUCT_TOUR_STEPS.findIndex((step) => routeMatches(step.route, route) && isStepPending(progress, step.id));
+}
+
+function getStepsForRoute(route: string) {
+  return PRODUCT_TOUR_STEPS.filter((step) => routeMatches(step.route, route));
+}
+
+function findPreviousStepIndexForRoute(currentIndex: number, route: string) {
+  for (let index = currentIndex - 1; index >= 0; index -= 1) {
+    if (PRODUCT_TOUR_STEPS[index] && routeMatches(PRODUCT_TOUR_STEPS[index].route, route)) {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 function getStepElement(step: ProductTourStep) {
@@ -110,11 +206,25 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
   const progress = useMemo(() => normalizeProgress(user?.onboardingProgress), [user?.onboardingProgress]);
   const activeStepIndex = Math.max(0, Math.min(PRODUCT_TOUR_STEPS.length - 1, progress.currentStep));
   const activeStep = PRODUCT_TOUR_STEPS[activeStepIndex] ?? PRODUCT_TOUR_STEPS[0];
+  const pendingRouteStepIndex = useMemo(
+    () => findPendingStepIndexForRoute(progress, location.pathname),
+    [location.pathname, progress],
+  );
+  const previousRouteStepIndex = useMemo(
+    () => findPreviousStepIndexForRoute(activeStepIndex, location.pathname),
+    [activeStepIndex, location.pathname],
+  );
+  const routeSteps = useMemo(() => getStepsForRoute(location.pathname), [location.pathname]);
+  const routeStepIds = useMemo(() => routeSteps.map((step) => step.id), [routeSteps]);
+  const activeRouteStepIndex = useMemo(
+    () => routeStepIds.findIndex((stepId) => stepId === activeStep.id),
+    [activeStep.id, routeStepIds],
+  );
   const shouldAutoStart =
     isAuthenticated &&
     user?.hasCompletedOnboarding !== true &&
     progress.dismissed !== true &&
-    location.pathname === activeStep.route;
+    pendingRouteStepIndex !== -1;
 
   const persistProgress = useCallback(
     async (
@@ -164,7 +274,8 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
   }, [activeStepIndex, persistProgress]);
 
   const startTour = useCallback(async () => {
-    const nextIndex = findNextOpenStepIndex(progress);
+    const routeStepIndex = findPendingStepIndexForRoute(progress, location.pathname);
+    const nextIndex = routeStepIndex !== -1 ? routeStepIndex : findFirstPendingStepIndex(progress);
     const nextStep = PRODUCT_TOUR_STEPS[nextIndex] ?? PRODUCT_TOUR_STEPS[0];
 
     if (location.pathname !== nextStep.route) {
@@ -200,22 +311,30 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
   }, [location.pathname, navigate, persistProgress]);
 
   const goToNextStep = useCallback(async () => {
-    const isLastStep = activeStepIndex >= PRODUCT_TOUR_STEPS.length - 1;
-
     await persistProgress(
-      (current) => ({
-        ...current,
-        completedSteps: [...current.completedSteps, activeStep.id],
-        skippedSteps: current.skippedSteps.filter((step) => step !== activeStep.id),
-        dismissed: false,
-        currentStep: isLastStep ? activeStepIndex : activeStepIndex + 1,
-      }),
-      { openAfterPersist: !isLastStep },
+      (current) => {
+        const nextProgress = normalizeProgress({
+          ...current,
+          completedSteps: [...current.completedSteps, activeStep.id],
+          skippedSteps: current.skippedSteps.filter((step) => step !== activeStep.id),
+          dismissed: false,
+        });
+        const nextRouteStepIndex = findPendingStepIndexForRoute(nextProgress, location.pathname);
+        const fallbackIndex = findFirstPendingStepIndex(nextProgress);
+
+        return {
+          ...nextProgress,
+          currentStep: nextRouteStepIndex !== -1 ? nextRouteStepIndex : fallbackIndex,
+        };
+      },
+      {
+        openAfterPersist: false,
+      },
     );
-  }, [activeStep.id, activeStepIndex, persistProgress]);
+  }, [activeStep.id, location.pathname, persistProgress]);
 
   const goToPreviousStep = useCallback(async () => {
-    if (activeStepIndex === 0) {
+    if (previousRouteStepIndex === -1) {
       return;
     }
 
@@ -223,11 +342,11 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
       (current) => ({
         ...current,
         dismissed: false,
-        currentStep: activeStepIndex - 1,
+        currentStep: previousRouteStepIndex,
       }),
       { openAfterPersist: true },
     );
-  }, [activeStepIndex, persistProgress]);
+  }, [persistProgress, previousRouteStepIndex]);
 
   const skipMissingTargetStep = useCallback(async () => {
     if (missingTargetStepIdsRef.current.has(activeStep.id)) {
@@ -237,25 +356,61 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
     missingTargetStepIdsRef.current.add(activeStep.id);
 
     await persistProgress(
+      (current) => {
+        const nextProgress = normalizeProgress({
+          ...current,
+          skippedSteps: [...current.skippedSteps, activeStep.id],
+          completedSteps: current.completedSteps.filter((step) => step !== activeStep.id),
+          dismissed: false,
+        });
+        const nextRouteStepIndex = findPendingStepIndexForRoute(nextProgress, location.pathname);
+        const fallbackIndex = findFirstPendingStepIndex(nextProgress);
+
+        return {
+          ...nextProgress,
+          currentStep: nextRouteStepIndex !== -1 ? nextRouteStepIndex : fallbackIndex,
+        };
+      },
+      { openAfterPersist: false },
+    );
+  }, [activeStep.id, location.pathname, persistProgress]);
+
+  useEffect(() => {
+    if (isOpen && !routeMatches(activeStep.route, location.pathname)) {
+      setIsOpen(false);
+      return;
+    }
+
+    if (!shouldAutoStart || isOpen || isPersisting) {
+      return;
+    }
+
+    if (pendingRouteStepIndex === progress.currentStep) {
+      setIsOpen(true);
+      return;
+    }
+
+    void persistProgress(
       (current) => ({
         ...current,
-        skippedSteps: [...current.skippedSteps, activeStep.id],
-        completedSteps: current.completedSteps.filter((step) => step !== activeStep.id),
         dismissed: false,
-        currentStep: Math.min(PRODUCT_TOUR_STEPS.length - 1, activeStepIndex + 1),
+        currentStep: pendingRouteStepIndex,
       }),
-      { openAfterPersist: activeStepIndex < PRODUCT_TOUR_STEPS.length - 1 },
+      { openAfterPersist: true },
     );
-  }, [activeStep.id, activeStepIndex, persistProgress]);
+  }, [
+    activeStep.route,
+    isOpen,
+    isPersisting,
+    location.pathname,
+    pendingRouteStepIndex,
+    persistProgress,
+    progress.currentStep,
+    shouldAutoStart,
+  ]);
 
   useEffect(() => {
-    if (shouldAutoStart && !isOpen && !isPersisting) {
-      setIsOpen(true);
-    }
-  }, [isOpen, isPersisting, shouldAutoStart]);
-
-  useEffect(() => {
-    if (!isOpen || location.pathname !== activeStep.route) {
+    if (!isOpen || !routeMatches(activeStep.route, location.pathname)) {
       setCurrentRect(null);
       return;
     }
@@ -313,14 +468,22 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
       {children}
       {isOpen && currentRect ? (
         <ProductTourCoachMark
-          currentStepIndex={activeStepIndex}
-          isLastStep={activeStepIndex === PRODUCT_TOUR_STEPS.length - 1}
+          canGoBack={previousRouteStepIndex !== -1}
+          currentStepIndex={activeRouteStepIndex === -1 ? 0 : activeRouteStepIndex}
+          isLastStep={findPendingStepIndexForRoute(
+            normalizeProgress({
+              ...progress,
+              completedSteps: [...progress.completedSteps, activeStep.id],
+              skippedSteps: progress.skippedSteps.filter((step) => step !== activeStep.id),
+            }),
+            location.pathname,
+          ) === -1}
           onBack={() => void goToPreviousStep()}
           onClose={() => void closeTour()}
           onNext={() => void goToNextStep()}
           rect={currentRect}
           step={activeStep}
-          totalSteps={PRODUCT_TOUR_STEPS.length}
+          totalSteps={routeSteps.length || 1}
         />
       ) : null}
     </ProductTourContext.Provider>

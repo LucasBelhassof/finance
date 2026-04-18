@@ -39,34 +39,139 @@ export interface AuthRequestMetadata {
 
 const accessSecret = new TextEncoder().encode(env.auth.accessTokenSecret);
 const ONBOARDING_STEPS: OnboardingStepId[] = [
-  "dashboard_overview",
-  "recent_transactions",
-  "insights",
-  "accounts_nav",
-  "expense_management_nav",
-  "notifications",
+  "dashboard_summary",
+  "dashboard_transactions",
+  "dashboard_insights",
+  "dashboard_accounts",
+  "accounts_summary",
+  "accounts_structure",
+  "accounts_support",
+  "transactions_filters",
+  "transactions_summary",
+  "transactions_table",
+  "transactions_categories",
+  "recurring_income_filters",
+  "recurring_income_summary",
+  "recurring_income_chart",
+  "recurring_income_table",
+  "installments_summary",
+  "installments_filters",
+  "installments_insights",
+  "installments_table",
+  "housing_filters",
+  "housing_summary",
+  "housing_trend",
+  "housing_table",
+  "expense_metrics_filters",
+  "expense_metrics_summary",
+  "expense_metrics_trend",
+  "expense_metrics_ranking",
+  "insights_summary",
+  "insights_recommendations",
+  "insights_spending",
+  "notifications_filters",
+  "notifications_inbox",
+  "notifications_details",
+  "notifications_form",
+  "chat_conversation",
+  "chat_suggestions",
+  "profile_identity",
+  "profile_account",
+  "profile_shortcuts",
+  "settings_account",
+  "settings_security",
+  "settings_contact",
+  "settings_preferences",
 ];
 
 function normalizeOnboardingStepId(step: unknown): OnboardingStepId | null {
   switch (step) {
-    case "dashboard_overview":
-    case "recent_transactions":
-    case "insights":
-    case "accounts_nav":
-    case "expense_management_nav":
-    case "notifications":
+    case "dashboard_summary":
+    case "dashboard_transactions":
+    case "dashboard_insights":
+    case "dashboard_accounts":
+    case "accounts_summary":
+    case "accounts_structure":
+    case "accounts_support":
+    case "transactions_filters":
+    case "transactions_summary":
+    case "transactions_table":
+    case "transactions_categories":
+    case "recurring_income_filters":
+    case "recurring_income_summary":
+    case "recurring_income_chart":
+    case "recurring_income_table":
+    case "installments_summary":
+    case "installments_filters":
+    case "installments_insights":
+    case "installments_table":
+    case "housing_filters":
+    case "housing_summary":
+    case "housing_trend":
+    case "housing_table":
+    case "expense_metrics_filters":
+    case "expense_metrics_summary":
+    case "expense_metrics_trend":
+    case "expense_metrics_ranking":
+    case "insights_summary":
+    case "insights_recommendations":
+    case "insights_spending":
+    case "notifications_filters":
+    case "notifications_inbox":
+    case "notifications_details":
+    case "notifications_form":
+    case "chat_conversation":
+    case "chat_suggestions":
+    case "profile_identity":
+    case "profile_account":
+    case "profile_shortcuts":
+    case "settings_account":
+    case "settings_security":
+    case "settings_contact":
+    case "settings_preferences":
       return step;
     case "profile":
     case "welcome":
-      return "dashboard_overview";
+      return "dashboard_summary";
     case "account":
+      return "accounts_summary";
     case "first_transaction":
-      return "recent_transactions";
+      return "transactions_filters";
     case "due_dates":
-      return "expense_management_nav";
+      return "housing_filters";
+    case "insights":
+      return "dashboard_insights";
+    case "accounts_nav":
+      return "accounts_summary";
+    case "expense_management_nav":
+      return "transactions_filters";
+    case "notifications":
+      return "notifications_filters";
     case "dashboard":
     case "result":
-      return "notifications";
+      return "dashboard_summary";
+    case "accounts_page":
+      return "accounts_summary";
+    case "transactions_page":
+      return "transactions_filters";
+    case "recurring_income_page":
+      return "recurring_income_filters";
+    case "installments_page":
+      return "installments_summary";
+    case "housing_page":
+      return "housing_filters";
+    case "expense_metrics_page":
+      return "expense_metrics_filters";
+    case "insights_page":
+      return "insights_summary";
+    case "notifications_page":
+      return "notifications_filters";
+    case "chat_page":
+      return "chat_conversation";
+    case "profile_page":
+      return "profile_identity";
+    case "settings_page":
+      return "settings_account";
     default:
       return null;
   }

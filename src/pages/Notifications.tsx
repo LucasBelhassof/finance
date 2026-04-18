@@ -225,7 +225,7 @@ export default function NotificationsPage() {
     <AppShell title="Notificacoes" description="Filtre seus alertas, veja detalhes e crie novos lembretes pessoais.">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)_380px]">
         <div className="space-y-6">
-          <Card>
+          <Card data-tour-id="notifications-filters">
             <CardHeader className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <CardTitle>Filtros</CardTitle>
@@ -305,7 +305,7 @@ export default function NotificationsPage() {
             </CardHeader>
           </Card>
 
-          <Card className="xl:h-fit">
+          <Card data-tour-id="notifications-inbox" className="xl:h-fit">
             <CardHeader>
               <CardTitle>Caixa de entrada</CardTitle>
             </CardHeader>
@@ -348,7 +348,7 @@ export default function NotificationsPage() {
           </Card>
         </div>
 
-        <Card>
+        <Card data-tour-id="notifications-details">
           <CardHeader className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <CardTitle>Detalhes da notificacao</CardTitle>
@@ -434,7 +434,7 @@ export default function NotificationsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour-id="notifications-form">
           <CardHeader>
             <CardTitle>Novo lembrete</CardTitle>
           </CardHeader>

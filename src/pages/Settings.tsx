@@ -428,7 +428,8 @@ export default function SettingsPage() {
     <AppShell title="Configuracoes" description="Conta, seguranca, perfil, preferencias e informacoes tecnicas do app">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.25fr)_380px]">
         <div className="space-y-6">
-          <SettingsSection
+          <div data-tour-id="settings-account">
+            <SettingsSection
             icon={<UserRoundCog size={20} />}
             title="Conta"
             description="Edite seus dados principais e gerencie a alteracao do e-mail da conta."
@@ -516,9 +517,11 @@ export default function SettingsPage() {
                 </div>
               </form>
             </Form>
-          </SettingsSection>
+            </SettingsSection>
+          </div>
 
-          <SettingsSection
+          <div data-tour-id="settings-security">
+            <SettingsSection
             icon={<ShieldCheck size={20} />}
             title="Seguranca"
             description="Troque sua senha com validacoes reais, acompanhe a verificacao do e-mail e encerre a sessao quando precisar."
@@ -615,9 +618,11 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-          </SettingsSection>
+            </SettingsSection>
+          </div>
 
-          <SettingsSection
+          <div data-tour-id="settings-contact">
+            <SettingsSection
             icon={<MapPinned size={20} />}
             title="Perfil e contato"
             description="Telefone, celular e endereco para manter seu cadastro completo e pronto para futuras integracoes."
@@ -808,9 +813,11 @@ export default function SettingsPage() {
                 </div>
               </form>
             </Form>
-          </SettingsSection>
+            </SettingsSection>
+          </div>
 
-          <SettingsSection
+          <div data-tour-id="settings-preferences">
+            <SettingsSection
             icon={<BellRing size={20} />}
             title="Preferencias"
             description="Ajustes gerais do app e notificacoes. Por enquanto, essas opcoes ficam salvas apenas neste dispositivo."
@@ -873,7 +880,8 @@ export default function SettingsPage() {
                 Salvar preferencias
               </Button>
             </div>
-          </SettingsSection>
+            </SettingsSection>
+          </div>
         </div>
       </div>
     </AppShell>

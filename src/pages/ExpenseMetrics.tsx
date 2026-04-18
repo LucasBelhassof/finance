@@ -372,7 +372,7 @@ export default function ExpenseMetricsPage() {
 
   return (
     <AppShell title="Metricas" description="Leitura operacional das despesas, receitas e concentracao por conta">
-      <section className="glass-card rounded-[28px] border border-border/40 p-4">
+      <section data-tour-id="expense-metrics-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
           <TransactionsMonthYearFilter
             selectedMonthIndex={selectedMonthIndex}
@@ -427,7 +427,7 @@ export default function ExpenseMetricsPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section data-tour-id="expense-metrics-summary" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -491,7 +491,7 @@ export default function ExpenseMetricsPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
+      <section data-tour-id="expense-metrics-trend" className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -675,7 +675,7 @@ export default function ExpenseMetricsPage() {
         )}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section data-tour-id="expense-metrics-ranking" className="grid gap-6 lg:grid-cols-2">
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

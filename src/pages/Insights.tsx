@@ -11,7 +11,7 @@ export default function InsightsPage() {
 
   return (
     <AppShell title="Insights" description="Leituras automaticas sobre padroes e oportunidades">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div data-tour-id="insights-summary" className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="glass-card p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">Insights ativos</p>
           <p className="mt-1 text-2xl font-bold text-foreground">{insights.length}</p>
@@ -27,8 +27,10 @@ export default function InsightsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <AiInsights insights={insights} isLoading={insightsLoading} isError={insightsError} showRecommendedActions />
-        <div className="space-y-6">
+        <div data-tour-id="insights-recommendations">
+          <AiInsights insights={insights} isLoading={insightsLoading} isError={insightsError} showRecommendedActions />
+        </div>
+        <div data-tour-id="insights-spending" className="space-y-6">
           <SpendingChart spending={spending} isLoading={spendingLoading} isError={spendingError} />
 
           <div className="glass-card p-4 sm:p-5">

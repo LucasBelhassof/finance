@@ -12,6 +12,7 @@ type Rect = {
 };
 
 type ProductTourCoachMarkProps = {
+  canGoBack: boolean;
   currentStepIndex: number;
   isLastStep: boolean;
   onBack: () => void;
@@ -58,6 +59,7 @@ function getCardPosition(rect: Rect, placement: ProductTourPlacement) {
 }
 
 export function ProductTourCoachMark({
+  canGoBack,
   currentStepIndex,
   isLastStep,
   onBack,
@@ -134,7 +136,7 @@ export function ProductTourCoachMark({
             Passo {currentStepIndex + 1} de {totalSteps}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onBack} disabled={currentStepIndex === 0}>
+            <Button variant="ghost" size="sm" onClick={onBack} disabled={!canGoBack}>
               <ChevronLeft size={16} />
               Voltar
             </Button>

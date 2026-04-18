@@ -22,6 +22,7 @@ import { useDashboard } from "@/hooks/use-dashboard";
 import { appRoutes } from "@/lib/routes";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 import { useLogout } from "@/modules/auth/hooks/use-logout";
+import { PRODUCT_TOUR_STEPS } from "@/modules/product-tour/product-tour-steps";
 import { useProductTour } from "@/modules/product-tour/use-product-tour";
 import type { AuthOnboardingProgress, OnboardingStepId } from "@/modules/auth/types/auth-types";
 
@@ -32,14 +33,7 @@ type ProfilePreferences = {
 };
 
 const PROFILE_PREFERENCES_STORAGE_KEY = "finance.profile.preferences";
-const ONBOARDING_STEP_IDS: OnboardingStepId[] = [
-  "dashboard_overview",
-  "recent_transactions",
-  "insights",
-  "accounts_nav",
-  "expense_management_nav",
-  "notifications",
-];
+const ONBOARDING_STEP_IDS: OnboardingStepId[] = PRODUCT_TOUR_STEPS.map((step) => step.id);
 const DEFAULT_PREFERENCES: ProfilePreferences = {
   notificationsEnabled: true,
   weeklyDigestEnabled: false,
@@ -48,24 +42,96 @@ const DEFAULT_PREFERENCES: ProfilePreferences = {
 
 function normalizeOnboardingStep(step: unknown): OnboardingStepId | null {
   switch (step) {
-    case "dashboard_overview":
-    case "recent_transactions":
-    case "insights":
-    case "accounts_nav":
-    case "expense_management_nav":
-    case "notifications":
+    case "dashboard_summary":
+    case "dashboard_transactions":
+    case "dashboard_insights":
+    case "dashboard_accounts":
+    case "accounts_summary":
+    case "accounts_structure":
+    case "accounts_support":
+    case "transactions_filters":
+    case "transactions_summary":
+    case "transactions_table":
+    case "transactions_categories":
+    case "recurring_income_filters":
+    case "recurring_income_summary":
+    case "recurring_income_chart":
+    case "recurring_income_table":
+    case "installments_summary":
+    case "installments_filters":
+    case "installments_insights":
+    case "installments_table":
+    case "housing_filters":
+    case "housing_summary":
+    case "housing_trend":
+    case "housing_table":
+    case "expense_metrics_filters":
+    case "expense_metrics_summary":
+    case "expense_metrics_trend":
+    case "expense_metrics_ranking":
+    case "insights_summary":
+    case "insights_recommendations":
+    case "insights_spending":
+    case "notifications_filters":
+    case "notifications_inbox":
+    case "notifications_details":
+    case "notifications_form":
+    case "chat_conversation":
+    case "chat_suggestions":
+    case "profile_identity":
+    case "profile_account":
+    case "profile_shortcuts":
+    case "settings_account":
+    case "settings_security":
+    case "settings_contact":
+    case "settings_preferences":
       return step;
     case "profile":
     case "welcome":
-      return "dashboard_overview";
+      return "dashboard_summary";
     case "account":
+      return "accounts_summary";
     case "first_transaction":
-      return "recent_transactions";
+      return "transactions_filters";
     case "due_dates":
-      return "expense_management_nav";
+      return "housing_filters";
+    case "insights":
+      return "dashboard_insights";
+    case "accounts_nav":
+      return "accounts_summary";
+    case "expense_management_nav":
+      return "transactions_filters";
+    case "notifications":
+      return "notifications_filters";
     case "dashboard":
     case "result":
-      return "notifications";
+      return "dashboard_summary";
+    case "dashboard_overview":
+      return "dashboard_summary";
+    case "recent_transactions":
+      return "dashboard_transactions";
+    case "accounts_page":
+      return "accounts_summary";
+    case "transactions_page":
+      return "transactions_filters";
+    case "recurring_income_page":
+      return "recurring_income_filters";
+    case "installments_page":
+      return "installments_summary";
+    case "housing_page":
+      return "housing_filters";
+    case "expense_metrics_page":
+      return "expense_metrics_filters";
+    case "insights_page":
+      return "insights_summary";
+    case "notifications_page":
+      return "notifications_filters";
+    case "chat_page":
+      return "chat_conversation";
+    case "profile_page":
+      return "profile_identity";
+    case "settings_page":
+      return "settings_account";
     default:
       return null;
   }
@@ -299,7 +365,7 @@ export default function ProfilePage() {
     <AppShell title="Perfil" description="Dados da conta, seguranca e preferencias pessoais">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_360px]">
         <div className="space-y-6">
-          <section className="glass-card rounded-2xl border border-border/40 p-4 sm:p-6">
+          <section data-tour-id="profile-identity" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
                 <UserCircle2 size={32} />
@@ -336,7 +402,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          <section className="glass-card rounded-2xl border border-border/40 p-4 sm:p-6">
+          <section data-tour-id="profile-account" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-foreground">Conta</h3>
@@ -472,7 +538,7 @@ export default function ProfilePage() {
         <div className="space-y-6">
 
 
-          <section className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
+          <section data-tour-id="profile-shortcuts" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-foreground">Atalhos</h3>
             </div>

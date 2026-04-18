@@ -169,6 +169,14 @@ function getStepsForRoute(route: string) {
   return PRODUCT_TOUR_STEPS.filter((step) => routeMatches(step.route, route));
 }
 
+function getStepIdsForRoute(route: string) {
+  return getStepsForRoute(route).map((step) => step.id);
+}
+
+function findFirstStepIndexForRoute(route: string) {
+  return PRODUCT_TOUR_STEPS.findIndex((step) => routeMatches(step.route, route));
+}
+
 function findPreviousStepIndexForRoute(currentIndex: number, route: string) {
   for (let index = currentIndex - 1; index >= 0; index -= 1) {
     if (PRODUCT_TOUR_STEPS[index] && routeMatches(PRODUCT_TOUR_STEPS[index].route, route)) {
@@ -202,6 +210,7 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
   const [currentRect, setCurrentRect] = useState<SpotlightRect | null>(null);
   const [isPersisting, setIsPersisting] = useState(false);
   const missingTargetStepIdsRef = useRef<Set<OnboardingStepId>>(new Set());
+  const targetRetryCountRef = useRef(0);
 
   const progress = useMemo(() => normalizeProgress(user?.onboardingProgress), [user?.onboardingProgress]);
   const activeStepIndex = Math.max(0, Math.min(PRODUCT_TOUR_STEPS.length - 1, progress.currentStep));
@@ -263,6 +272,7 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
   );
 
   const closeTour = useCallback(async () => {
+    setCurrentRect(null);
     await persistProgress(
       (current) => ({
         ...current,
@@ -274,8 +284,15 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
   }, [activeStepIndex, persistProgress]);
 
   const startTour = useCallback(async () => {
+    setCurrentRect(null);
     const routeStepIndex = findPendingStepIndexForRoute(progress, location.pathname);
-    const nextIndex = routeStepIndex !== -1 ? routeStepIndex : findFirstPendingStepIndex(progress);
+    const firstRouteStepIndex = findFirstStepIndexForRoute(location.pathname);
+    const nextIndex =
+      routeStepIndex !== -1
+        ? routeStepIndex
+        : firstRouteStepIndex !== -1
+          ? firstRouteStepIndex
+          : findFirstPendingStepIndex(progress);
     const nextStep = PRODUCT_TOUR_STEPS[nextIndex] ?? PRODUCT_TOUR_STEPS[0];
 
     if (location.pathname !== nextStep.route) {
@@ -294,23 +311,24 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
 
   const restartTour = useCallback(async () => {
     missingTargetStepIdsRef.current.clear();
-
-    if (location.pathname !== PRODUCT_TOUR_STEPS[0].route) {
-      navigate(PRODUCT_TOUR_STEPS[0].route, { replace: false });
-    }
+    setCurrentRect(null);
+    const routeStepIds = getStepIdsForRoute(location.pathname);
+    const firstRouteStepIndex = findFirstStepIndexForRoute(location.pathname);
 
     await persistProgress(
-      () => ({
-        currentStep: 0,
-        completedSteps: [],
-        skippedSteps: [],
+      (current) => ({
+        ...current,
+        currentStep: firstRouteStepIndex !== -1 ? firstRouteStepIndex : current.currentStep,
+        completedSteps: current.completedSteps.filter((step) => !routeStepIds.includes(step)),
+        skippedSteps: current.skippedSteps.filter((step) => !routeStepIds.includes(step)),
         dismissed: false,
       }),
       { openAfterPersist: true },
     );
-  }, [location.pathname, navigate, persistProgress]);
+  }, [location.pathname, persistProgress]);
 
   const goToNextStep = useCallback(async () => {
+    setCurrentRect(null);
     await persistProgress(
       (current) => {
         const nextProgress = normalizeProgress({
@@ -338,6 +356,7 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    setCurrentRect(null);
     await persistProgress(
       (current) => ({
         ...current,
@@ -412,6 +431,7 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isOpen || !routeMatches(activeStep.route, location.pathname)) {
       setCurrentRect(null);
+      targetRetryCountRef.current = 0;
       return;
     }
 
@@ -419,14 +439,23 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
     let timeoutId = 0;
 
     const syncTarget = () => {
+      setCurrentRect(null);
       const element = getStepElement(activeStep);
 
       if (!element) {
-        timeoutId = window.setTimeout(() => {
-          void skipMissingTargetStep();
-        }, 250);
+        if (targetRetryCountRef.current >= 6) {
+          timeoutId = window.setTimeout(() => {
+            void skipMissingTargetStep();
+          }, 250);
+          return;
+        }
+
+        targetRetryCountRef.current += 1;
+        timeoutId = window.setTimeout(syncTarget, 250);
         return;
       }
+
+      targetRetryCountRef.current = 0;
 
       if (activeStep.autoScroll) {
         element.scrollIntoView({
@@ -446,6 +475,7 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
     window.addEventListener("scroll", syncTarget, true);
 
     return () => {
+      targetRetryCountRef.current = 0;
       window.cancelAnimationFrame(frameId);
       window.clearTimeout(timeoutId);
       window.removeEventListener("resize", syncTarget);

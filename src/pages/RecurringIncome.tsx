@@ -612,7 +612,7 @@ export default function RecurringIncomePage() {
         </DialogContent>
       </Dialog>
 
-      <div className="glass-card rounded-[28px] border border-border/40 p-4">
+      <div data-tour-id="recurring-income-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
             <TransactionsMonthYearFilter

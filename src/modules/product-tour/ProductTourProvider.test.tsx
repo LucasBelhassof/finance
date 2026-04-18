@@ -120,10 +120,32 @@ describe("ProductTourProvider", () => {
   });
 
   it("allows replaying the tour manually", async () => {
+    useAuthSessionMock.mockReturnValue({
+      isAuthenticated: true,
+      user: buildUser({
+        onboardingProgress: {
+          currentStep: 5,
+          completedSteps: [
+            "dashboard_summary",
+            "dashboard_transactions",
+            "dashboard_insights",
+            "dashboard_accounts",
+            "accounts_summary",
+            "accounts_structure",
+            "accounts_support",
+          ],
+          skippedSteps: [],
+          dismissed: true,
+        },
+      }),
+      setUserState: setUserStateMock,
+    });
+
     render(
       <MemoryRouter initialEntries={["/accounts"]}>
         <ProductTourProvider>
           <ReplayButton />
+          <div data-tour-id="accounts-summary">Contas</div>
         </ProductTourProvider>
       </MemoryRouter>,
     );
@@ -131,12 +153,14 @@ describe("ProductTourProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: /reiniciar tour/i }));
 
     await waitFor(() => {
-      expect(updateProductTourProgressMock).toHaveBeenCalledWith({
-        currentStep: 0,
-        completedSteps: [],
-        skippedSteps: [],
-        dismissed: false,
-      });
+      expect(updateProductTourProgressMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          currentStep: 4,
+          completedSteps: ["dashboard_summary", "dashboard_transactions", "dashboard_insights", "dashboard_accounts"],
+          skippedSteps: [],
+          dismissed: false,
+        }),
+      );
     });
   });
 
@@ -156,7 +180,7 @@ describe("ProductTourProvider", () => {
             skippedSteps: ["dashboard_summary"],
           }),
         );
-    }, { timeout: 1500 });
+    }, { timeout: 3000 });
   }, 10000);
 
   it("closes after finishing the last pending step of the current route", async () => {

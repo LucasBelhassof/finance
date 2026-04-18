@@ -127,7 +127,7 @@ function mapTransactionToForm(transaction: TransactionItem): TransactionFormStat
 function TransactionsSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div data-tour-id="transactions-summary" className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
           <div key={index} className="glass-card p-5">
             <Skeleton className="mb-4 h-4 w-24" />
@@ -135,11 +135,11 @@ function TransactionsSkeleton() {
           </div>
         ))}
       </div>
-      <div className="glass-card p-4">
+      <div data-tour-id="transactions-filters" className="glass-card p-4">
         <Skeleton className="h-11 w-full" />
       </div>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="glass-card p-5">
+        <div data-tour-id="transactions-table" className="glass-card p-5">
           <div className="space-y-4">
             {Array.from({ length: 7 }).map((_, index) => (
               <div key={index} className="flex items-center gap-4 rounded-xl p-3">
@@ -153,7 +153,7 @@ function TransactionsSkeleton() {
             ))}
           </div>
         </div>
-        <div className="glass-card p-5">
+        <div data-tour-id="transactions-categories" className="glass-card p-5">
           <div className="space-y-4">
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="flex items-center justify-between">
@@ -967,14 +967,14 @@ export default function TransactionsPage() {
           </div>
           <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.totalIncomes)}</p>
         </div>
-        <div data-tour-id="transactions-table" className="glass-card rounded-2xl border border-border/40 p-5">
+        <div className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">Total Despesas</p>
             <MetricInfoTooltip content="Soma de todas as transacoes de despesa visiveis com os filtros atuais de periodo, busca, tipo e categoria." />
           </div>
           <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summaryCardsData.totalExpenses)}</p>
         </div>
-        <div data-tour-id="transactions-categories" className="glass-card rounded-2xl border border-border/40 p-5">
+        <div className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">Saldo</p>
             <MetricInfoTooltip content="Resultado entre o total de receitas e o total de despesas dentro dos filtros aplicados na tela." />
@@ -1051,7 +1051,7 @@ export default function TransactionsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="glass-card rounded-2xl border border-border/40 p-5">
+        <div data-tour-id="transactions-table" className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-[1.35rem] font-semibold text-foreground sm:text-[1.7rem]">Todas as Transações</h2>
             <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
@@ -1079,7 +1079,7 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl border border-border/40 p-5">
+        <div data-tour-id="transactions-categories" className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="mb-6 flex items-center justify-between">
             <h3 className="text-[1.35rem] font-semibold text-foreground">Categorias</h3>
             <button

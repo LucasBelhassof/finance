@@ -27,7 +27,17 @@ function getCardPosition(rect: Rect, placement: ProductTourPlacement) {
   const spacing = 20;
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const maxWidth = Math.min(360, viewportWidth - 32);
+  const isMobile = viewportWidth < 768;
+  const maxWidth = isMobile ? Math.max(280, viewportWidth - 24) : Math.min(360, viewportWidth - 32);
+
+  if (isMobile) {
+    return {
+      top: Math.max(12, viewportHeight - 252),
+      left: 12,
+      width: maxWidth,
+    };
+  }
+
   let top = rect.top + rect.height + spacing;
   let left = rect.left;
 
@@ -102,7 +112,7 @@ export function ProductTourCoachMark({
       />
 
       <section
-        className="pointer-events-auto absolute rounded-3xl border border-primary/20 bg-card p-5 text-card-foreground shadow-2xl ring-1 ring-primary/10"
+        className="pointer-events-auto absolute rounded-3xl border border-primary/20 bg-card p-5 text-card-foreground shadow-2xl ring-1 ring-primary/10 max-md:rounded-[1.75rem] max-md:px-4 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] max-md:pt-4"
         style={{
           top: cardPosition.top,
           left: cardPosition.left,
@@ -131,16 +141,16 @@ export function ProductTourCoachMark({
 
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
 
-        <div className="mt-5 flex items-center justify-between gap-3">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs font-medium text-muted-foreground">
             Passo {currentStepIndex + 1} de {totalSteps}
           </span>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onBack} disabled={!canGoBack}>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={onBack} disabled={!canGoBack}>
               <ChevronLeft size={16} />
               Voltar
             </Button>
-            <Button size="sm" onClick={onNext}>
+            <Button size="sm" className="flex-1 sm:flex-none" onClick={onNext}>
               {isLastStep ? <CheckCircle2 size={16} /> : <ChevronRight size={16} />}
               {isLastStep ? "Concluir tour" : "Proximo"}
             </Button>

@@ -546,16 +546,6 @@ export default function ProfilePage() {
               <Button
                 variant="outline"
                 className="justify-start rounded-xl border-border/60 bg-secondary/20"
-                onClick={() => {
-                  void restartTour();
-                }}
-              >
-                <Lightbulb size={16} />
-                Fazer tour novamente
-              </Button>
-              <Button
-                variant="outline"
-                className="justify-start rounded-xl border-border/60 bg-secondary/20"
                 onClick={() => navigate(appRoutes.notifications)}
               >
                 <BellRing size={16} />

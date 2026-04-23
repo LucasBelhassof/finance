@@ -118,6 +118,13 @@ export interface ApiChatMessage {
   id?: number | string;
   role?: string;
   content?: string;
+  provider?: string | null;
+  model?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  totalTokens?: number | null;
+  requestCount?: number | null;
+  estimatedCostUsd?: number | null;
   createdAt?: string;
 }
 
@@ -697,6 +704,13 @@ export interface ChatMessage {
   id: number | string;
   role: ChatRole;
   content: string;
+  provider: string | null;
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  requestCount: number | null;
+  estimatedCostUsd: number | null;
   createdAt: string;
 }
 

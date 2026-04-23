@@ -32,6 +32,45 @@ function appendContinuation(previousText, nextText) {
   return `${left}${needsSpace ? " " : ""}${right}`;
 }
 
+function parsePricePerMillion(value) {
+  const parsed = Number.parseFloat(String(value ?? ""));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function sumNumeric(...values) {
+  return values.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0);
+}
+
+function normalizeInteger(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
+}
+
+function estimateUsageCost(usage, pricing) {
+  if (!pricing.inputPerMillion || !pricing.outputPerMillion) {
+    return null;
+  }
+
+  const inputCost = (usage.inputTokens / 1_000_000) * pricing.inputPerMillion;
+  const outputCost = (usage.outputTokens / 1_000_000) * pricing.outputPerMillion;
+  return Number((inputCost + outputCost).toFixed(8));
+}
+
+function mergeUsage(left, right) {
+  const merged = {
+    inputTokens: sumNumeric(left?.inputTokens, right?.inputTokens),
+    outputTokens: sumNumeric(left?.outputTokens, right?.outputTokens),
+    totalTokens: sumNumeric(left?.totalTokens, right?.totalTokens),
+    requestCount: sumNumeric(left?.requestCount, right?.requestCount),
+  };
+
+  if (!merged.totalTokens) {
+    merged.totalTokens = merged.inputTokens + merged.outputTokens;
+  }
+
+  return merged;
+}
+
 export function getDirectChatProviderConfig() {
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim() || "";
   const geminiApiKey = process.env.GEMINI_API_KEY?.trim() || "";
@@ -48,6 +87,16 @@ export function getDirectChatProviderConfig() {
     model: process.env.CHAT_AI_MODEL?.trim() || "",
     timeoutMs: parseTimeoutMs(process.env.CHAT_AI_TIMEOUT_MS),
     maxResponseTokens: parseMaxResponseTokens(process.env.CHAT_AI_MAX_RESPONSE_TOKENS),
+    pricing: {
+      gemini: {
+        inputPerMillion: parsePricePerMillion(process.env.CHAT_AI_PRICING_GEMINI_INPUT_PER_MILLION),
+        outputPerMillion: parsePricePerMillion(process.env.CHAT_AI_PRICING_GEMINI_OUTPUT_PER_MILLION),
+      },
+      openai: {
+        inputPerMillion: parsePricePerMillion(process.env.CHAT_AI_PRICING_OPENAI_INPUT_PER_MILLION),
+        outputPerMillion: parsePricePerMillion(process.env.CHAT_AI_PRICING_OPENAI_OUTPUT_PER_MILLION),
+      },
+    },
     openAiApiKey,
     geminiApiKey,
   };
@@ -182,6 +231,12 @@ export function extractChatResponse(provider, responseBody) {
     return {
       text,
       truncated: finishReason === "MAX_TOKENS",
+      usage: {
+        inputTokens: normalizeInteger(responseBody?.usageMetadata?.promptTokenCount),
+        outputTokens: normalizeInteger(responseBody?.usageMetadata?.candidatesTokenCount),
+        totalTokens: normalizeInteger(responseBody?.usageMetadata?.totalTokenCount),
+        requestCount: 1,
+      },
     };
   }
 
@@ -196,6 +251,12 @@ export function extractChatResponse(provider, responseBody) {
     return {
       text: message.content.trim(),
       truncated: responseBody?.choices?.[0]?.finish_reason === "length",
+      usage: {
+        inputTokens: normalizeInteger(responseBody?.usage?.prompt_tokens),
+        outputTokens: normalizeInteger(responseBody?.usage?.completion_tokens),
+        totalTokens: normalizeInteger(responseBody?.usage?.total_tokens),
+        requestCount: 1,
+      },
     };
   }
 
@@ -214,6 +275,12 @@ export function extractChatResponse(provider, responseBody) {
   return {
     text: partsText || message.content.trim(),
     truncated: responseBody?.choices?.[0]?.finish_reason === "length",
+    usage: {
+      inputTokens: normalizeInteger(responseBody?.usage?.prompt_tokens),
+      outputTokens: normalizeInteger(responseBody?.usage?.completion_tokens),
+      totalTokens: normalizeInteger(responseBody?.usage?.total_tokens),
+      requestCount: 1,
+    },
   };
 }
 
@@ -227,11 +294,19 @@ export async function requestDirectChatReply(payload) {
     content: reply.text,
     provider: config.provider,
     model: config.model || (config.provider === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+    usage: reply.usage,
+    estimatedCostUsd: estimateUsageCost(reply.usage, config.pricing[config.provider]),
   };
 }
 
 export async function requestDirectChatReplyByProvider(payload, provider, config = getDirectChatProviderConfig()) {
   let accumulatedContent = "";
+  let accumulatedUsage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    requestCount: 0,
+  };
   let continuationCount = 0;
   let currentPayload = payload;
 
@@ -241,12 +316,15 @@ export async function requestDirectChatReplyByProvider(payload, provider, config
     const reply = extractChatResponse(provider, responseBody);
 
     accumulatedContent = appendContinuation(accumulatedContent, reply.text);
+    accumulatedUsage = mergeUsage(accumulatedUsage, reply.usage);
 
     if (!reply.truncated) {
       return {
         content: accumulatedContent,
         provider,
         model: config.model || (provider === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+        usage: accumulatedUsage,
+        estimatedCostUsd: estimateUsageCost(accumulatedUsage, config.pricing[provider]),
       };
     }
 
@@ -271,5 +349,7 @@ export async function requestDirectChatReplyByProvider(payload, provider, config
     content: accumulatedContent,
     provider,
     model: config.model || (provider === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+    usage: accumulatedUsage,
+    estimatedCostUsd: estimateUsageCost(accumulatedUsage, config.pricing[provider]),
   };
 }

@@ -676,6 +676,13 @@ export function mapChatMessage(message: ApiChatMessage): ChatMessage {
     id: message.id ?? `${normalizeChatRole(message.role)}-${safeString(message.createdAt, "0")}`,
     role: normalizeChatRole(message.role),
     content: safeString(message.content, "Sem conteudo"),
+    provider: safeString(message.provider, "") || null,
+    model: safeString(message.model, "") || null,
+    inputTokens: typeof message.inputTokens === "number" ? message.inputTokens : null,
+    outputTokens: typeof message.outputTokens === "number" ? message.outputTokens : null,
+    totalTokens: typeof message.totalTokens === "number" ? message.totalTokens : null,
+    requestCount: typeof message.requestCount === "number" ? message.requestCount : null,
+    estimatedCostUsd: typeof message.estimatedCostUsd === "number" ? message.estimatedCostUsd : null,
     createdAt: safeString(message.createdAt, new Date(0).toISOString()),
   };
 }

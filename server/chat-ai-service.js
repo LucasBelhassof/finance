@@ -39,6 +39,13 @@ export async function generateChatReply(payload) {
       content: buildFallbackReply(payload.message, payload.context),
       provider: "local",
       model: "rule-based-fallback",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        requestCount: 0,
+      },
+      estimatedCostUsd: 0,
     };
   }
 

@@ -2386,9 +2386,31 @@ export async function listChatMessages(userId, limit = 20) {
   const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
     `
-      SELECT id, role, content, created_at
+      SELECT
+        id,
+        role,
+        content,
+        provider,
+        model,
+        input_tokens,
+        output_tokens,
+        total_tokens,
+        request_count,
+        estimated_cost_usd,
+        created_at
       FROM (
-        SELECT id, role, content, created_at
+        SELECT
+          id,
+          role,
+          content,
+          provider,
+          model,
+          input_tokens,
+          output_tokens,
+          total_tokens,
+          request_count,
+          estimated_cost_usd,
+          created_at
         FROM chat_messages
         WHERE user_id = $1
         ORDER BY created_at DESC, id DESC
@@ -2399,12 +2421,19 @@ export async function listChatMessages(userId, limit = 20) {
     [resolvedUserId, limit],
   );
 
-  return result.rows.map((row) => ({
-    id: row.id,
-    role: row.role,
-    content: row.content,
-    createdAt: row.created_at,
-  }));
+    return result.rows.map((row) => ({
+      id: row.id,
+      role: row.role,
+      content: row.content,
+      provider: row.provider ?? null,
+      model: row.model ?? null,
+      inputTokens: row.input_tokens === null ? null : Number(row.input_tokens),
+      outputTokens: row.output_tokens === null ? null : Number(row.output_tokens),
+      totalTokens: row.total_tokens === null ? null : Number(row.total_tokens),
+      requestCount: row.request_count === null ? null : Number(row.request_count),
+      estimatedCostUsd: row.estimated_cost_usd === null ? null : Number.parseFloat(row.estimated_cost_usd),
+      createdAt: row.created_at,
+    }));
 }
 
 async function listChatContextTransactions(userId, limit = 40) {
@@ -2498,14 +2527,47 @@ async function buildChatAdvisorContext(userId) {
   };
 }
 
-async function insertChatMessage(userId, role, content) {
+async function insertChatMessage(userId, role, content, metadata = {}) {
   const result = await pool.query(
     `
-      INSERT INTO chat_messages (user_id, role, content)
-      VALUES ($1, $2, $3)
-      RETURNING id, role, content, created_at
+      INSERT INTO chat_messages (
+        user_id,
+        role,
+        content,
+        provider,
+        model,
+        input_tokens,
+        output_tokens,
+        total_tokens,
+        request_count,
+        estimated_cost_usd
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING
+        id,
+        role,
+        content,
+        provider,
+        model,
+        input_tokens,
+        output_tokens,
+        total_tokens,
+        request_count,
+        estimated_cost_usd,
+        created_at
     `,
-    [userId, role, content],
+    [
+      userId,
+      role,
+      content,
+      metadata.provider ?? null,
+      metadata.model ?? null,
+      metadata.inputTokens ?? null,
+      metadata.outputTokens ?? null,
+      metadata.totalTokens ?? null,
+      metadata.requestCount ?? null,
+      metadata.estimatedCostUsd ?? null,
+    ],
   );
 
   const row = result.rows[0];
@@ -2514,6 +2576,13 @@ async function insertChatMessage(userId, role, content) {
     id: row.id,
     role: row.role,
     content: row.content,
+    provider: row.provider ?? null,
+    model: row.model ?? null,
+    inputTokens: row.input_tokens === null ? null : Number(row.input_tokens),
+    outputTokens: row.output_tokens === null ? null : Number(row.output_tokens),
+    totalTokens: row.total_tokens === null ? null : Number(row.total_tokens),
+    requestCount: row.request_count === null ? null : Number(row.request_count),
+    estimatedCostUsd: row.estimated_cost_usd === null ? null : Number.parseFloat(row.estimated_cost_usd),
     createdAt: row.created_at,
   };
 }
@@ -2527,14 +2596,22 @@ export async function createChatReply(userId, message) {
     content: item.content,
     createdAt: item.createdAt,
   }));
-  const { content: assistantContent } = await generateChatReply({
+  const assistantReply = await generateChatReply({
     message,
     generatedAt: new Date().toISOString(),
     context,
     history: recentHistory,
   });
 
-  const assistantMessage = await insertChatMessage(resolvedUserId, "assistant", assistantContent);
+  const assistantMessage = await insertChatMessage(resolvedUserId, "assistant", assistantReply.content, {
+    provider: assistantReply.provider,
+    model: assistantReply.model,
+    inputTokens: assistantReply.usage?.inputTokens ?? null,
+    outputTokens: assistantReply.usage?.outputTokens ?? null,
+    totalTokens: assistantReply.usage?.totalTokens ?? null,
+    requestCount: assistantReply.usage?.requestCount ?? null,
+    estimatedCostUsd: assistantReply.estimatedCostUsd ?? null,
+  });
 
   return {
     userMessage,

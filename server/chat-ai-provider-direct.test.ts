@@ -74,6 +74,12 @@ describe("chat-ai-provider-direct", () => {
     ).toEqual({
       text: "Corte 10% em restaurantes nesta semana.",
       truncated: false,
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        requestCount: 1,
+      },
     });
   });
 
@@ -91,6 +97,12 @@ describe("chat-ai-provider-direct", () => {
     ).toEqual({
       text: "Revise assinaturas e defina um teto semanal.",
       truncated: false,
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        requestCount: 1,
+      },
     });
   });
 
@@ -111,6 +123,11 @@ describe("chat-ai-provider-direct", () => {
                 },
               },
             ],
+            usage: {
+              prompt_tokens: 110,
+              completion_tokens: 24,
+              total_tokens: 134,
+            },
           }),
       }),
     );
@@ -119,6 +136,13 @@ describe("chat-ai-provider-direct", () => {
       content: "Seu maior gasto esta em moradia. Posso montar um plano para 30 dias.",
       provider: "openai",
       model: "gpt-4o-mini",
+      usage: {
+        inputTokens: 110,
+        outputTokens: 24,
+        totalTokens: 134,
+        requestCount: 1,
+      },
+      estimatedCostUsd: null,
     });
   });
 
@@ -139,6 +163,11 @@ describe("chat-ai-provider-direct", () => {
                 },
               },
             ],
+            usageMetadata: {
+              promptTokenCount: 90,
+              candidatesTokenCount: 22,
+              totalTokenCount: 112,
+            },
           }),
       }),
     );
@@ -147,6 +176,13 @@ describe("chat-ai-provider-direct", () => {
       content: "Seu fluxo de caixa pede cautela com parcelamentos novos.",
       provider: "gemini",
       model: "gemini-2.5-flash",
+      usage: {
+        inputTokens: 90,
+        outputTokens: 22,
+        totalTokens: 112,
+        requestCount: 1,
+      },
+      estimatedCostUsd: null,
     });
   });
 
@@ -177,6 +213,11 @@ describe("chat-ai-provider-direct", () => {
                 },
               },
             ],
+            usageMetadata: {
+              promptTokenCount: 50,
+              candidatesTokenCount: 10,
+              totalTokenCount: 60,
+            },
           }),
       }),
     );
@@ -185,6 +226,13 @@ describe("chat-ai-provider-direct", () => {
       content: "Resposta Gemini.",
       provider: "gemini",
       model: "gemini-2.5-flash",
+      usage: {
+        inputTokens: 50,
+        outputTokens: 10,
+        totalTokens: 60,
+        requestCount: 1,
+      },
+      estimatedCostUsd: null,
     });
   });
 
@@ -207,6 +255,11 @@ describe("chat-ai-provider-direct", () => {
                   },
                 },
               ],
+              usage: {
+                prompt_tokens: 100,
+                completion_tokens: 30,
+                total_tokens: 130,
+              },
             }),
         })
         .mockResolvedValueOnce({
@@ -221,6 +274,11 @@ describe("chat-ai-provider-direct", () => {
                   },
                 },
               ],
+              usage: {
+                prompt_tokens: 40,
+                completion_tokens: 15,
+                total_tokens: 55,
+              },
             }),
         }),
     );
@@ -229,6 +287,13 @@ describe("chat-ai-provider-direct", () => {
       content: "Plano de viagem: reserve 20% da renda mensal e reduza gastos variaveis para acumular a meta ate dezembro.",
       provider: "openai",
       model: "gpt-4o-mini",
+      usage: {
+        inputTokens: 140,
+        outputTokens: 45,
+        totalTokens: 185,
+        requestCount: 2,
+      },
+      estimatedCostUsd: null,
     });
   });
 });

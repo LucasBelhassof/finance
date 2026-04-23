@@ -3,7 +3,7 @@ import { ArrowDownCircle } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
 import SpendingChart from "@/components/SpendingChart";
-import type { BankItem, TransactionItem } from "@/types/api";
+import type { BankItem, SpendingItem, TransactionItem } from "@/types/api";
 
 const banks: BankItem[] = [
   {
@@ -177,6 +177,25 @@ const transactions: TransactionItem[] = [
   },
 ];
 
+const spendingItems: SpendingItem[] = [
+  {
+    slug: "moradia",
+    label: "Moradia",
+    color: "bg-primary",
+    total: 1000,
+    formattedTotal: "R$ 1.000,00",
+    percentage: 56,
+  },
+  {
+    slug: "alimentacao",
+    label: "Alimentacao",
+    color: "bg-warning",
+    total: 800,
+    formattedTotal: "R$ 800,00",
+    percentage: 44,
+  },
+];
+
 describe("SpendingChart", () => {
   it("renders the aggregated legend for all accounts by default", () => {
     render(<SpendingChart transactions={transactions} banks={banks} />);
@@ -221,5 +240,15 @@ describe("SpendingChart", () => {
     expect(within(listbox).getByText("Nubank")).toBeInTheDocument();
     expect(within(listbox).getByText("Cartao Visa")).toBeInTheDocument();
     expect(within(listbox).getByText("Caixa")).toBeInTheDocument();
+  });
+
+  it("renders precomputed spending items without showing the account selector", () => {
+    render(<SpendingChart spendingItems={spendingItems} banks={banks} />);
+
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.getByText("Moradia")).toBeInTheDocument();
+    expect(screen.getByText("Alimentacao")).toBeInTheDocument();
+    expect(screen.getByText("R$ 1.000,00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 800,00")).toBeInTheDocument();
   });
 });

@@ -9,11 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { BankItem, TransactionItem } from "@/types/api";
+import type { BankItem, SpendingItem, TransactionItem } from "@/types/api";
 
 interface SpendingChartProps {
   transactions?: TransactionItem[];
   banks?: BankItem[];
+  spendingItems?: SpendingItem[];
   isLoading?: boolean;
   isError?: boolean;
 }
@@ -43,9 +44,21 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export default function SpendingChart({ transactions = [], banks = [], isLoading, isError }: SpendingChartProps) {
+export default function SpendingChart({ transactions = [], banks = [], spendingItems = [], isLoading, isError }: SpendingChartProps) {
   const [selectedBankId, setSelectedBankId] = useState("all");
+  const hasPrecomputedItems = spendingItems.length > 0;
   const chartData = useMemo<CategoryPieChartItem[]>(() => {
+    if (hasPrecomputedItems) {
+      return spendingItems.map((item) => ({
+        id: item.slug,
+        label: item.label,
+        color: item.color,
+        total: item.total,
+        formattedTotal: item.formattedTotal,
+        percentage: item.percentage,
+      }));
+    }
+
     type GroupedSpendingItem = {
       slug: string;
       label: string;
@@ -91,7 +104,7 @@ export default function SpendingChart({ transactions = [], banks = [], isLoading
         formattedTotal: formatCurrency(item.total),
         percentage: totalExpenses > 0 ? Math.round((item.total / totalExpenses) * 100) : 0,
       }));
-  }, [selectedBankId, transactions]);
+  }, [hasPrecomputedItems, selectedBankId, spendingItems, transactions]);
 
   if (isLoading) {
     return <SpendingChartSkeleton />;
@@ -101,26 +114,28 @@ export default function SpendingChart({ transactions = [], banks = [], isLoading
     <div className="glass-card animate-fade-in p-4 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="font-semibold text-foreground">Gastos por Categoria</h3>
-        <Select value={selectedBankId} onValueChange={setSelectedBankId}>
-          <SelectTrigger className="h-9 w-full rounded-xl border-border/60 bg-secondary/35 text-xs sm:w-[180px]">
-            <SelectValue placeholder="Todas as contas" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as contas</SelectItem>
-            {banks.map((bank) => (
-              <SelectItem key={bank.id} value={String(bank.id)}>
-                {bank.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!hasPrecomputedItems ? (
+          <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+            <SelectTrigger className="h-9 w-full rounded-xl border-border/60 bg-secondary/35 text-xs sm:w-[180px]">
+              <SelectValue placeholder="Todas as contas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as contas</SelectItem>
+              {banks.map((bank) => (
+                <SelectItem key={bank.id} value={String(bank.id)}>
+                  {bank.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
       </div>
 
       {!chartData.length ? (
         <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
           {isError
             ? "Nao foi possivel carregar o consolidado por categoria."
-            : selectedBankId === "all"
+            : hasPrecomputedItems || selectedBankId === "all"
               ? "Ainda nao existem gastos categorizados para exibir."
               : "Nao ha despesas categorizadas para a conta selecionada."}
         </div>

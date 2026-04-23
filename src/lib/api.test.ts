@@ -1,7 +1,9 @@
 import { CircleHelp } from "lucide-react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  configureApiAuth,
+  getDashboard,
   mapImportAiSuggestionsResponse,
   mapImportCommitResponse,
   mapImportPreviewResponse,
@@ -13,6 +15,52 @@ import {
 } from "@/lib/api";
 
 describe("api mappers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    configureApiAuth({
+      getAccessToken: () => null,
+      onAuthFailure: () => undefined,
+      refreshAccessToken: async () => null,
+    });
+  });
+
+  it("requests dashboard data with date filters when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          user: {
+            id: 1,
+            name: "Lucas",
+            email: "lucas@email.com",
+          },
+          referenceMonth: "2026-04",
+          summaryCards: [],
+          recentTransactions: [],
+          spendingByCategory: [],
+          insights: [],
+          banks: [],
+          chatMessages: [],
+        }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getDashboard({
+      startDate: "2026-04-01",
+      endDate: "2026-04-15",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/dashboard?startDate=2026-04-01&endDate=2026-04-15"),
+      expect.objectContaining({
+        credentials: "include",
+      }),
+    );
+  });
+
   it("maps transactions and falls back to a safe icon", () => {
     const transaction = mapTransaction({
       id: 12,

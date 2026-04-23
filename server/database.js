@@ -18,6 +18,7 @@ import {
 import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.js";
 import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
+import { normalizeDashboardFilters, shiftDashboardDateKey } from "./dashboard-filters.js";
 import { generateChatReply } from "./chat-ai-service.js";
 import { buildTransactionCategorySyncPlan } from "./transaction-update.js";
 import {
@@ -379,6 +380,74 @@ export async function getSummaryCards(userId) {
   });
 }
 
+async function getDashboardSummaryCardsWithFilters(userId, filters) {
+  const resolvedUserId = await requireUserId(userId);
+  const normalizedFilters = normalizeDashboardFilters(filters);
+
+  if (!normalizedFilters.active) {
+    return getSummaryCards(resolvedUserId);
+  }
+
+  const endDateExclusive = shiftDashboardDateKey(normalizedFilters.endDate, 1);
+  const previousEndDateExclusive = shiftDashboardDateKey(normalizedFilters.previousEndDate, 1);
+  const [transactionBalanceResult, monthlyTotalsResult] = await Promise.all([
+    pool.query(
+      `
+        SELECT COALESCE(SUM(amount), 0)::NUMERIC(12, 2) AS transaction_balance
+        FROM transactions
+        WHERE user_id = $1
+          AND occurred_on <= $2
+      `,
+      [resolvedUserId, normalizedFilters.endDate],
+    ),
+    pool.query(
+      `
+        SELECT
+          t.id,
+          t.amount,
+          t.occurred_on,
+          t.is_recurring,
+          t.recurrence_ends_on
+        FROM transactions t
+        WHERE t.user_id = $1
+          AND (
+            t.occurred_on >= $2
+            OR (t.is_recurring = TRUE AND t.amount > 0 AND t.occurred_on < $3)
+          )
+      `,
+      [resolvedUserId, normalizedFilters.previousStartDate, endDateExclusive],
+    ),
+  ]);
+
+  const projectedRows = buildTransactionRowsWithRecurringProjections(monthlyTotalsResult.rows, {
+    projectionEndDate: normalizedFilters.endDate,
+  }).filter((row) => {
+    const occurredOn = normalizeDateValue(row.occurred_on);
+    return occurredOn >= normalizedFilters.previousStartDate && occurredOn <= normalizedFilters.endDate;
+  });
+
+  const totals = calculateMonthlyTotalsFromRows(
+    projectedRows,
+    {
+      start: normalizedFilters.startDate,
+      end: endDateExclusive,
+    },
+    {
+      start: normalizedFilters.previousStartDate,
+      end: previousEndDateExclusive,
+    },
+  );
+
+  return buildDashboardSummaryCards({
+    currentBalance: transactionBalanceResult.rows[0]?.transaction_balance ?? 0,
+    hasConfiguredBalance: true,
+    currentIncome: totals.currentIncome,
+    currentExpenses: totals.currentExpenses,
+    previousIncome: totals.previousIncome,
+    previousExpenses: totals.previousExpenses,
+  });
+}
+
 export async function listBanks(userId) {
   const resolvedUserId = await requireUserId(userId);
   const result = await pool.query(
@@ -570,8 +639,65 @@ export async function deleteBankConnection(userId, bankConnectionId) {
   }
 }
 
-export async function listRecentTransactions(userId, limit = 8) {
+export async function listRecentTransactions(userId, limit = 8, filters = {}) {
   const resolvedUserId = await requireUserId(userId);
+  const normalizedFilters = normalizeDashboardFilters(filters);
+
+  if (normalizedFilters.active) {
+    const endDateExclusive = shiftDashboardDateKey(normalizedFilters.endDate, 1);
+    const result = await pool.query(
+      `
+        SELECT
+          t.id,
+          t.description,
+          t.amount,
+          t.occurred_on,
+          t.housing_id,
+          t.installment_purchase_id,
+          t.installment_number,
+          b.id AS bank_connection_id,
+          b.slug AS bank_slug,
+          b.name AS bank_name,
+          b.account_type AS bank_account_type,
+          b.color AS bank_color,
+          c.id AS category_id,
+          c.slug AS category_slug,
+          c.label AS category_label,
+          c.icon AS category_icon,
+          c.color AS category_color,
+          c.group_slug,
+          c.group_label,
+          c.group_color,
+          t.is_recurring,
+          t.recurrence_ends_on,
+          ip.installment_count,
+          ip.purchase_occurred_on
+        FROM transactions t
+        INNER JOIN bank_connections b ON b.id = t.bank_connection_id
+        INNER JOIN categories c ON c.id = t.category_id
+        LEFT JOIN installment_purchases ip ON ip.id = t.installment_purchase_id
+        WHERE t.user_id = $1
+          AND (
+            t.occurred_on >= $2
+            OR (t.is_recurring = TRUE AND t.amount > 0 AND t.occurred_on < $3)
+          )
+        ORDER BY t.occurred_on DESC, t.id DESC
+      `,
+      [resolvedUserId, normalizedFilters.startDate, endDateExclusive],
+    );
+
+    const filteredRows = buildTransactionRowsWithRecurringProjections(result.rows, {
+      projectionEndDate: normalizedFilters.endDate,
+    })
+      .filter((row) => {
+        const occurredOn = normalizeDateValue(row.occurred_on);
+        return occurredOn >= normalizedFilters.startDate && occurredOn <= normalizedFilters.endDate;
+      })
+      .slice(0, limit);
+
+    return mapTransactionRows(filteredRows);
+  }
+
   const result = await pool.query(
     `
       SELECT
@@ -2354,8 +2480,41 @@ export async function commitTransactionImport(userId, input) {
   };
 }
 
-export async function listSpendingByCategory(userId) {
+export async function listSpendingByCategory(userId, filters = {}) {
   const resolvedUserId = await requireUserId(userId);
+  const normalizedFilters = normalizeDashboardFilters(filters);
+
+  if (normalizedFilters.active) {
+    const totalsResult = await pool.query(
+      `
+        SELECT
+          c.group_slug,
+          c.group_label,
+          c.group_color,
+          ABS(SUM(t.amount))::NUMERIC(12, 2) AS total
+        FROM transactions t
+        INNER JOIN categories c ON c.id = t.category_id
+        WHERE t.user_id = $1
+          AND t.amount < 0
+          AND t.occurred_on BETWEEN $2 AND $3
+        GROUP BY c.group_slug, c.group_label, c.group_color
+        ORDER BY total DESC, c.group_label ASC
+      `,
+      [resolvedUserId, normalizedFilters.startDate, normalizedFilters.endDate],
+    );
+
+    const totalSpent = totalsResult.rows.reduce((acc, row) => acc + parseNumeric(row.total), 0);
+
+    return totalsResult.rows.map((row) => ({
+      slug: row.group_slug,
+      label: row.group_label,
+      color: row.group_color,
+      total: parseNumeric(row.total),
+      formattedTotal: formatCurrency(row.total),
+      percentage: totalSpent > 0 ? Math.round((parseNumeric(row.total) / totalSpent) * 100) : 0,
+    }));
+  }
+
   const totalsResult = await pool.query(
     `
       WITH latest_month AS (
@@ -2634,9 +2793,10 @@ export async function createChatReply(userId, message) {
   };
 }
 
-export async function getDashboardData(userId) {
+export async function getDashboardData(userId, filters = {}) {
   const resolvedUserId = await requireUserId(userId);
   const user = await getUserById(resolvedUserId);
+  const normalizedFilters = normalizeDashboardFilters(filters);
 
   if (!user) {
     throw new Error("user not found");
@@ -2644,9 +2804,9 @@ export async function getDashboardData(userId) {
 
   const [summaryCards, recentTransactions, spendingByCategory, banks, chatMessages, snapshots] =
     await Promise.all([
-      getSummaryCards(resolvedUserId),
-      listRecentTransactions(resolvedUserId),
-      listSpendingByCategory(resolvedUserId),
+      normalizedFilters.active ? getDashboardSummaryCardsWithFilters(resolvedUserId, normalizedFilters) : getSummaryCards(resolvedUserId),
+      listRecentTransactions(resolvedUserId, 8, normalizedFilters),
+      listSpendingByCategory(resolvedUserId, normalizedFilters),
       listBanks(resolvedUserId),
       listChatMessages(resolvedUserId),
       getReferenceMonth(resolvedUserId),
@@ -2654,7 +2814,7 @@ export async function getDashboardData(userId) {
 
   return {
     user,
-    referenceMonth: normalizeDateValue(snapshots[0]?.month_start),
+    referenceMonth: normalizedFilters.active ? normalizedFilters.referenceDate.slice(0, 7) : normalizeDateValue(snapshots[0]?.month_start),
     summaryCards,
     recentTransactions,
     spendingByCategory,

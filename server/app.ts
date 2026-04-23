@@ -96,7 +96,10 @@ export function createApp() {
   app.use("/api/notifications", createNotificationsRouter());
 
   app.get("/api/dashboard", async (request, response) => {
-    const dashboard = await getDashboardData(getAuthenticatedUserId(request));
+    const dashboard = await getDashboardData(getAuthenticatedUserId(request), {
+      startDate: request.query.startDate as string | undefined,
+      endDate: request.query.endDate as string | undefined,
+    });
     response.json(dashboard);
   });
 

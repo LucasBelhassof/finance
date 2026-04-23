@@ -59,9 +59,12 @@ app.get("/api/health", async (_request, response, next) => {
   }
 });
 
-app.get("/api/dashboard", async (_request, response, next) => {
+app.get("/api/dashboard", async (request, response, next) => {
   try {
-    const dashboard = await getDashboardData();
+    const dashboard = await getDashboardData(undefined, {
+      startDate: request.query.startDate,
+      endDate: request.query.endDate,
+    });
     response.json(dashboard);
   } catch (error) {
     next(error);

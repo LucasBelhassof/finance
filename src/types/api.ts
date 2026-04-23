@@ -139,6 +139,11 @@ export interface ApiDashboardResponse {
   chatMessages?: ApiChatMessage[];
 }
 
+export interface DashboardFilters {
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export interface ApiTransactionsResponse {
   transactions?: ApiTransaction[];
 }

@@ -57,6 +57,7 @@ import type {
   CreateTransactionInput,
   DeleteTransactionInput,
   DashboardData,
+  DashboardFilters,
   HealthStatus,
   HousingExpenseType,
   HousingItem,
@@ -1002,8 +1003,13 @@ export function mapHealthResponse(response: ApiHealthResponse): HealthStatus {
   };
 }
 
-export async function getDashboard() {
-  const response = await request<ApiDashboardResponse>("/api/dashboard");
+export async function getDashboard(filters: DashboardFilters = {}) {
+  const response = await request<ApiDashboardResponse>(
+    buildPath("/api/dashboard", {
+      startDate: filters.startDate ?? undefined,
+      endDate: filters.endDate ?? undefined,
+    }),
+  );
   return mapDashboardResponse(response);
 }
 

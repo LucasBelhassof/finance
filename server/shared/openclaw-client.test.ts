@@ -198,4 +198,51 @@ describe("shared/openclaw-client", () => {
     });
     expect(MockWebSocket.instances).toHaveLength(1);
   });
+
+  it("fails clearly when the gateway token is missing operator.write scope", async () => {
+    process.env.OPENCLAW_BASE_URL = "wss://openclaw.test/ws";
+    process.env.OPENCLAW_API_KEY = "scope-limited-token";
+
+    const { sendMessage } = await import("./openclaw-client.js");
+
+    const promise = sendMessage("classifique");
+    await Promise.resolve();
+
+    const socket = MockWebSocket.instances[0];
+    const connectFrame = JSON.parse(socket.sent[0]);
+    socket.emit("message", {
+      data: JSON.stringify({
+        type: "res",
+        id: connectFrame.id,
+        ok: true,
+        payload: {
+          hello: true,
+        },
+      }),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const sendFrame = JSON.parse(socket.sent[1]);
+    socket.emit("message", {
+      data: JSON.stringify({
+        type: "res",
+        id: sendFrame.id,
+        ok: false,
+        error: {
+          message: "missing scope: operator.write",
+        },
+      }),
+    });
+
+    await expect(promise).rejects.toMatchObject({
+      code: "missing_gateway_scope",
+      message: "The configured OpenClaw gateway token does not have operator.write scope.",
+      details: {
+        method: "chat.send",
+      },
+    });
+    expect(MockWebSocket.instances).toHaveLength(1);
+  });
 });

@@ -206,6 +206,7 @@ function normalizeGatewayError(payload: JsonRecord, fallbackMethod = "unknown") 
   const message =
     (errorRecord && typeof errorRecord.message === "string" ? errorRecord.message : null) ??
     "OpenClaw gateway request failed.";
+  const normalizedMethod = details?.method ?? fallbackMethod;
 
   if (details?.code === "AUTH_TOKEN_MISMATCH") {
     return new OpenClawSocketError(
@@ -213,19 +214,35 @@ function normalizeGatewayError(payload: JsonRecord, fallbackMethod = "unknown") 
       "OPENCLAW_GATEWAY_TOKEN/OPENCLAW_API_KEY is invalid for the configured OpenClaw gateway.",
       {
         details,
-        method: details?.method ?? fallbackMethod,
+        method: normalizedMethod,
+      },
+    );
+  }
+
+  if (normalizedMethod === "chat.send" && message.includes("missing scope: operator.write")) {
+    return new OpenClawSocketError(
+      "missing_gateway_scope",
+      "The configured OpenClaw gateway token does not have operator.write scope.",
+      {
+        details,
+        method: normalizedMethod,
       },
     );
   }
 
   return new OpenClawSocketError("gateway_request_failed", message, {
     details,
-    method: details?.method ?? fallbackMethod,
+    method: normalizedMethod,
   });
 }
 
 function isNonRetryableOpenClawError(error: OpenClawSocketError) {
-  return error.code === "invalid_gateway_token" || error.code === "missing_api_key" || error.code === "missing_base_url";
+  return (
+    error.code === "invalid_gateway_token" ||
+    error.code === "missing_gateway_scope" ||
+    error.code === "missing_api_key" ||
+    error.code === "missing_base_url"
+  );
 }
 
 function parseChatEvent(payload: JsonRecord): ParsedChatEvent {

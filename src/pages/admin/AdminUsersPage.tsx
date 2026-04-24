@@ -10,21 +10,21 @@ export default function AdminUsersPage() {
   const { data, isLoading } = useAdminUsers();
 
   return (
-    <AdminLayout title="Usuarios" description="Listagem inicial da base com status, papel, premium e ultima sessao.">
+    <AdminLayout title="Usuários" description="Listagem inicial da base com status, papel, premium e última sessão.">
       <Card>
         <CardHeader>
-          <CardTitle>Base de usuarios</CardTitle>
+          <CardTitle>Base de usuários</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Usuario</TableHead>
+                <TableHead>Usuário</TableHead>
                 <TableHead>Papel</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Plano</TableHead>
-                <TableHead>Ultima sessao</TableHead>
-                <TableHead>Transacoes</TableHead>
+                <TableHead>Última sessão</TableHead>
+                <TableHead>Transações</TableHead>
                 <TableHead>Total liquido</TableHead>
               </TableRow>
             </TableHeader>
@@ -46,7 +46,7 @@ export default function AdminUsersPage() {
                   <TableCell>
                     <Badge variant={user.isPremium ? "default" : "outline"}>{user.isPremium ? "premium" : "free"}</Badge>
                   </TableCell>
-                  <TableCell>{user.lastSessionAt ? new Date(user.lastSessionAt).toLocaleString("pt-BR") : "Sem sessao"}</TableCell>
+                  <TableCell>{user.lastSessionAt ? new Date(user.lastSessionAt).toLocaleString("pt-BR") : "Sem sessão"}</TableCell>
                   <TableCell>{user.transactionCount}</TableCell>
                   <TableCell>{currencyFormatter.format(user.netTotal)}</TableCell>
                 </TableRow>
@@ -55,7 +55,7 @@ export default function AdminUsersPage() {
           </Table>
 
           {!isLoading && (data?.users?.length ?? 0) === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">Nenhum usuario encontrado para os filtros atuais.</p>
+            <p className="mt-4 text-sm text-muted-foreground">Nenhum usuário encontrado para os filtros atuais.</p>
           ) : null}
         </CardContent>
       </Card>

@@ -54,16 +54,16 @@ export default function InstallmentsFilters({
     <div className="glass-card rounded-2xl border border-border/40 p-4">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-4">
         <label className="space-y-1 text-sm text-muted-foreground">
-          <span>Cartao</span>
+          <span>Cartão</span>
           <Select
             value={filters.cardId}
             onValueChange={(value) => update("cardId", value)}
           >
             <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-              <SelectValue placeholder="Todos os cartoes" />
+              <SelectValue placeholder="Todos os cartões" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os cartoes</SelectItem>
+              <SelectItem value="all">Todos os cartões</SelectItem>
               {overview?.filterOptions.cards.map((card) => (
                 <SelectItem key={card.id} value={String(card.id)}>
                   {card.name}

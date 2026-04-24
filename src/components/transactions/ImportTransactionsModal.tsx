@@ -191,14 +191,14 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     if (!selectedFile) {
       toast.error(
         importSource === "credit_card_statement"
-          ? "Selecione uma fatura CSV ou PDF para gerar a previa."
-          : "Selecione um arquivo CSV para gerar a previa.",
+          ? "Selecione uma fatura CSV ou PDF para gerar a prévia."
+          : "Selecione um arquivo CSV para gerar a prévia.",
       );
       return;
     }
 
     if (!importSource || !bankConnectionId) {
-      toast.error("Escolha o tipo do arquivo e o banco ou conta antes de gerar a previa.");
+      toast.error("Escolha o tipo do arquivo e o banco ou conta antes de gerar a prévia.");
       return;
     }
 
@@ -223,7 +223,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
       toast.success("Previa gerada com sucesso.");
     } catch (error) {
-      toast.error("Nao foi possivel gerar a previa.", {
+      toast.error("Não foi possível gerar a prévia.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -290,7 +290,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       });
       toast.success("Categoria criada.");
     } catch (error) {
-      toast.error("Nao foi possivel criar a categoria.", {
+      toast.error("Não foi possível criar a categoria.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -370,7 +370,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       return;
     }
 
-    toast.error("Nao foi possivel concluir a importacao.", {
+    toast.error("Não foi possível concluir a importação.", {
       description: `Revise e tente novamente: ${failedFiles.join(", ")}.`,
     });
   };
@@ -426,9 +426,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
-                        <div className="font-medium">Fatura do cartao</div>
+                        <div className="font-medium">Fatura do cartão</div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          Compras entram como despesa e pagamento recebido sera ignorado por padrao.
+                          Compras entram como despesa e pagamento recebido será ignorado por padrão.
                         </div>
                       </button>
                     </div>
@@ -436,7 +436,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                     <Select value={bankConnectionId} onValueChange={setBankConnectionId}>
                       <SelectTrigger className="h-12 rounded-xl border-border/60 bg-card">
                         <SelectValue
-                          placeholder={importSource === "credit_card_statement" ? "Selecione o cartao" : "Selecione a conta bancaria"}
+                          placeholder={importSource === "credit_card_statement" ? "Selecione o cartão" : "Selecione a conta bancária"}
                         />
                       </SelectTrigger>
                       <SelectContent>
@@ -471,7 +471,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         </button>
                       </div>
                       <Button onClick={() => void handlePreview()} disabled={previewImport.isPending}>
-                        {previewImport.isPending ? "Gerando previa..." : "Gerar previa"}
+                        {previewImport.isPending ? "Gerando prévia..." : "Gerar prévia"}
                       </Button>
                     </div>
                   </div>
@@ -483,7 +483,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                           <span className="rounded-full bg-secondary px-3 py-1">
-                            {importSource === "credit_card_statement" ? "Fatura do cartao" : "Extrato bancario"}
+                            {importSource === "credit_card_statement" ? "Fatura do cartão" : "Extrato bancário"}
                           </span>
                           <span className="rounded-full bg-secondary px-3 py-1">
                             {previews[0]?.bankConnectionName ?? "Conta"}
@@ -508,7 +508,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <Button variant="outline" onClick={handleResetImport}>
-                          Nova importacao
+                          Nova importação
                         </Button>
                         <input
                           ref={inputRef}
@@ -523,10 +523,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         </Button>
                         <Button onClick={() => void handlePreview()} disabled={previewImport.isPending || !selectedFile}>
                           {previewImport.isPending
-                            ? "Gerando previa..."
+                            ? "Gerando prévia..."
                             : importSource === "credit_card_statement"
-                              ? "Gerar previa da fatura"
-                              : "Gerar previa do arquivo"}
+                              ? "Gerar prévia da fatura"
+                              : "Gerar prévia do arquivo"}
                         </Button>
                       </div>
                     </div>
@@ -592,7 +592,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         {previews.length > 1 ? "s" : ""}.
                       </p>
                       <p className="mt-1">
-                        A tabela abaixo substitui o resumo em cards e centraliza erros, duplicatas e acoes pendentes por linha.
+                        A tabela abaixo substitui o resumo em cards e centraliza erros, duplicatas e ações pendentes por linha.
                       </p>
                     </div>
                     <Button
@@ -651,7 +651,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
               Fechar
             </Button>
             <Button onClick={() => void handleCommit()} disabled={!previews.length || commitImport.isPending}>
-              {commitImport.isPending ? "Importando..." : "Confirmar importacao"}
+              {commitImport.isPending ? "Importando..." : "Confirmar importação"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -26,7 +26,7 @@ export default function InsightsPage() {
         <h2 className="text-lg font-semibold text-foreground">Insights em espera</h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Esta area foi mantida visivel, mas o recurso esta desligado porque ainda nao existe uma regra de negocio fechada para gerar insights confiaveis.
-          Enquanto isso, o chat usa os dados financeiros reais do usuario para analisar gastos, montar planos e orientar proximos passos.
+          Enquanto isso, o chat usa os dados financeiros reais do usuário para analisar gastos, montar planos e orientar próximos passos.
         </p>
         <div className="mt-5">
           <Button asChild>

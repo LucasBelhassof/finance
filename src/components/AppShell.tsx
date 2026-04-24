@@ -37,7 +37,7 @@ export default function AppShell({ title, description, children, showGreeting = 
                 <div className="min-w-0">
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary md:hidden">Navegacao</p>
                   <h1 className="text-xl font-bold text-foreground">
-                    {showGreeting ? `${title}, ${user?.name ?? "Usuario"} ` : title}
+                    {showGreeting ? `${title}, ${user?.name ?? "Usuário"} ` : title}
                     {showGreeting ? "\u{1F44B}" : null}
                   </h1>
                   <p className="text-sm text-muted-foreground">{description}</p>

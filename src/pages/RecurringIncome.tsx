@@ -443,7 +443,7 @@ export default function RecurringIncomePage() {
     const parsedAmount = Number(form.amount.replace(",", "."));
 
     if (!form.description.trim() || !Number.isFinite(parsedAmount) || !form.bankConnectionId || !form.categoryId || !form.occurredOn) {
-      toast.error("Preencha descricao, valor, conta, categoria e data.");
+      toast.error("Preencha descrição, valor, conta, categoria e data.");
       return;
     }
 
@@ -471,7 +471,7 @@ export default function RecurringIncomePage() {
       setDialogOpen(false);
       setForm(emptyRecurringIncomeForm(selectedMonthIndex, selectedYear));
     } catch (error) {
-      toast.error("Nao foi possivel salvar a receita recorrente.", {
+      toast.error("Não foi possível salvar a receita recorrente.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -491,7 +491,7 @@ export default function RecurringIncomePage() {
       setDialogOpen(false);
       toast.success("Receita recorrente removida.");
     } catch (error) {
-      toast.error("Nao foi possivel remover a receita recorrente.", {
+      toast.error("Não foi possível remover a receita recorrente.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -499,22 +499,22 @@ export default function RecurringIncomePage() {
 
   if (isLoading || isBanksLoading) {
     return (
-      <AppShell title="Receitas recorrentes" description="Controle recorrencias, previsao e distribuicao das receitas">
+      <AppShell title="Receitas recorrentes" description="Controle recorrências, previsão e distribuição das receitas">
         <RecurringIncomeSkeleton />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="Receitas recorrentes" description="Controle recorrencias, previsao e distribuicao das receitas">
+    <AppShell title="Receitas recorrentes" description="Controle recorrências, previsão e distribuição das receitas">
       <AlertDialog open={Boolean(deleteTargetId)} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
         <AlertDialogContent className="border-warning/20 bg-card">
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir receita recorrente?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `A ocorrencia de "${deleteTarget.description}" em ${deleteTarget.occurredOn.split("-").reverse().join("/")} sera removida.`
-                : "Essa ocorrencia sera removida."}
+                ? `A ocorrência de "${deleteTarget.description}" em ${deleteTarget.occurredOn.split("-").reverse().join("/")} será removida.`
+                : "Essa ocorrência será removida."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -537,14 +537,14 @@ export default function RecurringIncomePage() {
         <DialogContent className="max-w-[520px] border-border/70 bg-card p-6">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Editar receita recorrente" : "Nova receita recorrente"}</DialogTitle>
-            <DialogDescription>As alteracoes futuras respeitam o historico ja realizado.</DialogDescription>
+            <DialogDescription>As alterações futuras respeitam o histórico já realizado.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <Input
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Descricao"
+              placeholder="Descrição"
               className="h-11 rounded-xl border-border/60 bg-secondary/35"
             />
             <Input
@@ -665,7 +665,7 @@ export default function RecurringIncomePage() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar descricao, categoria ou conta..."
+                placeholder="Buscar descrição, categoria ou conta..."
                 className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
               />
             </div>
@@ -687,15 +687,15 @@ export default function RecurringIncomePage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Receitas no periodo</span>
-              <MetricInfoTooltip content="Soma de todas as ocorrencias de receitas recorrentes que caem dentro do periodo e dos filtros aplicados." />
+              <span className="text-sm text-muted-foreground">Receitas no período</span>
+              <MetricInfoTooltip content="Soma de todas as ocorrências de receitas recorrentes que caem dentro do período e dos filtros aplicados." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-income/10 text-income">
               <TrendingUp size={18} />
             </div>
           </div>
           <p className="text-[2rem] font-semibold text-income">{formatCurrency(totalIncome)}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{filteredTransactions.length} ocorrencias filtradas</p>
+          <p className="mt-2 text-sm text-muted-foreground">{filteredTransactions.length} ocorrências filtradas</p>
         </div>
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
@@ -715,8 +715,8 @@ export default function RecurringIncomePage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Media por ocorrencia</span>
-              <MetricInfoTooltip content="Media calculada dividindo o total de receitas recorrentes do recorte pela quantidade de ocorrencias filtradas." />
+              <span className="text-sm text-muted-foreground">Média por ocorrência</span>
+              <MetricInfoTooltip content="Média calculada dividindo o total de receitas recorrentes do recorte pela quantidade de ocorrências filtradas." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <Wallet size={18} />
@@ -729,8 +729,8 @@ export default function RecurringIncomePage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Proximas ocorrencias</span>
-              <MetricInfoTooltip content="Quantidade das tres primeiras ocorrencias recorrentes encontradas no periodo filtrado, ordenadas por data." />
+              <span className="text-sm text-muted-foreground">Próximas ocorrências</span>
+              <MetricInfoTooltip content="Quantidade das três primeiras ocorrências recorrentes encontradas no período filtrado, ordenadas por data." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <CalendarRange size={18} />
@@ -738,7 +738,7 @@ export default function RecurringIncomePage() {
           </div>
           <p className="text-[2rem] font-semibold text-foreground">{nextOccurrences.length}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {nextOccurrences[0] ? `${nextOccurrences[0].description} em ${nextOccurrences[0].occurredOn.split("-").reverse().join("/")}` : "Sem novas ocorrencias no periodo"}
+            {nextOccurrences[0] ? `${nextOccurrences[0].description} em ${nextOccurrences[0].occurredOn.split("-").reverse().join("/")}` : "Sem novas ocorrências no período"}
           </p>
         </div>
       </section>
@@ -754,7 +754,7 @@ export default function RecurringIncomePage() {
 
           {!trendSeries.length ? (
             <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-              {isError ? "Nao foi possivel carregar as receitas recorrentes agora." : "Nenhuma receita recorrente encontrada para os filtros atuais."}
+              {isError ? "Não foi possível carregar as receitas recorrentes agora." : "Nenhuma receita recorrente encontrada para os filtros atuais."}
             </div>
           ) : (
             <div className="h-[320px]">
@@ -778,14 +778,14 @@ export default function RecurringIncomePage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-5">
           <div className="mb-5">
-            <h2 className="text-xl font-semibold text-foreground">Distribuicao por categoria</h2>
-            <p className="text-sm text-muted-foreground">Onde as receitas recorrentes estao concentradas.</p>
+            <h2 className="text-xl font-semibold text-foreground">Distribuição por categoria</h2>
+            <p className="text-sm text-muted-foreground">Onde as receitas recorrentes estão concentradas.</p>
           </div>
           <CategoryPieChart
             items={categoryBreakdown}
             emptyMessage="Sem categorias para exibir nos filtros atuais."
             isError={isError}
-            emptyErrorMessage="Nao foi possivel carregar a distribuicao por categoria."
+            emptyErrorMessage="Não foi possível carregar a distribuição por categoria."
           />
         </div>
       </section>
@@ -797,7 +797,7 @@ export default function RecurringIncomePage() {
             <p className="text-sm text-muted-foreground">
               {isYearlyTable
                 ? "No filtro anual, a mesma receita e consolidada em uma unica linha."
-                : "Edite, exclua ou revise cada ocorrencia da recorrencia no periodo selecionado."}
+                : "Edite, exclua ou revise cada ocorrência da recorrência no período selecionado."}
             </p>
           </div>
           <div className="text-sm text-muted-foreground">{tableRows.length} linhas</div>
@@ -805,7 +805,7 @@ export default function RecurringIncomePage() {
 
         {!tableRows.length ? (
           <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-            {isError ? "Nao foi possivel carregar a tabela agora." : "Nenhuma receita recorrente encontrada para os filtros atuais."}
+            {isError ? "Não foi possível carregar a tabela agora." : "Nenhuma receita recorrente encontrada para os filtros atuais."}
           </div>
         ) : (
           <Table className="min-w-[940px]">

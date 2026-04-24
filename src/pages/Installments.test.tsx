@@ -285,7 +285,7 @@ describe("InstallmentsPage", () => {
     expect(screen.getByText("Compromisso mensal")).toBeInTheDocument();
     expect(screen.getAllByText("R$ 450,00").length).toBeGreaterThan(0);
     expect(screen.getByText("Notebook")).toBeInTheDocument();
-    expect(screen.getByText("Distribuicao por cartao")).toBeInTheDocument();
+    expect(screen.getByText("Distribuição por cartão")).toBeInTheDocument();
   });
 
   it("updates the view when filters change and shows empty state", () => {
@@ -396,7 +396,7 @@ describe("InstallmentsPage", () => {
 
     render(<InstallmentsPage />);
 
-    expect(screen.getByText("Nao foi possivel carregar os parcelamentos")).toBeInTheDocument();
+    expect(screen.getByText("Não foi possível carregar os parcelamentos")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(refetch).toHaveBeenCalled();
   });

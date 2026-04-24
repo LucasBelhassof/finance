@@ -76,7 +76,7 @@ export default function AiInsights({
   isError,
   showRecommendedActions = false,
   isDisabled = false,
-  disabledReason = "Os insights estao desabilitados ate a definicao da regra de negocio.",
+  disabledReason = "Os insights estão desabilitados até a definição da regra de negócio.",
 }: AiInsightsProps) {
   if (isDisabled) {
     return (
@@ -113,7 +113,7 @@ export default function AiInsights({
 
       {!insights.length ? (
         <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
-          {isError ? "Nao foi possivel carregar os insights agora." : "Nenhum insight disponivel por enquanto."}
+          {isError ? "Não foi possível carregar os insights agora." : "Nenhum insight disponível por enquanto."}
         </div>
       ) : (
         <div className="space-y-3">

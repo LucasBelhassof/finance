@@ -89,9 +89,9 @@ export default function ImportPreviewRow({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[260px] text-xs leading-relaxed">
-                    Esta linha sera expandida em {item.generatedInstallmentCount} despesa
+                    Esta linha será expandida em {item.generatedInstallmentCount} despesa
                     {item.generatedInstallmentCount > 1 ? "s" : ""} mensa
-                    {item.generatedInstallmentCount > 1 ? "is" : "l"} ao confirmar a importacao, incluindo parcelas anteriores.
+                    {item.generatedInstallmentCount > 1 ? "is" : "l"} ao confirmar a importação, incluindo parcelas anteriores.
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -102,12 +102,12 @@ export default function ImportPreviewRow({
         (item.suggestionSource === "history" || item.suggestionSource === "recurring_rule") &&
         item.suggestedCategoryLabel ? (
           <p className="mt-2 text-xs text-primary">
-            {item.suggestionSource === "history" ? "Historico do usuario" : "Regra recorrente"}:{" "}
+            {item.suggestionSource === "history" ? "Histórico do usuário" : "Regra recorrente"}:{" "}
             {item.type === "income" ? "Receita" : "Despesa"} - {item.suggestedCategoryLabel}
           </p>
         ) : null}
         {item.errors.length === 0 && draft.type === "expense" && !draft.categoryId ? (
-          <p className="mt-2 text-xs text-muted-foreground">Sem categoria definida, sera importada como Outros.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Sem categoria definida, será importada como Outros.</p>
         ) : null}
       </TableCell>
       <TableCell className="w-[132px] px-4 py-4 align-top">
@@ -183,7 +183,7 @@ export default function ImportPreviewRow({
               checked={draft.exclude}
               onCheckedChange={(checked) => onChange(previewToken, item.rowIndex, { exclude: checked === true })}
             />
-            Excluir da importacao
+            Excluir da importação
           </label>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <Checkbox

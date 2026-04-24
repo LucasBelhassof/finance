@@ -16,12 +16,12 @@ export default function InstallmentsInsights({ overview }: InstallmentsInsightsP
       <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <AlertTriangle size={16} className={concentration.triggered ? "text-warning" : "text-muted-foreground"} />
-          <h2 className="text-lg font-semibold text-foreground">Alerta de concentracao</h2>
+          <h2 className="text-lg font-semibold text-foreground">Alerta de concentração</h2>
         </div>
         <p className="text-sm leading-relaxed text-muted-foreground">
           {concentration.triggered && concentration.cardName
             ? `${concentration.cardName} concentra ${(concentration.shareRatio * 100).toFixed(1).replace(".", ",")}% do compromisso mensal, somando ${formatCurrency(concentration.monthlyAmount)}.`
-            : "Nenhum cartao excede o limite de 50% do compromisso mensal neste recorte."}
+            : "Nenhum cartão excede o limite de 50% do compromisso mensal neste recorte."}
         </p>
       </div>
 
@@ -32,8 +32,8 @@ export default function InstallmentsInsights({ overview }: InstallmentsInsightsP
         </div>
         <p className="text-sm leading-relaxed text-muted-foreground">
           {overview.payoffProjectionMonth
-            ? `Mantido o estado atual, voce deve ficar sem parcelamentos ativos a partir de ${formatMonthKey(overview.payoffProjectionMonth)}.`
-            : "Nao existem parcelamentos ativos no recorte atual."}
+            ? `Mantido o estado atual, você deve ficar sem parcelamentos ativos a partir de ${formatMonthKey(overview.payoffProjectionMonth)}.`
+            : "Não existem parcelamentos ativos no recorte atual."}
         </p>
       </div>
     </div>

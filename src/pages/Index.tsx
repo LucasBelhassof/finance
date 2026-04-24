@@ -52,7 +52,7 @@ export default function Index() {
   };
 
   return (
-    <AppShell title="Bom dia" description="Aqui esta o resumo das suas financas" showGreeting>
+    <AppShell title="Bom dia" description="Aqui está o resumo das suas finanças" showGreeting>
       <section data-tour-id="dashboard-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
@@ -93,7 +93,7 @@ export default function Index() {
               isLoading={isLoading}
               isError={isError}
               isDisabled
-              disabledReason="Os insights estao desabilitados ate a definicao da regra de negocio. Use o chat para analises financeiras por enquanto."
+              disabledReason="Os insights estão desabilitados até a definição da regra de negócio. Use o chat para análises financeiras por enquanto."
             />
           </div> */}
           <div className="h-[360px] sm:h-[420px]">

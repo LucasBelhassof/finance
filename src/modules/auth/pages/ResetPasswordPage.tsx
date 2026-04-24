@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
         <CardHeader className="space-y-2">
           <CardTitle className="text-3xl">Redefinir senha</CardTitle>
           <CardDescription className="text-sm leading-6">
-            Escolha uma nova senha para restaurar o acesso com seguranca.
+            Escolha uma nova senha para restaurar o acesso com segurança.
           </CardDescription>
         </CardHeader>
 

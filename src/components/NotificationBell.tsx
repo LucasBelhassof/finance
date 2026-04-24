@@ -79,12 +79,12 @@ export function NotificationBell() {
           <>
             <DropdownMenuSeparator className="bg-border/60" />
             <DropdownMenuItem onClick={() => navigate(appRoutes.notifications)}>
-              Ver central de notificacoes
+              Ver central de notificações
             </DropdownMenuItem>
           </>
         ) : null}
         {notifications.length === 0 ? (
-          <div className="p-4 text-sm text-muted-foreground">Sem notificacoes no momento.</div>
+          <div className="p-4 text-sm text-muted-foreground">Sem notificações no momento.</div>
         ) : null}
       </DropdownMenuContent>
     </DropdownMenu>

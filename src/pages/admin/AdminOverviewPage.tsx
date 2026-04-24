@@ -9,12 +9,12 @@ export default function AdminOverviewPage() {
   const { data, isLoading } = useAdminOverview();
 
   const cards = [
-    { label: "Usuarios", value: numberFormatter.format(data?.totals.totalUsers ?? 0) },
+    { label: "Usuários", value: numberFormatter.format(data?.totals.totalUsers ?? 0) },
     { label: "Ativos", value: numberFormatter.format(data?.totals.activeUsers ?? 0) },
     { label: "Premium", value: numberFormatter.format(data?.totals.premiumUsers ?? 0) },
     { label: "Online agora", value: numberFormatter.format(data?.totals.usersOnlineNow ?? 0) },
     { label: "Sessoes ativas", value: numberFormatter.format(data?.totals.activeSessions ?? 0) },
-    { label: "Transacoes", value: numberFormatter.format(data?.totals.totalTransactions ?? 0) },
+    { label: "Transações", value: numberFormatter.format(data?.totals.totalTransactions ?? 0) },
   ];
 
   return (
@@ -56,7 +56,7 @@ export default function AdminOverviewPage() {
             </div>
           ))}
           {!isLoading && (data?.signups?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum cadastro encontrado no periodo.</p>
+            <p className="text-sm text-muted-foreground">Nenhum cadastro encontrado no período.</p>
           ) : null}
         </CardContent>
       </Card>

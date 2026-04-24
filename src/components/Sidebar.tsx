@@ -54,7 +54,7 @@ const secondaryNavItems = [
 ];
 
 const expenseManagementItems = [
-  { label: "Transacoes", to: appRoutes.transactions },
+  { label: "Transações", to: appRoutes.transactions },
   { label: "Receitas recorrentes", to: appRoutes.expenseManagementRecurringIncome },
   { label: "Habitacao", to: appRoutes.expenseManagementHousing },
   { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
@@ -63,11 +63,11 @@ const expenseManagementItems = [
 
 const adminItems = [
   { label: "Visao geral", to: appRoutes.adminOverview },
-  { label: "Usuarios", to: appRoutes.adminUsers },
+  { label: "Usuários", to: appRoutes.adminUsers },
   { label: "Financeiro", to: appRoutes.adminFinancialMetrics },
   { label: "Assinaturas", to: appRoutes.adminSubscriptions },
   { label: "Atividade", to: appRoutes.adminActivity },
-  { label: "Notificacoes", to: appRoutes.adminNotifications },
+  { label: "Notificações", to: appRoutes.adminNotifications },
 ];
 
 export default function Sidebar() {
@@ -78,7 +78,7 @@ export default function Sidebar() {
   const { isMobile, openMobile, setOpenMobile, state } = useSidebar();
   const { user } = useAuthSession();
   const previousPathnameRef = useRef(location.pathname);
-  const userName = user?.name ?? "Usuario";
+  const userName = user?.name ?? "Usuário";
   const userEmail = user?.email ?? "usuario@email.com";
   const isAdmin = user?.role === "admin";
   const initials = userName
@@ -182,12 +182,12 @@ export default function Sidebar() {
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
                   isActive={isExpenseManagementActive}
-                  tooltip="Gestao de Gastos"
+                  tooltip="Gestão Financeira"
                   data-tour-id="nav-expense-management"
                   className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
                 >
                   <Layers3 size={18} className="shrink-0" />
-                  <span className="truncate group-data-[collapsible=icon]:hidden">Gestao de Gastos</span>
+                  <span className="truncate group-data-[collapsible=icon]:hidden">Gestão Financeira</span>
                   <ChevronDown
                     size={16}
                     className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
@@ -305,11 +305,11 @@ export default function Sidebar() {
               </DropdownMenuItem>
               <DropdownMenuItem className="gap-2" onClick={() => navigate(appRoutes.notifications)}>
                 <Bell size={16} />
-                Notificacoes
+                Notificações
               </DropdownMenuItem>
               <DropdownMenuItem className="gap-2" onClick={() => navigate(appRoutes.settings)}>
                 <Settings size={16} />
-                Configuracoes
+                Configurações
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
@@ -328,7 +328,7 @@ export default function Sidebar() {
                   try {
                     await logoutMutation.mutateAsync();
                   } catch (error) {
-                    toast.error("Nao foi possivel encerrar a sessao.", {
+                    toast.error("Não foi possível encerrar a sessão.", {
                       description: error instanceof Error ? error.message : "Tente novamente em instantes.",
                     });
                   }

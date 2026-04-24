@@ -48,7 +48,7 @@ export default function ImportPreviewTable({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[240px] text-xs leading-relaxed">
-                    Se nenhuma categoria for escolhida em uma despesa, a importacao usa a categoria Outros.
+                    Se nenhuma categoria for escolhida em uma despesa, a importação usa a categoria Outros.
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

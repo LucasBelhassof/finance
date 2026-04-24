@@ -30,7 +30,7 @@ export default function SignupPage() {
     <AuthScreen
       eyebrow="Finly Auth"
       title="Crie sua conta em segundos."
-      description="Acesso imediato a dashboard, contas e automacoes com sessao protegida."
+      description="Acesso imediato a dashboard, contas e automações com sessão protegida."
       showShowcase={false}
     >
       <Card className="overflow-hidden rounded-[2rem] border-border/60 bg-card/94 shadow-2xl backdrop-blur">
@@ -41,7 +41,7 @@ export default function SignupPage() {
           <div className="space-y-1">
             <CardTitle className="text-3xl">Criar conta</CardTitle>
             <CardDescription className="text-sm leading-6">
-              Preencha seus dados para comecar. Sua sessao sera criada automaticamente.
+              Preencha seus dados para começar. Sua sessão será criada automaticamente.
             </CardDescription>
           </div>
         </CardHeader>

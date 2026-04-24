@@ -105,7 +105,7 @@ async function authRequest<T>(path: string, init?: RequestInit, options: AuthReq
   const body = await parseResponseBody(response);
 
   if (!response.ok) {
-    throw new ApiError(getErrorMessage(body, "Nao foi possivel concluir a autenticacao."), response.status);
+    throw new ApiError(getErrorMessage(body, "Não foi possível concluir a autenticação."), response.status);
   }
 
   return body as T;

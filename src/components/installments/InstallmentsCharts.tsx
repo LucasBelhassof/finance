@@ -98,7 +98,7 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
         <div className="mb-4 space-y-3">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Evolucao mensal do compromisso</h2>
-            <p className="text-sm text-muted-foreground">Comparativo mensal com filtro proprio apenas para este grafico.</p>
+            <p className="text-sm text-muted-foreground">Comparativo mensal com filtro próprio apenas para este gráfico.</p>
           </div>
           <div className={shouldShowCustomPeriodInput ? "grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid grid-cols-1"}>
             <Select value={chartPeriodPreset} onValueChange={(value) => handleChartPresetChange(value as InstallmentsChartPeriodPreset)}>
@@ -142,7 +142,7 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
           </div>
         ) : !chartEvolution.length ? (
           <div className="rounded-xl border border-border/30 bg-secondary/20 p-4 text-sm text-muted-foreground">
-            Nenhuma projecao disponivel para os filtros atuais.
+            Nenhuma projeção disponível para os filtros atuais.
           </div>
         ) : (
           <ChartContainer config={evolutionConfig} className="h-[260px] w-full">
@@ -174,13 +174,13 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
 
       <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Distribuicao por cartao</h2>
+          <h2 className="text-lg font-semibold text-foreground">Distribuição por cartão</h2>
           <p className="text-sm text-muted-foreground">Participacao no compromisso mensal dos parcelamentos ativos.</p>
         </div>
 
         {!distributionData.length ? (
           <div className="rounded-xl border border-border/30 bg-secondary/20 p-4 text-sm text-muted-foreground">
-            Nao ha parcelamentos ativos para distribuir por cartao.
+            Não há parcelamentos ativos para distribuir por cartão.
           </div>
         ) : (
           <ChartContainer config={distributionConfig} className="h-[260px] w-full">
@@ -225,7 +225,7 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
 
         {!overview.charts.topCategories.length ? (
           <div className="rounded-xl border border-border/30 bg-secondary/20 p-4 text-sm text-muted-foreground">
-            Nao ha categorias parceladas para exibir com os filtros atuais.
+            Não há categorias parceladas para exibir com os filtros atuais.
           </div>
         ) : (
           <ChartContainer config={categoriesConfig} className="h-[280px] w-full">

@@ -279,14 +279,14 @@ export default function SettingsPage() {
         title: "Conta atualizada",
         message:
           updatedUser.emailVerified === false
-            ? "Se o e-mail mudou, o status de verificacao foi reiniciado."
+            ? "Se o e-mail mudou, o status de verificação foi reiniciado."
             : "Seus dados principais foram salvos com sucesso.",
       });
     },
     onError: (error) => {
       setAccountFeedback({
         type: "error",
-        title: "Nao foi possivel atualizar a conta",
+        title: "Não foi possível atualizar a conta",
         message: getErrorMessage(error, "Revise os dados e tente novamente."),
       });
     },
@@ -305,7 +305,7 @@ export default function SettingsPage() {
     onError: (error) => {
       setContactFeedback({
         type: "error",
-        title: "Nao foi possivel salvar o perfil",
+        title: "Não foi possível salvar o perfil",
         message: getErrorMessage(error, "Revise os campos e tente novamente."),
       });
     },
@@ -325,14 +325,14 @@ export default function SettingsPage() {
     onError: (error) => {
       setPasswordFeedback({
         type: "error",
-        title: "Nao foi possivel trocar a senha",
+        title: "Não foi possível trocar a senha",
         message: getErrorMessage(error, "Confirme a senha atual e tente novamente."),
       });
     },
   });
 
   const currentEmail = user?.email ?? dashboardData?.user.email ?? "--";
-  const currentName = user?.name ?? dashboardData?.user.name ?? "Usuario";
+  const currentName = user?.name ?? dashboardData?.user.name ?? "Usuário";
   const verificationBadgeClass = user?.emailVerified
     ? "border-income/20 bg-income/10 text-income"
     : "border-warning/20 bg-warning/10 text-warning";
@@ -391,7 +391,7 @@ export default function SettingsPage() {
     } catch {
       setPreferencesFeedback({
         type: "error",
-        title: "Nao foi possivel salvar as preferencias",
+        title: "Não foi possível salvar as preferências",
         message: "O navegador bloqueou o armazenamento local neste dispositivo.",
       });
     }
@@ -405,7 +405,7 @@ export default function SettingsPage() {
     } catch {
       setPasswordFeedback({
         type: "error",
-        title: "Nao foi possivel encerrar a sessao",
+        title: "Não foi possível encerrar a sessão",
         message: "Tente novamente em instantes.",
       });
     }
@@ -413,11 +413,11 @@ export default function SettingsPage() {
 
   if (isBootstrapping && !user) {
     return (
-      <AppShell title="Configuracoes" description="Carregando preferencias, dados da conta e status do sistema">
+      <AppShell title="Configurações" description="Carregando preferências, dados da conta e status do sistema">
         <div className="glass-card flex min-h-[240px] items-center justify-center rounded-2xl border border-border/40">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <Loader2 size={18} className="animate-spin" />
-            Carregando configuracoes da conta...
+            Carregando configurações da conta...
           </div>
         </div>
       </AppShell>
@@ -425,14 +425,14 @@ export default function SettingsPage() {
   }
 
   return (
-    <AppShell title="Configuracoes" description="Conta, seguranca, perfil, preferencias e informacoes tecnicas do app">
+    <AppShell title="Configurações" description="Conta, segurança, perfil, preferências e informações técnicas do app">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.25fr)_380px]">
         <div className="space-y-6">
           <div data-tour-id="settings-account">
             <SettingsSection
             icon={<UserRoundCog size={20} />}
             title="Conta"
-            description="Edite seus dados principais e gerencie a alteracao do e-mail da conta."
+            description="Edite seus dados principais e gerencie a alteração do e-mail da conta."
           >
             <div className="grid gap-4 rounded-xl border border-border/40 bg-secondary/20 p-4 md:grid-cols-2">
               <div>
@@ -472,7 +472,7 @@ export default function SettingsPage() {
                       <Badge className={verificationBadgeClass}>{user?.emailVerified ? "Verificado" : "Pendente"}</Badge>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Se voce alterar o e-mail, a verificacao atual e reiniciada.
+                      Se você alterar o e-mail, a verificação atual é reiniciada.
                     </p>
                   </div>
                 </div>
@@ -487,7 +487,7 @@ export default function SettingsPage() {
                         <FormControl>
                           <Input {...field} type="email" inputMode="email" autoComplete="email" placeholder="voce@empresa.com" />
                         </FormControl>
-                        <FormDescription>Use o e-mail que voce quer manter como principal na conta.</FormDescription>
+                        <FormDescription>Use o e-mail que você quer manter como principal na conta.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -502,7 +502,7 @@ export default function SettingsPage() {
                         <FormControl>
                           <Input {...field} type="email" inputMode="email" autoComplete="email" placeholder="Repita o novo e-mail" />
                         </FormControl>
-                        <FormDescription>Os dois campos precisam ser identicos para liberar a alteracao.</FormDescription>
+                        <FormDescription>Os dois campos precisam ser idênticos para liberar a alteração.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -523,8 +523,8 @@ export default function SettingsPage() {
           <div data-tour-id="settings-security">
             <SettingsSection
             icon={<ShieldCheck size={20} />}
-            title="Seguranca"
-            description="Troque sua senha com validacoes reais, acompanhe a verificacao do e-mail e encerre a sessao quando precisar."
+            title="Segurança"
+            description="Troque sua senha com validações reais, acompanhe a verificação do e-mail e encerre a sessão quando precisar."
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_280px]">
               <div>
@@ -553,7 +553,7 @@ export default function SettingsPage() {
                           <Badge className={verificationBadgeClass}>{user?.emailVerified ? "Verificado" : "Pendente"}</Badge>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          O backend atual nao possui reenvio de verificacao direto por esta tela.
+                          O backend atual não possui reenvio de verificação direto por esta tela.
                         </p>
                       </div>
                     </div>
@@ -613,7 +613,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Fluxo alternativo</p>
                   <p className="mt-2 text-sm text-foreground">
-                    Se voce perder acesso a senha atual, use a recuperacao em {appRoutes.forgotPassword}.
+                    Se você perder acesso à senha atual, use a recuperação em {appRoutes.forgotPassword}.
                   </p>
                 </div>
               </div>
@@ -625,7 +625,7 @@ export default function SettingsPage() {
             <SettingsSection
             icon={<MapPinned size={20} />}
             title="Perfil e contato"
-            description="Telefone, celular e endereco para manter seu cadastro completo e pronto para futuras integracoes."
+            description="Telefone, celular e endereço para manter seu cadastro completo e pronto para futuras integrações."
           >
             <div className="mt-1">
               <FeedbackAlert feedback={contactFeedback} />
@@ -660,7 +660,7 @@ export default function SettingsPage() {
                   <div className="rounded-xl border border-dashed border-border/50 bg-secondary/20 p-4">
                     <p className="text-sm text-muted-foreground">Verificacao de telefone</p>
                     <p className="mt-2 text-sm text-foreground">
-                      A interface esta pronta para um fluxo por codigo, mas o backend ainda nao expoe essa verificacao.
+                      A interface está pronta para um fluxo por código, mas o backend ainda não expõe essa verificação.
                     </p>
                     <Button type="button" variant="outline" disabled className="mt-4 rounded-xl border-border/60 bg-secondary/20">
                       <Mail size={16} />
@@ -820,27 +820,27 @@ export default function SettingsPage() {
             <SettingsSection
             icon={<BellRing size={20} />}
             title="Preferencias"
-            description="Ajustes gerais do app e notificacoes. Por enquanto, essas opcoes ficam salvas apenas neste dispositivo."
+            description="Ajustes gerais do app e notificações. Por enquanto, essas opções ficam salvas apenas neste dispositivo."
           >
             <FeedbackAlert feedback={preferencesFeedback} />
 
             <div className="mt-4 grid gap-4">
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-secondary/20 p-4">
                 <div>
-                  <p className="font-medium text-foreground">Notificacoes gerais</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Permite avisos relevantes sobre conta, produto e automacoes futuras.</p>
+                  <p className="font-medium text-foreground">Notificações gerais</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Permite avisos relevantes sobre conta, produto e automações futuras.</p>
                 </div>
                 <Switch
                   checked={preferences.notificationsEnabled}
                   onCheckedChange={(checked) => handlePreferenceToggle("notificationsEnabled", checked)}
-                  aria-label="Ativar notificacoes gerais"
+                  aria-label="Ativar notificações gerais"
                 />
               </div>
 
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-secondary/20 p-4">
                 <div>
                   <p className="font-medium text-foreground">Resumo semanal</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Prepara a interface para um resumo de movimentacoes e alertas semanais.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Prepara a interface para um resumo de movimentações e alertas semanais.</p>
                 </div>
                 <Switch
                   checked={preferences.weeklyDigestEnabled}
@@ -877,7 +877,7 @@ export default function SettingsPage() {
             <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
               <Button type="button" onClick={handleSavePreferences} disabled={!preferencesDirty}>
                 <Save size={16} />
-                Salvar preferencias
+                Salvar preferências
               </Button>
             </div>
             </SettingsSection>

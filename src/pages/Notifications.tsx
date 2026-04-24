@@ -38,14 +38,14 @@ const categoryOptions: Array<{ value: NotificationCategory; label: string }> = [
 
 const statusOptions: Array<{ value: NotificationStatusFilter; label: string }> = [
   { value: "all", label: "Todas" },
-  { value: "unread", label: "Nao lidas" },
+  { value: "unread", label: "Não lidas" },
   { value: "read", label: "Lidas" },
 ];
 
 const sourceOptions: Array<{ value: NotificationSourceFilter; label: string }> = [
   { value: "all", label: "Tudo" },
   { value: "system", label: "Sistema" },
-  { value: "user", label: "Usuario" },
+  { value: "user", label: "Usuário" },
 ];
 
 function getNotificationIcon(category: NotificationCategory) {
@@ -68,7 +68,7 @@ function getNotificationCategoryLabel(category: NotificationCategory) {
 }
 
 function getNotificationSourceLabel(notification: NotificationItem) {
-  return notification.source === "user_self" ? "Criada por voce" : "Do sistema";
+  return notification.source === "user_self" ? "Criada por você" : "Do sistema";
 }
 
 function getNotificationCreatorLabel(notification: NotificationItem) {
@@ -151,13 +151,13 @@ export default function NotificationsPage() {
         category,
         triggerAt: buildNotificationDateValue(triggerAt),
       });
-      toast.success("Notificacao criada com sucesso.");
+      toast.success("Notificação criada com sucesso.");
       setTitle("");
       setMessage("");
       setCategory("invoice_due");
       setTriggerAt("");
     } catch (error) {
-      toast.error("Nao foi possivel criar a notificacao.", {
+      toast.error("Não foi possível criar a notificação.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -170,9 +170,9 @@ export default function NotificationsPage() {
 
     try {
       await markRead.mutateAsync(selectedNotification.recipientId);
-      toast.success("Notificacao marcada como lida.");
+      toast.success("Notificação marcada como lida.");
     } catch (error) {
-      toast.error("Nao foi possivel atualizar a notificacao.", {
+      toast.error("Não foi possível atualizar a notificação.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -185,9 +185,9 @@ export default function NotificationsPage() {
 
     try {
       await markUnread.mutateAsync(selectedNotification.recipientId);
-      toast.success("Notificacao marcada como nao lida.");
+      toast.success("Notificação marcada como não lida.");
     } catch (error) {
-      toast.error("Nao foi possivel atualizar a notificacao.", {
+      toast.error("Não foi possível atualizar a notificação.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -200,9 +200,9 @@ export default function NotificationsPage() {
 
     try {
       await deleteNotification.mutateAsync(selectedNotification.recipientId);
-      toast.success("Notificacao excluida.");
+      toast.success("Notificação excluída.");
     } catch (error) {
-      toast.error("Nao foi possivel excluir a notificacao.", {
+      toast.error("Não foi possível excluir a notificação.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -212,17 +212,17 @@ export default function NotificationsPage() {
     try {
       const result = await markAllRead.mutateAsync();
       toast.success(
-        result.updatedCount > 0 ? `${result.updatedCount} notificacoes marcadas como lidas.` : "Nao havia notificacoes pendentes.",
+        result.updatedCount > 0 ? `${result.updatedCount} notificações marcadas como lidas.` : "Não havia notificações pendentes.",
       );
     } catch (error) {
-      toast.error("Nao foi possivel marcar todas como lidas.", {
+      toast.error("Não foi possível marcar todas como lidas.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
   };
 
   return (
-    <AppShell title="Notificacoes" description="Filtre seus alertas, veja detalhes e crie novos lembretes pessoais.">
+    <AppShell title="Notificações" description="Filtre seus alertas, veja detalhes e crie novos lembretes pessoais.">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)_380px]">
         <div className="space-y-6">
           <Card data-tour-id="notifications-filters">
@@ -273,7 +273,7 @@ export default function NotificationsPage() {
                       setStartDate(startValue ?? "");
                       setEndDate(endValue ?? "");
                     }}
-                    placeholder="Selecionar periodo"
+                    placeholder="Selecionar período"
                   />
                 </div>
               </div>
@@ -331,7 +331,7 @@ export default function NotificationsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
                           {!item.isRead ? <Badge variant="destructive">Nova</Badge> : <Badge variant="outline">Lida</Badge>}
-                          <Badge variant="secondary">{item.source === "user_self" ? "Usuario" : "Sistema"}</Badge>
+                          <Badge variant="secondary">{item.source === "user_self" ? "Usuário" : "Sistema"}</Badge>
                         </div>
                         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.message}</p>
                         <p className="mt-2 text-[11px] text-muted-foreground">{formatNotificationDate(item)}</p>
@@ -342,7 +342,7 @@ export default function NotificationsPage() {
               })}
 
               {!isLoading && notifications.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma notificacao encontrada para os filtros selecionados.</p>
+                <p className="text-sm text-muted-foreground">Nenhuma notificação encontrada para os filtros selecionados.</p>
               ) : null}
             </CardContent>
           </Card>
@@ -351,7 +351,7 @@ export default function NotificationsPage() {
         <Card data-tour-id="notifications-details">
           <CardHeader className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <CardTitle>Detalhes da notificacao</CardTitle>
+              <CardTitle>Detalhes da notificação</CardTitle>
               {selectedNotification ? (
                 <div className="flex flex-wrap gap-2">
                   {selectedNotification.isRead ? (
@@ -362,7 +362,7 @@ export default function NotificationsPage() {
                       onClick={() => void handleMarkSelectedAsUnread()}
                       disabled={markUnread.isPending}
                     >
-                      Marcar como nao lida
+                      Marcar como não lida
                     </Button>
                   ) : (
                     <Button
@@ -396,7 +396,7 @@ export default function NotificationsPage() {
                   <Badge variant="secondary">{getNotificationCategoryLabel(selectedNotification.category)}</Badge>
                   <Badge variant="outline">{getNotificationSourceLabel(selectedNotification)}</Badge>
                   <Badge variant={selectedNotification.isRead ? "outline" : "destructive"}>
-                    {selectedNotification.isRead ? "Lida" : "Nao lida"}
+                    {selectedNotification.isRead ? "Lida" : "Não lida"}
                   </Badge>
                 </div>
                 <div>
@@ -405,7 +405,7 @@ export default function NotificationsPage() {
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-xl bg-secondary/25 p-3">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Data da notificacao</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Data da notificação</p>
                     <p className="mt-2 text-sm font-medium text-foreground">{formatNotificationDate(selectedNotification)}</p>
                   </div>
                   <div className="rounded-xl bg-secondary/25 p-3">
@@ -417,19 +417,19 @@ export default function NotificationsPage() {
                   <div className="rounded-xl bg-secondary/25 p-3">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Status</p>
                     <p className="mt-2 text-sm font-medium text-foreground">
-                      {selectedNotification.isRead ? "Notificacao lida" : "Aguardando leitura"}
+                      {selectedNotification.isRead ? "Notificação lida" : "Aguardando leitura"}
                     </p>
                   </div>
                   <div className="rounded-xl bg-secondary/25 p-3">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Leitura em</p>
                     <p className="mt-2 text-sm font-medium text-foreground">
-                      {selectedNotification.readAt ? new Date(selectedNotification.readAt).toLocaleString("pt-BR") : "Ainda nao lida"}
+                      {selectedNotification.readAt ? new Date(selectedNotification.readAt).toLocaleString("pt-BR") : "Ainda não lida"}
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Selecione uma notificacao para ver os detalhes.</p>
+              <p className="text-sm text-muted-foreground">Selecione uma notificação para ver os detalhes.</p>
             )}
           </CardContent>
         </Card>
@@ -482,7 +482,7 @@ export default function NotificationsPage() {
             </div>
 
             <Button onClick={() => void handleCreateNotification()} disabled={createNotification.isPending}>
-              {createNotification.isPending ? "Salvando..." : "Adicionar notificacao"}
+              {createNotification.isPending ? "Salvando..." : "Adicionar notificação"}
             </Button>
           </CardContent>
         </Card>

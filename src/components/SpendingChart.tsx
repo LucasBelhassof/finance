@@ -134,15 +134,15 @@ export default function SpendingChart({ transactions = [], banks = [], spendingI
       {!chartData.length ? (
         <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
           {isError
-            ? "Nao foi possivel carregar o consolidado por categoria."
+            ? "Não foi possível carregar o consolidado por categoria."
             : hasPrecomputedItems || selectedBankId === "all"
-              ? "Ainda nao existem gastos categorizados para exibir."
-              : "Nao ha despesas categorizadas para a conta selecionada."}
+              ? "Ainda não existem gastos categorizados para exibir."
+              : "Não há despesas categorizadas para a conta selecionada."}
         </div>
       ) : (
         <CategoryPieChart
           items={chartData}
-          emptyMessage="Ainda nao existem gastos categorizados para exibir."
+          emptyMessage="Ainda não existem gastos categorizados para exibir."
         />
       )}
     </div>

@@ -34,7 +34,7 @@ export default function LoginPage() {
       <AuthScreen
         eyebrow="Finly Auth"
         title="Entre na sua area segura."
-        description="Acesse dashboard, contas e automacoes com sessao protegida e refresh transparente."
+        description="Acesse dashboard, contas e automações com sessão protegida e refresh transparente."
         showShowcase={false}
       >
         <Card className="w-full overflow-hidden rounded-[1.9rem] border border-white/8 bg-[#16212b]/96 text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-xl">
@@ -132,7 +132,7 @@ export default function LoginPage() {
                 </Button>
 
                 <p className="text-center text-sm text-slate-500">
-                  Nao tem uma conta?{" "}
+                  Não tem uma conta?{" "}
                   <Link className="font-semibold text-emerald-400 hover:text-emerald-300" to={appRoutes.signup}>
                     Criar conta
                   </Link>

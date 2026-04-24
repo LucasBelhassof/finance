@@ -10,7 +10,7 @@ export default function AdminFinancialMetricsPage() {
   const { data } = useAdminFinancialMetrics();
 
   return (
-    <AdminLayout title="Financeiro" description="Receitas, despesas, volume transacionado e usuarios com maior movimento.">
+    <AdminLayout title="Financeiro" description="Receitas, despesas, volume transacionado e usuários com maior movimento.">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -32,7 +32,7 @@ export default function AdminFinancialMetricsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Transacoes</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Transações</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">{numberFormatter.format(data?.summary.transactionCount ?? 0)}</CardContent>
         </Card>
@@ -48,7 +48,7 @@ export default function AdminFinancialMetricsPage() {
               <span className="font-medium">{item.month}</span>
               <span className="text-sm text-muted-foreground">Receitas {currencyFormatter.format(item.income)}</span>
               <span className="text-sm text-muted-foreground">Despesas {currencyFormatter.format(item.expenses)}</span>
-              <span className="text-sm text-muted-foreground">{item.transactions} transacoes</span>
+              <span className="text-sm text-muted-foreground">{item.transactions} transações</span>
             </div>
           ))}
         </CardContent>
@@ -56,15 +56,15 @@ export default function AdminFinancialMetricsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Usuarios com mais transacoes</CardTitle>
+          <CardTitle>Usuários com mais transações</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Usuario</TableHead>
+                <TableHead>Usuário</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Transacoes</TableHead>
+                <TableHead>Transações</TableHead>
                 <TableHead>Volume</TableHead>
               </TableRow>
             </TableHeader>

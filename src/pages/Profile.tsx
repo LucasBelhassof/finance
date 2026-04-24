@@ -202,7 +202,7 @@ function getStatusMeta(status?: "active" | "inactive" | "suspended") {
 }
 
 function getRoleLabel(role?: "user" | "admin") {
-  return role === "admin" ? "Administrador" : "Usuario";
+  return role === "admin" ? "Administrador" : "Usuário";
 }
 
 function getPlanMeta(isPremium?: boolean, premiumSince?: string | null) {
@@ -231,7 +231,7 @@ function getSubscriptionSummary(isPremium?: boolean, premiumSince?: string | nul
       dueDayLabel: "--",
       dueDescription: "Disponivel apenas para contas premium.",
       referenceMonthLabel: "--",
-      paymentDescription: "Sem historico de assinatura disponivel para esta conta.",
+      paymentDescription: "Sem histórico de assinatura disponível para esta conta.",
       renewalDescription: "Periodicidade e proxima cobranca dependem do backend de assinatura.",
     };
   }
@@ -241,9 +241,9 @@ function getSubscriptionSummary(isPremium?: boolean, premiumSince?: string | nul
   if (Number.isNaN(activationDate.getTime())) {
     return {
       dueDayLabel: "--",
-      dueDescription: "Nao foi possivel interpretar a data da assinatura premium.",
+      dueDescription: "Não foi possível interpretar a data da assinatura premium.",
       referenceMonthLabel: "--",
-      paymentDescription: "Ultimo pagamento indisponivel.",
+      paymentDescription: "Último pagamento indisponível.",
       renewalDescription: "Periodicidade e proxima cobranca dependem do backend de assinatura.",
     };
   }
@@ -330,7 +330,7 @@ export default function ProfilePage() {
   }, [preferences]);
 
   const onboardingProgress = useMemo(() => normalizeProgress(user?.onboardingProgress), [user?.onboardingProgress]);
-  const userName = user?.name ?? data?.user.name ?? "Usuario";
+  const userName = user?.name ?? data?.user.name ?? "Usuário";
   const userEmail = user?.email ?? data?.user.email ?? "usuario@email.com";
   const userId = user?.id ? String(user.id) : data?.user.id ? String(data.user.id) : "--";
   const statusMeta = getStatusMeta(user?.status);
@@ -355,14 +355,14 @@ export default function ProfilePage() {
     try {
       await logoutMutation.mutateAsync();
     } catch (error) {
-      toast.error("Nao foi possivel encerrar a sessao.", {
+      toast.error("Não foi possível encerrar a sessão.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
   };
 
   return (
-    <AppShell title="Perfil" description="Dados da conta, seguranca e preferencias pessoais">
+    <AppShell title="Perfil" description="Dados da conta, segurança e preferências pessoais">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_360px]">
         <div className="space-y-6">
           <section data-tour-id="profile-identity" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-6">
@@ -377,7 +377,7 @@ export default function ProfilePage() {
                   <Badge className={planMeta.className}>{planMeta.label}</Badge>
                 </div>
                 <p className="mt-1 break-words text-sm text-muted-foreground">{userEmail}</p>
-                <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">ID do usuario: {userId}</p>
+                <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">ID do usuário: {userId}</p>
               </div>
             </div>
 
@@ -483,7 +483,7 @@ export default function ProfilePage() {
                   </div>
                   {!isPremiumUser ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-card/35 px-3 text-center text-xs font-medium text-muted-foreground backdrop-blur-[2px]">
-                      Historico de assinatura indisponivel no plano free
+                      Histórico de assinatura indisponível no plano free
                     </div>
                   ) : null}
                 </div>
@@ -549,7 +549,7 @@ export default function ProfilePage() {
                 onClick={() => navigate(appRoutes.notifications)}
               >
                 <BellRing size={16} />
-                Notificacoes
+                Notificações
               </Button>
               <Button
                 variant="outline"

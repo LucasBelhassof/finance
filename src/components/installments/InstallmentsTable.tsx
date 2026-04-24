@@ -22,7 +22,7 @@ export default function InstallmentsTable({ items }: InstallmentsTableProps) {
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="px-3 py-2">Compra</th>
-              <th className="px-3 py-2">Cartao</th>
+              <th className="px-3 py-2">Cartão</th>
               <th className="px-3 py-2">Categoria</th>
               <th className="px-3 py-2">Valor total</th>
               <th className="px-3 py-2">Parcela atual</th>

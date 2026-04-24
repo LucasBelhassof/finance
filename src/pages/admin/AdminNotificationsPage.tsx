@@ -16,13 +16,13 @@ import { toast } from "@/components/ui/sonner";
 
 const categoryOptions: Array<{ value: NotificationCategory; label: string }> = [
   { value: "general", label: "Sistema" },
-  { value: "custom", label: "Usuarios selecionados" },
+  { value: "custom", label: "Usuários selecionados" },
 ];
 
 const audienceOptions = [
   { value: "all", label: "Todos os ativos" },
   { value: "premium", label: "Apenas premium" },
-  { value: "non_premium", label: "Apenas nao premium" },
+  { value: "non_premium", label: "Apenas não premium" },
 ] as const;
 
 function getAudienceLabel(audience: "all" | "premium" | "non_premium" | "selected") {
@@ -30,9 +30,9 @@ function getAudienceLabel(audience: "all" | "premium" | "non_premium" | "selecte
     case "premium":
       return "Premium";
     case "non_premium":
-      return "Nao premium";
+      return "Não premium";
     case "selected":
-      return "Usuarios selecionados";
+      return "Usuários selecionados";
     default:
       return "Todos os ativos";
   }
@@ -63,7 +63,7 @@ export default function AdminNotificationsPage() {
     }
 
     if (category === "custom" && selectedUserIds.length === 0) {
-      toast.error("Selecione pelo menos um usuario ativo.");
+      toast.error("Selecione pelo menos um usuário ativo.");
       return;
     }
 
@@ -80,14 +80,14 @@ export default function AdminNotificationsPage() {
         },
       });
 
-      toast.success(`Notificacao enviada para ${result.recipientsCount} usuario(s).`);
+      toast.success(`Notificação enviada para ${result.recipientsCount} usuário(s).`);
       setTitle("");
       setMessage("");
       setTriggerAt("");
       setSelectedUserIds([]);
       setAudience("all");
     } catch (error) {
-      toast.error("Nao foi possivel enviar a notificacao.", {
+      toast.error("Não foi possível enviar a notificação.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -104,11 +104,11 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <AdminLayout title="Notificacoes" description="Crie notificacoes do sistema para todos os ativos, por tipo de usuario ou para os usuarios que voce selecionar.">
+    <AdminLayout title="Notificações" description="Crie notificações do sistema para todos os ativos, por tipo de usuário ou para os usuários que você selecionar.">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
         <Card>
           <CardHeader>
-            <CardTitle>Nova notificacao</CardTitle>
+            <CardTitle>Nova notificação</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -127,7 +127,7 @@ export default function AdminNotificationsPage() {
                 id="notification-message"
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
-                placeholder="Escreva a mensagem que os usuarios vao receber."
+                placeholder="Escreva a mensagem que os usuários vão receber."
                 rows={5}
               />
             </div>
@@ -176,7 +176,7 @@ export default function AdminNotificationsPage() {
             {category === "custom" ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <Label>Usuarios ativos</Label>
+                  <Label>Usuários ativos</Label>
                   <Badge variant="outline">{selectedUserIds.length} selecionado(s)</Badge>
                 </div>
                 <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/60 p-3">
@@ -199,21 +199,21 @@ export default function AdminNotificationsPage() {
                           <p className="text-sm font-medium text-foreground">{user.name}</p>
                           <p className="text-xs text-muted-foreground">{user.email || "Sem email"}</p>
                           <p className="mt-1 text-[11px] text-muted-foreground">
-                            {user.isPremium ? "Premium" : "Nao premium"}
+                            {user.isPremium ? "Premium" : "Não premium"}
                           </p>
                         </div>
                       </label>
                     );
                   })}
                   {selectableUsers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum usuario ativo disponivel.</p>
+                    <p className="text-sm text-muted-foreground">Nenhum usuário ativo disponível.</p>
                   ) : null}
                 </div>
               </div>
             ) : null}
 
             <Button onClick={() => void handleSubmit()} disabled={createNotification.isPending}>
-              {createNotification.isPending ? "Enviando..." : "Enviar notificacao"}
+              {createNotification.isPending ? "Enviando..." : "Enviar notificação"}
             </Button>
           </CardContent>
         </Card>
@@ -238,7 +238,7 @@ export default function AdminNotificationsPage() {
             ))}
 
             {!isLoading && (notifications?.notifications.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma notificacao enviada por enquanto.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma notificação enviada por enquanto.</p>
             ) : null}
           </CardContent>
         </Card>

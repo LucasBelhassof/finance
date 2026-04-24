@@ -23,7 +23,7 @@ const banks: BankItem[] = [
   {
     id: 2,
     slug: "visa",
-    name: "Cartao Visa",
+    name: "Cartão Visa",
     accountType: "credit_card",
     parentBankConnectionId: 1,
     parentAccountName: "Nubank",
@@ -60,10 +60,10 @@ describe("BankConnection", () => {
 
     expect(screen.getByText("Contas")).toBeInTheDocument();
     expect(screen.getByText("Nubank")).toBeInTheDocument();
-    expect(screen.getByText("Cartao Visa")).toBeInTheDocument();
+    expect(screen.getByText("Cartão Visa")).toBeInTheDocument();
     expect(screen.getByText("Carteira")).toBeInTheDocument();
     expect(screen.getByText("Conta")).toBeInTheDocument();
-    expect(screen.getByText("Cartao")).toBeInTheDocument();
+    expect(screen.getByText("Cartão")).toBeInTheDocument();
     expect(screen.getByText("Caixa")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /adicionar/i })).toHaveAttribute("href", "/accounts");
   });

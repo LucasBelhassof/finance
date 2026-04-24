@@ -175,7 +175,7 @@ export default function AccountsPage() {
 
   const openCreateDialog = (accountType: AccountType) => {
     if (accountType === "credit_card" && !hasBankAccounts) {
-      toast.error("Cadastre uma conta bancaria antes de criar um cartao.");
+      toast.error("Cadastre uma conta bancária antes de criar um cartão.");
       return;
     }
 
@@ -201,7 +201,7 @@ export default function AccountsPage() {
 
     if (form.accountType === "credit_card") {
       if (!Number.isFinite(creditLimit)) {
-        toast.error("Informe o limite total do cartao.");
+        toast.error("Informe o limite total do cartão.");
         return;
       }
 
@@ -232,14 +232,14 @@ export default function AccountsPage() {
         toast.success("Conta atualizada.");
       } else {
         await createBankConnection.mutateAsync(payload);
-        toast.success(form.accountType === "credit_card" ? "Cartao criado." : "Conta criada.");
+        toast.success(form.accountType === "credit_card" ? "Cartão criado." : "Conta criada.");
       }
 
       setDialogOpen(false);
       setForm(emptyForm());
       setHasManualColorSelection(false);
     } catch (error) {
-      toast.error("Nao foi possivel salvar a conta.", {
+      toast.error("Não foi possível salvar a conta.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -258,7 +258,7 @@ export default function AccountsPage() {
       setHasManualColorSelection(false);
       toast.success("Conta removida.");
     } catch (error) {
-      toast.error("Nao foi possivel excluir a conta.", {
+      toast.error("Não foi possível excluir a conta.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -266,22 +266,22 @@ export default function AccountsPage() {
 
   if (isLoading) {
     return (
-      <AppShell title="Contas" description="Cadastre manualmente contas bancarias, cartoes e caixa">
+      <AppShell title="Contas" description="Cadastre manualmente contas bancárias, cartões e caixa">
         <AccountsSkeleton />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="Contas" description="Cadastre manualmente contas bancarias, cartoes e caixa">
+    <AppShell title="Contas" description="Cadastre manualmente contas bancárias, cartões e caixa">
       <AlertDialog open={Boolean(deleteTargetId)} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
         <AlertDialogContent className="border-warning/20 bg-card">
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `A conta "${deleteTarget.name}" sera excluida se nao tiver cartoes vinculados nem transacoes associadas.`
-                : "Esta conta sera excluida se nao houver bloqueios de integridade."}
+                ? `A conta "${deleteTarget.name}" será excluída se não tiver cartões vinculados nem transações associadas.`
+                : "Esta conta será excluída se não houver bloqueios de integridade."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -317,7 +317,7 @@ export default function AccountsPage() {
                   color: hasManualColorSelection ? current.color : getSuggestedAccountColor(event.target.value, current.accountType),
                 }))
               }
-              placeholder="Nome da conta ou cartao"
+              placeholder="Nome da conta ou cartão"
               className="h-11 rounded-xl border-border/60 bg-secondary/35"
             />
 
@@ -348,9 +348,9 @@ export default function AccountsPage() {
                 <SelectValue placeholder="Tipo da conta" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bank_account">Conta bancaria</SelectItem>
+                <SelectItem value="bank_account">Conta bancária</SelectItem>
                 <SelectItem value="credit_card" disabled={!hasBankAccounts}>
-                  Cartao
+                  Cartão
                 </SelectItem>
                 <SelectItem value="cash">Caixa / Dinheiro</SelectItem>
               </SelectContent>
@@ -361,7 +361,7 @@ export default function AccountsPage() {
                 <Input
                   value={form.creditLimit}
                   onChange={(event) => setForm((current) => ({ ...current, creditLimit: event.target.value }))}
-                  placeholder="Limite total do cartao"
+                  placeholder="Limite total do cartão"
                   inputMode="decimal"
                   className="h-11 rounded-xl border-border/60 bg-secondary/35"
                 />
@@ -371,7 +371,7 @@ export default function AccountsPage() {
                   onValueChange={(value) => setForm((current) => ({ ...current, parentBankConnectionId: value }))}
                 >
                   <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-                    <SelectValue placeholder="Conta bancaria vinculada" />
+                    <SelectValue placeholder="Conta bancária vinculada" />
                   </SelectTrigger>
                   <SelectContent>
                     {bankAccounts.map((bank) => (
@@ -443,14 +443,14 @@ export default function AccountsPage() {
           Nova conta
         </Button>
         <Button variant="outline" className="w-full sm:w-auto" onClick={() => openCreateDialog("credit_card")} disabled={!hasBankAccounts}>
-          Novo cartao
+          Novo cartão
         </Button>
         <Button className="w-full sm:w-auto" onClick={() => openCreateDialog("cash")}>Caixa / Dinheiro</Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="glass-card p-4 sm:p-5">
-          <p className="text-sm text-muted-foreground">Contas bancarias</p>
+          <p className="text-sm text-muted-foreground">Contas bancárias</p>
           <p className="mt-1 text-2xl font-bold text-foreground">{bankAccounts.length}</p>
         </div>
         <div className="glass-card p-4 sm:p-5">
@@ -468,13 +468,13 @@ export default function AccountsPage() {
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-[1.35rem] font-semibold text-foreground sm:text-[1.6rem]">Estrutura financeira</h2>
-              <p className="text-sm text-muted-foreground">Uma conta bancaria pode concentrar varios cartoes vinculados.</p>
+              <p className="text-sm text-muted-foreground">Uma conta bancária pode concentrar vários cartões vinculados.</p>
             </div>
           </div>
 
           {!banks.length ? (
             <div className="rounded-xl border border-border/30 bg-secondary/20 p-4 text-sm text-muted-foreground">
-              {isError ? "Nao foi possivel carregar as contas agora." : "Nenhuma conta cadastrada ainda."}
+              {isError ? "Não foi possível carregar as contas agora." : "Nenhuma conta cadastrada ainda."}
             </div>
           ) : (
             <div className="space-y-4">
@@ -510,7 +510,7 @@ export default function AccountsPage() {
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-foreground">{card.name}</p>
-                                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">Cartao</span>
+                                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">Cartão</span>
                               </div>
                               <p className="text-sm text-muted-foreground">
                                 Fecha dia {card.statementCloseDay ?? "--"} - vence dia {card.statementDueDay ?? "--"}
@@ -528,7 +528,7 @@ export default function AccountsPage() {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-dashed border-border/40 px-4 py-3 text-sm text-muted-foreground">
-                      Nenhum cartao vinculado a esta conta ainda.
+                      Nenhum cartão vinculado a esta conta ainda.
                     </div>
                   )}
                 </div>

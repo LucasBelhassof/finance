@@ -87,7 +87,7 @@ export default function AiChat({ initialMessages }: AiChatProps) {
       return;
     }
 
-    toast.error("Nao foi possivel carregar o historico do chat.", {
+    toast.error("Não foi possível carregar o histórico do chat.", {
       description: getErrorMessage(error, "Tente novamente em instantes."),
     });
   }, [error, isError]);
@@ -117,7 +117,7 @@ export default function AiChat({ initialMessages }: AiChatProps) {
       await sendMessage.mutateAsync(message);
     } catch (mutationError) {
       setInput(message);
-      toast.error("Nao foi possivel enviar sua mensagem.", {
+      toast.error("Não foi possível enviar sua mensagem.", {
         description: getErrorMessage(mutationError, "Tente novamente em instantes."),
       });
     }
@@ -147,7 +147,7 @@ export default function AiChat({ initialMessages }: AiChatProps) {
       <div ref={scrollContainerRef} className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
         {!messages.length ? (
           <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
-            {isError ? "Nao foi possivel carregar a conversa agora." : "Comece uma conversa com o assistente."}
+            {isError ? "Não foi possível carregar a conversa agora." : "Comece uma conversa com o assistente."}
           </div>
         ) : (
           <>
@@ -210,7 +210,7 @@ export default function AiChat({ initialMessages }: AiChatProps) {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Pergunte sobre suas financas..."
+              placeholder="Pergunte sobre suas finanças..."
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
             <button

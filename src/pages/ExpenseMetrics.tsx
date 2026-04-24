@@ -355,7 +355,7 @@ export default function ExpenseMetricsPage() {
 
   if (isTransactionsLoading || isBanksLoading) {
     return (
-      <AppShell title="Metricas" description="Leitura operacional das despesas, receitas e concentracao por conta">
+      <AppShell title="Métricas" description="Leitura operacional das despesas, receitas e concentração por conta">
         <MetricsSkeleton />
       </AppShell>
     );
@@ -368,10 +368,10 @@ export default function ExpenseMetricsPage() {
       ? "Nenhuma receita encontrada para os filtros selecionados."
       : typeFilter === "expense"
         ? "Nenhuma despesa encontrada para os filtros selecionados."
-        : "Nenhuma movimentacao encontrada para os filtros selecionados.";
+        : "Nenhuma movimentação encontrada para os filtros selecionados.";
 
   return (
-    <AppShell title="Metricas" description="Leitura operacional das despesas, receitas e concentracao por conta">
+    <AppShell title="Métricas" description="Leitura operacional das despesas, receitas e concentração por conta">
       <section data-tour-id="expense-metrics-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
           <TransactionsMonthYearFilter
@@ -431,8 +431,8 @@ export default function ExpenseMetricsPage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Despesas no periodo</span>
-              <MetricInfoTooltip content="Soma de todas as despesas visiveis no recorte filtrado por periodo, conta e tipo." />
+              <span className="text-sm text-muted-foreground">Despesas no período</span>
+              <MetricInfoTooltip content="Soma de todas as despesas visíveis no recorte filtrado por período, conta e tipo." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-expense/10 text-expense">
               <TrendingDown size={18} />
@@ -440,7 +440,7 @@ export default function ExpenseMetricsPage() {
           </div>
           <p className="text-[2rem] font-semibold text-foreground">{formatCurrency(metrics.totalExpenses)}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {expenseTransactions.length} lancamentos filtrados
+            {expenseTransactions.length} lançamentos filtrados
           </p>
         </div>
 
@@ -448,7 +448,7 @@ export default function ExpenseMetricsPage() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Saldo filtrado</span>
-              <MetricInfoTooltip content="Resultado das receitas menos as despesas considerando apenas as movimentacoes dentro dos filtros atuais." />
+              <MetricInfoTooltip content="Resultado das receitas menos as despesas considerando apenas as movimentações dentro dos filtros atuais." />
             </div>
             <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", metrics.balance >= 0 ? "bg-income/10 text-income" : "bg-expense/10 text-expense")}>
               {metrics.balance >= 0 ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
@@ -463,8 +463,8 @@ export default function ExpenseMetricsPage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Ticket medio de despesa</span>
-              <MetricInfoTooltip content="Media das despesas individuais do recorte. A mediana exibida abaixo representa o valor central dessas despesas ordenadas." />
+              <span className="text-sm text-muted-foreground">Ticket médio de despesa</span>
+              <MetricInfoTooltip content="Média das despesas individuais do recorte. A mediana exibida abaixo representa o valor central dessas despesas ordenadas." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Scale size={18} />
@@ -477,8 +477,8 @@ export default function ExpenseMetricsPage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Dias com movimentacao</span>
-              <MetricInfoTooltip content="Quantidade de dias distintos que tiveram ao menos uma movimentacao dentro dos filtros aplicados." />
+              <span className="text-sm text-muted-foreground">Dias com movimentação</span>
+              <MetricInfoTooltip content="Quantidade de dias distintos que tiveram ao menos uma movimentação dentro dos filtros aplicados." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-warning/10 text-warning">
               <CalendarRange size={18} />
@@ -496,7 +496,7 @@ export default function ExpenseMetricsPage() {
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-foreground">
-                {typeFilter === "income" ? "Tendencia de receitas" : "Tendencia de movimentacao"}
+                {typeFilter === "income" ? "Tendência de receitas" : "Tendência de movimentação"}
               </h2>
               <p className="text-sm text-muted-foreground">
                 {datePreset === "year" ? "Consolidado mensal" : "Consolidado diario"} da faixa selecionada
@@ -526,7 +526,7 @@ export default function ExpenseMetricsPage() {
 
           {!chartData.length ? (
             <div className="rounded-2xl border border-border/30 bg-secondary/25 p-4 text-sm text-muted-foreground">
-              {isTransactionsError ? "Nao foi possivel carregar as metricas agora." : emptyStateMessage}
+              {isTransactionsError ? "Não foi possível carregar as métricas agora." : emptyStateMessage}
             </div>
           ) : (
             <ChartContainer config={trendConfig} className="h-[220px] w-full sm:h-[300px]">
@@ -587,13 +587,13 @@ export default function ExpenseMetricsPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-5">
-            <h2 className="text-xl font-semibold text-foreground">Concentracao por categoria</h2>
-            <p className="text-sm text-muted-foreground">Despesas agrupadas por familias para expor dependencia e dispersao</p>
+            <h2 className="text-xl font-semibold text-foreground">Concentração por categoria</h2>
+            <p className="text-sm text-muted-foreground">Despesas agrupadas por famílias para expor dependência e dispersão</p>
           </div>
 
           <CategoryPieChart
             items={metrics.categoryBreakdown}
-            emptyMessage="Nao ha despesas suficientes para compor o concentrado por categoria."
+            emptyMessage="Não há despesas suficientes para compor o concentrado por categoria."
             isError={isTransactionsError}
             chartClassName="mb-2 h-[200px] sm:h-[240px]"
           />
@@ -613,7 +613,7 @@ export default function ExpenseMetricsPage() {
 
         {!metrics.categoryBreakdown.length ? (
           <div className="rounded-2xl border border-border/30 bg-secondary/25 p-4 text-sm text-muted-foreground">
-            Nao ha categorias suficientes para exibir o ranking detalhado.
+            Não há categorias suficientes para exibir o ranking detalhado.
           </div>
         ) : (
           <ChartContainer config={topCategoriesConfig} className="h-[260px] w-full sm:h-[320px]">
@@ -679,8 +679,8 @@ export default function ExpenseMetricsPage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-foreground">Leituras rapidas</h2>
-              <p className="text-sm text-muted-foreground">Sinais sinteticos para revisar recorrencia, concentracao e relevancia</p>
+              <h2 className="text-xl font-semibold text-foreground">Leituras rápidas</h2>
+              <p className="text-sm text-muted-foreground">Sinais sintéticos para revisar recorrência, concentração e relevância</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Wallet size={18} />
@@ -702,7 +702,7 @@ export default function ExpenseMetricsPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Conta mais pressionada</p>
               <p className="mt-2 text-lg font-semibold text-foreground">{topAccount?.label ?? "Sem dados"}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {topAccount ? `${formatCurrency(topAccount.total)} em ${topAccount.count} lancamentos` : "Sem volume relevante por conta."}
+                {topAccount ? `${formatCurrency(topAccount.total)} em ${topAccount.count} lançamentos` : "Sem volume relevante por conta."}
               </p>
             </div>
 
@@ -712,7 +712,7 @@ export default function ExpenseMetricsPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {metrics.largestExpense
                   ? `${formatCurrency(Math.abs(metrics.largestExpense.amount))} em ${metrics.largestExpense.occurredOn.split("-").reverse().join("/")}`
-                  : "Nenhum gasto individual no periodo."}
+                  : "Nenhum gasto individual no período."}
               </p>
             </div>
           </div>
@@ -731,7 +731,7 @@ export default function ExpenseMetricsPage() {
 
           {!metrics.accountBreakdown.length ? (
             <div className="rounded-2xl border border-border/30 bg-secondary/25 p-4 text-sm text-muted-foreground">
-              Nao ha despesas suficientes para montar o ranking por conta.
+              Não há despesas suficientes para montar o ranking por conta.
             </div>
           ) : (
             <div className="space-y-3">
@@ -747,7 +747,7 @@ export default function ExpenseMetricsPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-base font-semibold text-foreground">{formatCurrency(account.total)}</p>
-                        <p className="text-sm text-muted-foreground">{account.count} lancamentos</p>
+                        <p className="text-sm text-muted-foreground">{account.count} lançamentos</p>
                       </div>
                     </div>
 

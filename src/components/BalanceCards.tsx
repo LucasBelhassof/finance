@@ -16,18 +16,18 @@ function getDashboardCardExplanation(label: string) {
   const normalized = label.toLowerCase();
 
   if (normalized.includes("saldo")) {
-    return "Saldo total calculado a partir do balanco atual consolidado das contas e movimentacoes do periodo.";
+    return "Saldo total calculado a partir do balanço atual consolidado das contas e movimentações do período.";
   }
 
   if (normalized.includes("receita")) {
-    return "Soma de todas as entradas classificadas como receita no periodo atual, comparada com o mes anterior.";
+    return "Soma de todas as entradas classificadas como receita no período atual, comparada com o mês anterior.";
   }
 
   if (normalized.includes("despesa")) {
-    return "Soma de todas as saidas classificadas como despesa no periodo atual, comparada com o mes anterior.";
+    return "Soma de todas as saídas classificadas como despesa no período atual, comparada com o mês anterior.";
   }
 
-  return "Valor resumido do dashboard calculado com base nas movimentacoes consolidadas do periodo.";
+  return "Valor resumido do dashboard calculado com base nas movimentações consolidadas do período.";
 }
 
 function BalanceCardsSkeleton() {
@@ -63,7 +63,7 @@ export default function BalanceCards({ cards = [], isLoading, isError }: Balance
             </div>
             <p className="mb-1 break-words text-2xl font-bold text-foreground">--</p>
             <p className="text-xs text-muted-foreground">
-              {isError ? "Nao foi possivel carregar os cards agora." : "Sem dados disponiveis no momento."}
+              {isError ? "Não foi possível carregar os cards agora." : "Sem dados disponíveis no momento."}
             </p>
           </div>
         ))}

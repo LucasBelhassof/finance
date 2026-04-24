@@ -198,7 +198,7 @@ describe("ExpenseMetricsPage", () => {
   it("renders the main metrics and rankings for the selected period", () => {
     render(<ExpenseMetricsPage />);
 
-    expect(screen.getByRole("heading", { name: "Metricas" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Métricas" })).toBeInTheDocument();
     expect(screen.getByText("R$ 500,00")).toBeInTheDocument();
     expect(screen.getByText("R$ 4.500,00")).toBeInTheDocument();
     expect(screen.getByText("R$ 250,00")).toBeInTheDocument();

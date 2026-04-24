@@ -211,7 +211,7 @@ export default function InstallmentsPage() {
               <div key={item.month} className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-muted-foreground">{formatMonthKey(item.month)}</p>
-                  <MetricInfoTooltip content="Soma das parcelas projetadas para vencer neste mes, considerando os parcelamentos filtrados." />
+                  <MetricInfoTooltip content="Soma das parcelas projetadas para vencer neste mês, considerando os parcelamentos filtrados." />
                 </div>
                 <p className="mt-2 text-xl font-semibold text-foreground">{formatCurrency(item.amount)}</p>
               </div>
@@ -229,14 +229,14 @@ export default function InstallmentsPage() {
             <div className="glass-card rounded-2xl border border-border/40 p-6 text-center sm:p-8">
               <h2 className="text-lg font-semibold text-foreground">Nenhum parcelamento encontrado</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Ajuste o período das parcelas ou revise as transacoes de cartao parceladas para visualizar dados nesta tela.
+                Ajuste o período das parcelas ou revise as transações de cartão parceladas para visualizar dados nesta tela.
               </p>
             </div>
           )}
         </>
       ) : installmentsQuery.isError ? (
         <div className="glass-card rounded-2xl border border-border/40 p-6 text-center sm:p-8">
-          <h2 className="text-lg font-semibold text-foreground">Nao foi possivel carregar os parcelamentos</h2>
+          <h2 className="text-lg font-semibold text-foreground">Não foi possível carregar os parcelamentos</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             {installmentsQuery.error instanceof Error ? installmentsQuery.error.message : "Tente novamente em instantes."}
           </p>

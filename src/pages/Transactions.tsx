@@ -305,7 +305,7 @@ export default function TransactionsPage() {
       !transactionForm.bankConnectionId ||
       (categoryIsRequired && !transactionForm.categoryId)
     ) {
-      toast.error(categoryIsRequired ? "Preencha descricao, valor, conta e categoria." : "Preencha descricao, valor e conta.");
+      toast.error(categoryIsRequired ? "Preencha descrição, valor, conta e categoria." : "Preencha descrição, valor e conta.");
       return;
     }
 
@@ -333,7 +333,7 @@ export default function TransactionsPage() {
       setTransactionDialogOpen(false);
       setTransactionForm(emptyTransactionForm("expense"));
     } catch (error) {
-      toast.error("Nao foi possivel salvar a transacao.", {
+      toast.error("Não foi possível salvar a transação.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -373,7 +373,7 @@ export default function TransactionsPage() {
         groupColor: DEFAULT_CATEGORY_COLOR,
       });
     } catch (error) {
-      toast.error(editingCategoryId ? "Nao foi possivel atualizar a categoria." : "Nao foi possivel criar a categoria.", {
+      toast.error(editingCategoryId ? "Não foi possível atualizar a categoria." : "Não foi possível criar a categoria.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -393,7 +393,7 @@ export default function TransactionsPage() {
       setTransactionDialogOpen(false);
       toast.success("Transacao removida.");
     } catch (error) {
-      toast.error("Nao foi possivel remover a transacao.", {
+      toast.error("Não foi possível remover a transação.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -420,7 +420,7 @@ export default function TransactionsPage() {
       setCategoryFilter((current) => (current === deleteCategoryTargetId ? "all" : current));
       toast.success("Categoria removida.");
     } catch (error) {
-      toast.error("Nao foi possivel remover a categoria.", {
+      toast.error("Não foi possível remover a categoria.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -447,7 +447,7 @@ export default function TransactionsPage() {
       setEditingCategoryTransactionId(null);
       toast.success("Categoria atualizada.");
     } catch (error) {
-      toast.error("Nao foi possivel atualizar a categoria.", {
+      toast.error("Não foi possível atualizar a categoria.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     } finally {
@@ -463,7 +463,7 @@ export default function TransactionsPage() {
     if (!filteredTransactions.length) {
       return (
         <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-          {isError ? "Nao foi possivel carregar as transacoes agora." : "Nenhuma transacao encontrada para os filtros atuais."}
+          {isError ? "Não foi possível carregar as transações agora." : "Nenhuma transação encontrada para os filtros atuais."}
         </div>
       );
     }
@@ -582,24 +582,24 @@ export default function TransactionsPage() {
 
   if (isLoading) {
     return (
-      <AppShell title="Transacoes" description="Gerencie suas despesas e receitas">
+      <AppShell title="Transações" description="Gerencie suas despesas e receitas">
         <TransactionsSkeleton />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="Transacoes" description="Gerencie suas despesas e receitas">
+    <AppShell title="Transações" description="Gerencie suas despesas e receitas">
       <ImportTransactionsModal open={importDialogOpen} onOpenChange={setImportDialogOpen} categories={categories} banks={banks} />
 
       <AlertDialog open={Boolean(deleteTargetId)} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
         <AlertDialogContent className="border-warning/20 bg-card">
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir transacao?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir transação?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `A transacao "${deleteTarget.description}" sera excluida permanentemente.`
-                : "Esta transacao sera excluida permanentemente."}
+                ? `A transação "${deleteTarget.description}" será excluída permanentemente.`
+                : "Esta transação será excluída permanentemente."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -624,8 +624,8 @@ export default function TransactionsPage() {
             <AlertDialogTitle>Excluir categoria?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteCategoryTarget
-                ? `A categoria "${deleteCategoryTarget.label}" sera excluida e as referencias vinculadas serao movidas para ${deleteCategoryTarget.transactionType === "income" ? '"Salario"' : '"Outros"'}.`
-                : "A categoria sera excluida e as referencias vinculadas serao movidas para uma categoria padrao."}
+                ? `A categoria "${deleteCategoryTarget.label}" será excluída e as referências vinculadas serão movidas para ${deleteCategoryTarget.transactionType === "income" ? '"Salário"' : '"Outros"'}.`
+                : "A categoria será excluída e as referências vinculadas serão movidas para uma categoria padrão."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -647,8 +647,8 @@ export default function TransactionsPage() {
       <Dialog open={transactionDialogOpen} onOpenChange={setTransactionDialogOpen}>
         <DialogContent className="max-w-[510px] border-border/70 bg-card p-6">
           <DialogHeader>
-            <DialogTitle>{isEditing ? "Editar Transacao" : "Nova Transacao"}</DialogTitle>
-            <DialogDescription className="sr-only">Formulario de transacao</DialogDescription>
+            <DialogTitle>{isEditing ? "Editar Transação" : "Nova Transação"}</DialogTitle>
+            <DialogDescription className="sr-only">Formulário de transação</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -709,7 +709,7 @@ export default function TransactionsPage() {
               onValueChange={(value) => setTransactionForm((current) => ({ ...current, bankConnectionId: value }))}
               >
                 <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-                  <SelectValue placeholder={transactionForm.type === "income" ? "Conta ou caixa" : "Conta, cartao ou caixa"} />
+                  <SelectValue placeholder={transactionForm.type === "income" ? "Conta ou caixa" : "Conta, cartão ou caixa"} />
                 </SelectTrigger>
               <SelectContent>
                 {transactionBanks.map((bank) => (
@@ -735,14 +735,14 @@ export default function TransactionsPage() {
               </SelectContent>
             </Select>
             {!categoryIsRequired ? (
-              <p className="text-xs text-muted-foreground">Se nao escolher, a despesa sera salva como Outros.</p>
+              <p className="text-xs text-muted-foreground">Se não escolher, a despesa será salva como Outros.</p>
             ) : null}
             {transactionForm.type === "income" ? (
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border/50 bg-secondary/20 p-4">
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground">Receita recorrente</p>
                   <p className="text-xs text-muted-foreground">
-                    Quando ativa, essa renda sera projetada automaticamente nos proximos meses.
+                    Quando ativa, essa renda será projetada automaticamente nos próximos meses.
                   </p>
                 </div>
                 <Switch
@@ -790,7 +790,7 @@ export default function TransactionsPage() {
         <DialogContent className="max-w-[510px] border-border/70 bg-card p-6">
           <DialogHeader>
             <DialogTitle>{editingCategoryId ? "Editar Categoria" : "Nova Categoria"}</DialogTitle>
-            <DialogDescription className="sr-only">Formulario de categoria</DialogDescription>
+            <DialogDescription className="sr-only">Formulário de categoria</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -908,10 +908,10 @@ export default function TransactionsPage() {
                 data-testid="transactions-category-filter-trigger-hidden"
                 className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1"
               >
-                <SelectValue placeholder="Todas categorias" />
+                <SelectValue placeholder="Todas as categorias" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas categorias</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {categoriesWithBreakdown.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.label}
@@ -927,7 +927,7 @@ export default function TransactionsPage() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar transacao..."
+                placeholder="Buscar transação..."
                 className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
               />
             </div>
@@ -963,14 +963,14 @@ export default function TransactionsPage() {
         <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">Total Receitas</p>
-            <MetricInfoTooltip content="Soma de todas as transacoes de receita visiveis com os filtros atuais de periodo, busca, tipo e categoria." />
+            <MetricInfoTooltip content="Soma de todas as transações de receita visíveis com os filtros atuais de período, busca, tipo e categoria." />
           </div>
           <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.totalIncomes)}</p>
         </div>
         <div className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">Total Despesas</p>
-            <MetricInfoTooltip content="Soma de todas as transacoes de despesa visiveis com os filtros atuais de periodo, busca, tipo e categoria." />
+            <MetricInfoTooltip content="Soma de todas as transações de despesa visíveis com os filtros atuais de período, busca, tipo e categoria." />
           </div>
           <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summaryCardsData.totalExpenses)}</p>
         </div>
@@ -1006,10 +1006,10 @@ export default function TransactionsPage() {
                 data-testid="transactions-category-filter-trigger"
                 className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1"
               >
-                <SelectValue placeholder="Todas categorias" />
+                <SelectValue placeholder="Todas as categorias" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas categorias</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {categoriesWithBreakdown.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.label}
@@ -1025,7 +1025,7 @@ export default function TransactionsPage() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar transacao..."
+                placeholder="Buscar transação..."
                 className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
               />
             </div>
@@ -1110,7 +1110,7 @@ export default function TransactionsPage() {
               onSelectItem={handleCategoryFilterChange}
               emptyMessage="Nenhuma categoria encontrada para os filtros atuais."
               isError={isError}
-              emptyErrorMessage="Nao foi possivel carregar o consolidado por categoria."
+              emptyErrorMessage="Não foi possível carregar o consolidado por categoria."
             />
 
             {categoriesWithBreakdown.length ? (

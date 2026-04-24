@@ -15,7 +15,7 @@ function ExpensesListSkeleton() {
   return (
     <div className="glass-card animate-fade-in p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-foreground">Ultimas Transacoes</h3>
+        <h3 className="font-semibold text-foreground">Últimas Transações</h3>
         <Skeleton className="h-4 w-16" />
       </div>
 
@@ -46,7 +46,7 @@ export default function ExpensesList({ transactions = [], isLoading, isError }: 
   return (
     <div className="glass-card animate-fade-in p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-foreground">Ultimas Transacoes</h3>
+        <h3 className="font-semibold text-foreground">Últimas Transações</h3>
         <Link to={appRoutes.transactions} className="text-xs text-primary hover:underline">
           Ver todas
         </Link>
@@ -54,7 +54,7 @@ export default function ExpensesList({ transactions = [], isLoading, isError }: 
 
       {!transactions.length ? (
         <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
-          {isError ? "Nao foi possivel carregar as transacoes agora." : "Nenhuma transacao recente foi encontrada."}
+          {isError ? "Não foi possível carregar as transações agora." : "Nenhuma transação recente foi encontrada."}
         </div>
       ) : (
         <div className="space-y-1">
@@ -67,7 +67,7 @@ export default function ExpensesList({ transactions = [], isLoading, isError }: 
                 key={transaction.id}
                 to={appRoutes.transactions}
                 className="flex flex-col gap-3 rounded-lg p-2.5 transition-colors hover:bg-secondary/50 sm:flex-row sm:items-center"
-                aria-label={`Abrir transacoes e ver ${transaction.description}`}
+                aria-label={`Abrir transações e ver ${transaction.description}`}
               >
                 <div className="flex items-start gap-3 sm:flex-1 sm:items-center">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">

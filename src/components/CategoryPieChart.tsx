@@ -32,7 +32,7 @@ export default function CategoryPieChart({
   onSelectItem,
   emptyMessage,
   isError = false,
-  emptyErrorMessage = "Nao foi possivel carregar o consolidado por categoria.",
+  emptyErrorMessage = "Não foi possível carregar o consolidado por categoria.",
   chartClassName,
   legendClassName,
 }: CategoryPieChartProps) {

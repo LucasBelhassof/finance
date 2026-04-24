@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 
 const adminTabs = [
   { label: "Visao geral", to: appRoutes.adminOverview },
-  { label: "Usuarios", to: appRoutes.adminUsers },
+  { label: "Usuários", to: appRoutes.adminUsers },
   { label: "Financeiro", to: appRoutes.adminFinancialMetrics },
   { label: "Assinaturas", to: appRoutes.adminSubscriptions },
   { label: "Atividade", to: appRoutes.adminActivity },
-  { label: "Notificacoes", to: appRoutes.adminNotifications },
+  { label: "Notificações", to: appRoutes.adminNotifications },
 ];
 
 export default function AdminLayout({

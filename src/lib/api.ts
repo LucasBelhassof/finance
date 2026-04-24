@@ -206,7 +206,7 @@ async function request<T>(path: string, init?: RequestInit, options: RequestOpti
 
   if (!response.ok) {
     throw new ApiError(
-      safeString(body?.message, safeString(body?.error, "Nao foi possivel concluir a requisicao.")),
+      safeString(body?.message, safeString(body?.error, "Não foi possível concluir a requisição.")),
       response.status,
     );
   }
@@ -288,7 +288,7 @@ export function mapSummaryCard(card: ApiSummaryCard): SummaryCard {
     formattedValue: safeString(card.formattedValue, formatCurrency(value)),
     change: safeString(card.change, "0,0%"),
     positive: typeof card.positive === "boolean" ? card.positive : value >= 0,
-    description: safeString(card.description, "vs mes anterior"),
+    description: safeString(card.description, "vs mês anterior"),
     icon: resolveSummaryCardIcon(label),
   };
 }
@@ -338,7 +338,7 @@ function mapAdminFinancialMetricsResponse(response: ApiAdminFinancialMetricsResp
     })),
     topUsers: (response.topUsers ?? []).map((item) => ({
       id: item.id ?? "",
-      name: safeString(item.name, "Usuario"),
+      name: safeString(item.name, "Usuário"),
       email: safeString(item.email),
       transactionCount: safeNumber(item.transactionCount),
       transactedVolume: safeNumber(item.transactedVolume),
@@ -378,7 +378,7 @@ function mapAdminActivityResponse(response: ApiAdminActivityResponse): AdminActi
       user: item.user
         ? {
             id: item.user.id ?? "",
-            name: safeString(item.user.name, "Usuario"),
+                name: safeString(item.user.name, "Usuário"),
             role: item.user.role === "admin" ? "admin" : "user",
           }
         : null,
@@ -393,7 +393,7 @@ function mapAdminUsersResponse(response: ApiAdminUsersResponse): AdminUsersData 
     total: safeNumber(response.total),
     users: (response.users ?? []).map((item) => ({
       id: item.id ?? "",
-      name: safeString(item.name, "Usuario"),
+      name: safeString(item.name, "Usuário"),
       email: safeString(item.email),
       role: item.role === "admin" ? "admin" : "user",
       status: item.status === "inactive" || item.status === "suspended" ? item.status : "active",
@@ -416,7 +416,7 @@ function mapNotificationsResponse(response: ApiNotificationsResponse): Notificat
       return {
         recipientId: notification.recipientId ?? "",
         notificationId: notification.notificationId ?? "",
-        title: safeString(notification.title, "Notificacao"),
+        title: safeString(notification.title, "Notificação"),
         message: safeString(notification.message),
         category:
           notification.category === "invoice_due" ||
@@ -450,7 +450,7 @@ function mapAdminNotificationTargetsResponse(response: ApiAdminNotificationTarge
   return {
     users: (response.users ?? []).map((user) => ({
       id: user.id ?? "",
-      name: safeString(user.name, "Usuario"),
+      name: safeString(user.name, "Usuário"),
       email: safeString(user.email),
       status: user.status === "inactive" || user.status === "suspended" ? user.status : "active",
       isPremium: Boolean(user.isPremium),
@@ -462,7 +462,7 @@ function mapAdminNotificationsResponse(response: ApiAdminNotificationsResponse):
   return {
     notifications: (response.notifications ?? []).map((item) => ({
       id: item.id ?? "",
-      title: safeString(item.title, "Notificacao"),
+      title: safeString(item.title, "Notificação"),
       message: safeString(item.message),
       category:
         item.category === "invoice_due" ||
@@ -508,7 +508,7 @@ export function mapTransaction(transaction: ApiTransaction): TransactionItem {
 
   return {
     id: transaction.id ?? `${safeString(transaction.description, "transaction")}-${safeString(transaction.occurredOn, "0")}`,
-    description: safeString(transaction.description, "Transacao"),
+    description: safeString(transaction.description, "Transação"),
     amount,
     formattedAmount: safeString(
       transaction.formattedAmount,
@@ -580,12 +580,12 @@ export function mapInsight(insight: ApiInsight): InsightItem {
 
   return {
     id: insight.id ?? safeString(insight.title, "insight"),
-    title: safeString(insight.title, "Insight indisponivel"),
-    description: safeString(insight.description, "Nao ha detalhes adicionais para este insight."),
+    title: safeString(insight.title, "Insight indisponível"),
+    description: safeString(insight.description, "Não há detalhes adicionais para este insight."),
     tag: safeString(insight.tag, "IA"),
     tone,
     priority,
-    priorityLabel: priority === "high" ? "Alta" : priority === "medium" ? "Media" : "Baixa",
+    priorityLabel: priority === "high" ? "Alta" : priority === "medium" ? "Média" : "Baixa",
     toneLabel: tone === "warning" ? "Atencao" : tone === "info" ? "Analise" : tone === "success" ? "Oportunidade" : "Leitura",
     insightType,
     metadata: typeof insight.metadata === "object" && insight.metadata !== null ? insight.metadata : {},
@@ -634,7 +634,7 @@ export function mapHousingItem(item: ApiHousingItem): HousingItem {
 
   return {
     id: item.id ?? safeString(item.description, "housing"),
-    description: safeString(item.description, "Despesa de habitacao"),
+    description: safeString(item.description, "Despesa de habitação"),
     expenseType: normalizeHousingExpenseType(item.expenseType),
     amount,
     formattedAmount: safeString(item.formattedAmount, formatCurrency(amount)),
@@ -676,7 +676,7 @@ export function mapChatMessage(message: ApiChatMessage): ChatMessage {
   return {
     id: message.id ?? `${normalizeChatRole(message.role)}-${safeString(message.createdAt, "0")}`,
     role: normalizeChatRole(message.role),
-    content: safeString(message.content, "Sem conteudo"),
+    content: safeString(message.content, "Sem conteúdo"),
     provider: safeString(message.provider, "") || null,
     model: safeString(message.model, "") || null,
     inputTokens: typeof message.inputTokens === "number" ? message.inputTokens : null,
@@ -774,7 +774,7 @@ export function mapInstallmentsOverviewResponse(response: ApiInstallmentsOvervie
       })),
       cardDistribution: (charts.card_distribution ?? []).map((item) => ({
         cardId: item.card_id ?? "card",
-        cardName: safeString(item.card_name, "Cartao"),
+        cardName: safeString(item.card_name, "Cartão"),
         amount: safeNumber(item.amount),
         shareRatio: safeNumber(item.share_ratio),
       })),
@@ -787,7 +787,7 @@ export function mapInstallmentsOverviewResponse(response: ApiInstallmentsOvervie
     filterOptions: {
       cards: (filterOptions.cards ?? []).map((item) => ({
         id: item.id ?? "card",
-        name: safeString(item.name, "Cartao"),
+        name: safeString(item.name, "Cartão"),
       })),
       categories: (filterOptions.categories ?? []).map((item) => ({
         id: item.id ?? "category",
@@ -814,7 +814,7 @@ export function mapInstallmentsOverviewResponse(response: ApiInstallmentsOvervie
       category: safeString(item.category, "Sem categoria"),
       categoryId: item.category_id ?? "category",
       cardId: item.card_id ?? "card",
-      cardName: safeString(item.card_name, "Cartao"),
+      cardName: safeString(item.card_name, "Cartão"),
       purchaseDate: safeString(item.purchase_date),
       totalAmount: safeNumber(item.total_amount),
       installmentAmount: safeNumber(item.installment_amount),
@@ -982,7 +982,7 @@ export function mapDashboardResponse(response: ApiDashboardResponse): DashboardD
   return {
     user: {
       id: response.user?.id ?? "default-user",
-      name: safeString(response.user?.name, "Usuario"),
+      name: safeString(response.user?.name, "Usuário"),
       email: safeString(response.user?.email, "usuario@email.com"),
     },
     referenceMonth: response.referenceMonth ?? null,

@@ -509,7 +509,7 @@ export default function HousingPage() {
       !form.startDate ||
       form.bankConnectionId === "none"
     ) {
-      toast.error("Informe descricao, valor, data da cobranca e conta validos.");
+      toast.error("Informe descrição, valor, data da cobrança e conta válidos.");
       return null;
     }
 
@@ -547,16 +547,16 @@ export default function HousingPage() {
           id: editingExpense.id,
           ...payload,
         } satisfies UpdateHousingInput);
-        toast.success("Despesa de habitacao atualizada.");
+        toast.success("Despesa de habitação atualizada.");
       } else {
         await createHousing.mutateAsync(payload);
-        toast.success("Despesa recorrente adicionada nas transacoes.");
+        toast.success("Despesa recorrente adicionada nas transações.");
       }
 
       setDialogOpen(false);
       resetForm();
     } catch (error) {
-      toast.error(editingExpense ? "Nao foi possivel atualizar a despesa." : "Nao foi possivel criar a despesa.", {
+      toast.error(editingExpense ? "Não foi possível atualizar a despesa." : "Não foi possível criar a despesa.", {
         description: error instanceof Error && error.message ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -576,9 +576,9 @@ export default function HousingPage() {
         resetForm();
       }
 
-      toast.success("Despesa de habitacao excluida.");
+      toast.success("Despesa de habitação excluída.");
     } catch (error) {
-      toast.error("Nao foi possivel excluir a despesa.", {
+      toast.error("Não foi possível excluir a despesa.", {
         description: error instanceof Error && error.message ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -600,8 +600,8 @@ export default function HousingPage() {
             <AlertDialogTitle>Excluir despesa recorrente?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `A serie de "${deleteTarget.description}" sera removida, incluindo os lancamentos vinculados.`
-                : "Essa serie sera removida."}
+                ? `A série de "${deleteTarget.description}" será removida, incluindo os lançamentos vinculados.`
+                : "Essa série será removida."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -692,7 +692,7 @@ export default function HousingPage() {
 
             <Select value={form.bankConnectionId} onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}>
               <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-                <SelectValue placeholder="Conta ou banco da transacao" />
+                <SelectValue placeholder="Conta ou banco da transação" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Selecione uma conta</SelectItem>
@@ -731,7 +731,7 @@ export default function HousingPage() {
                 Cancelar
               </Button>
               <Button onClick={() => void handleSaveExpense()} disabled={isSaving}>
-                {isSaving ? "Salvando..." : editingExpense ? "Salvar alteracoes" : "Adicionar despesa"}
+                {isSaving ? "Salvando..." : editingExpense ? "Salvar alterações" : "Adicionar despesa"}
               </Button>
             </div>
           </DialogFooter>
@@ -791,7 +791,7 @@ export default function HousingPage() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar descricao, tipo ou conta..."
+                placeholder="Buscar descrição, tipo ou conta..."
                 className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
               />
             </div>
@@ -814,50 +814,50 @@ export default function HousingPage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Compromisso do periodo</span>
-              <MetricInfoTooltip content="Soma de todas as cobrancas de habitacao geradas dentro do periodo e dos filtros aplicados." />
+              <span className="text-sm text-muted-foreground">Compromisso do período</span>
+              <MetricInfoTooltip content="Soma de todas as cobranças de habitação geradas dentro do período e dos filtros aplicados." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
               <Wallet size={18} />
             </div>
           </div>
           <p className="text-[2rem] font-semibold text-foreground">{formatCurrency(periodTotal)}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{filteredOccurrences.length} ocorrencias no recorte</p>
+          <p className="mt-2 text-sm text-muted-foreground">{filteredOccurrences.length} ocorrências no recorte</p>
         </div>
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Series ativas</span>
-              <MetricInfoTooltip content="Quantidade de despesas de habitacao com pelo menos uma ocorrencia dentro do recorte filtrado." />
+              <MetricInfoTooltip content="Quantidade de despesas de habitação com pelo menos uma ocorrência dentro do recorte filtrado." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Building2 size={18} />
             </div>
           </div>
           <p className="text-[2rem] font-semibold text-foreground">{activeSeriesCount}</p>
-          <p className="mt-2 text-sm text-muted-foreground">Despesas de habitacao com ocorrencia no periodo</p>
+          <p className="mt-2 text-sm text-muted-foreground">Despesas de habitação com ocorrência no período</p>
         </div>
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Media por vencimento</span>
-              <MetricInfoTooltip content="Media calculada dividindo o compromisso total do periodo pela quantidade de ocorrencias de habitacao geradas no recorte." />
+              <span className="text-sm text-muted-foreground">Média por vencimento</span>
+              <MetricInfoTooltip content="Média calculada dividindo o compromisso total do período pela quantidade de ocorrências de habitação geradas no recorte." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <CalendarRange size={18} />
             </div>
           </div>
           <p className="text-[2rem] font-semibold text-foreground">{formatCurrency(averageOccurrence)}</p>
-          <p className="mt-2 text-sm text-muted-foreground">Valor medio por cobranca gerada no recorte</p>
+          <p className="mt-2 text-sm text-muted-foreground">Valor médio por cobrança gerada no recorte</p>
         </div>
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Proximo vencimento</span>
-              <MetricInfoTooltip content="Indica se existe uma proxima cobranca futura dentro do recorte atual e destaca a primeira ocorrencia encontrada." />
+              <MetricInfoTooltip content="Indica se existe uma próxima cobrança futura dentro do recorte atual e destaca a primeira ocorrência encontrada." />
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
               <Home size={18} />
@@ -877,13 +877,13 @@ export default function HousingPage() {
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-foreground">Evolucao das despesas</h2>
             <p className="text-sm text-muted-foreground">
-              Leitura visual por {selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? "mes" : "dia"} das cobrancas filtradas.
+              Leitura visual por {selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? "mês" : "dia"} das cobranças filtradas.
             </p>
           </div>
 
           {!trendSeries.length ? (
             <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-              {housingError ? "Nao foi possivel carregar as despesas de habitacao." : "Nenhuma despesa encontrada para os filtros atuais."}
+              {housingError ? "Não foi possível carregar as despesas de habitação." : "Nenhuma despesa encontrada para os filtros atuais."}
             </div>
           ) : (
             <div className="h-[320px]">
@@ -902,14 +902,14 @@ export default function HousingPage() {
 
         <div className="glass-card rounded-[28px] border border-border/40 p-5">
           <div className="mb-5">
-            <h2 className="text-xl font-semibold text-foreground">Distribuicao por tipo</h2>
-            <p className="text-sm text-muted-foreground">Entenda quais despesas pesam mais na sua estrutura de habitacao.</p>
+            <h2 className="text-xl font-semibold text-foreground">Distribuição por tipo</h2>
+            <p className="text-sm text-muted-foreground">Entenda quais despesas pesam mais na sua estrutura de habitação.</p>
           </div>
           <CategoryPieChart
             items={expenseTypeBreakdown}
             emptyMessage="Sem tipos para exibir nos filtros atuais."
             isError={housingError}
-            emptyErrorMessage="Nao foi possivel carregar a distribuicao por tipo."
+            emptyErrorMessage="Não foi possível carregar a distribuição por tipo."
           />
         </div>
       </section>
@@ -918,14 +918,14 @@ export default function HousingPage() {
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Tabela de despesas recorrentes</h2>
-            <p className="text-sm text-muted-foreground">Gerencie as series de habitacao, revise vencimentos e atualize as recorrencias.</p>
+            <p className="text-sm text-muted-foreground">Gerencie as séries de habitação, revise vencimentos e atualize as recorrências.</p>
           </div>
           <div className="text-sm text-muted-foreground">{filteredSeries.length} linhas</div>
         </div>
 
         {!filteredSeries.length ? (
           <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-            {housingError ? "Nao foi possivel carregar a tabela de habitacao." : "Nenhuma despesa encontrada para os filtros atuais."}
+            {housingError ? "Não foi possível carregar a tabela de habitação." : "Nenhuma despesa encontrada para os filtros atuais."}
           </div>
         ) : (
           <Table className="min-w-[980px]">
@@ -969,7 +969,7 @@ export default function HousingPage() {
                     <TableCell>Dia {expense.dueDay}</TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium text-foreground">{rows.length} no periodo</div>
+                        <div className="font-medium text-foreground">{rows.length} no período</div>
                         <div className="text-xs text-muted-foreground">
                           {expense.installmentCount ? `${rows.length}/${expense.installmentCount} visiveis no recorte` : "Cobrança mensal recorrente"}
                         </div>
@@ -978,7 +978,7 @@ export default function HousingPage() {
                     <TableCell className="text-right">
                       <div className="space-y-1">
                         <div className="font-semibold text-foreground">{formatCurrency(expense.amount)}</div>
-                        <div className="text-xs text-muted-foreground">{formatCurrency(totalInPeriod)} no periodo</div>
+                        <div className="text-xs text-muted-foreground">{formatCurrency(totalInPeriod)} no período</div>
                       </div>
                     </TableCell>
                     <TableCell>

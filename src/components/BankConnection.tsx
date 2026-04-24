@@ -54,7 +54,7 @@ function AccountTypeIcon({ accountType }: { accountType: BankItem["accountType"]
 
 function AccountTypeLabel({ accountType }: { accountType: BankItem["accountType"] }) {
   if (accountType === "credit_card") {
-    return <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">Cartao</span>;
+    return <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">Cartão</span>;
   }
 
   if (accountType === "cash") {
@@ -87,8 +87,8 @@ export default function BankConnection({ banks = [], isLoading, isError }: BankC
       {!banks.length ? (
         <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
           {isError
-            ? "Nao foi possivel carregar as contas."
-            : "Nenhuma conta vinculada ainda. Adicione sua primeira conta para acompanhar o saldo e os lancamentos."}
+            ? "Não foi possível carregar as contas."
+            : "Nenhuma conta vinculada ainda. Adicione sua primeira conta para acompanhar o saldo e os lançamentos."}
         </div>
       ) : (
         <div className="space-y-2.5">

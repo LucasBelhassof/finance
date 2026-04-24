@@ -23,7 +23,7 @@ const banks: BankItem[] = [
   {
     id: 2,
     slug: "visa",
-    name: "Cartao Visa",
+    name: "Cartão Visa",
     accountType: "credit_card",
     parentBankConnectionId: 1,
     parentAccountName: "Nubank",
@@ -139,7 +139,7 @@ const transactions: TransactionItem[] = [
     account: {
       id: 2,
       slug: "visa",
-      name: "Cartao Visa",
+      name: "Cartão Visa",
       accountType: "credit_card",
       color: "bg-warning",
     },
@@ -213,7 +213,7 @@ describe("SpendingChart", () => {
     render(<SpendingChart transactions={transactions} banks={banks} />);
 
     fireEvent.click(screen.getByRole("combobox"));
-    fireEvent.click(screen.getByRole("option", { name: "Cartao Visa" }));
+    fireEvent.click(screen.getByRole("option", { name: "Cartão Visa" }));
 
     expect(screen.getByText("Alimentacao")).toBeInTheDocument();
     expect(screen.getByText("R$ 300,00")).toBeInTheDocument();
@@ -227,7 +227,7 @@ describe("SpendingChart", () => {
     fireEvent.click(screen.getByRole("combobox"));
     fireEvent.click(screen.getByRole("option", { name: "Caixa" }));
 
-    expect(screen.getByText(/Nao ha despesas categorizadas para a conta selecionada/i)).toBeInTheDocument();
+    expect(screen.getByText(/Não há despesas categorizadas para a conta selecionada/i)).toBeInTheDocument();
   });
 
   it("lists all account options in the selector", () => {
@@ -238,7 +238,7 @@ describe("SpendingChart", () => {
 
     expect(within(listbox).getByText("Todas as contas")).toBeInTheDocument();
     expect(within(listbox).getByText("Nubank")).toBeInTheDocument();
-    expect(within(listbox).getByText("Cartao Visa")).toBeInTheDocument();
+    expect(within(listbox).getByText("Cartão Visa")).toBeInTheDocument();
     expect(within(listbox).getByText("Caixa")).toBeInTheDocument();
   });
 

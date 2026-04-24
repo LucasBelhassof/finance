@@ -14,13 +14,13 @@ export default function AdminSubscriptionsPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Usuarios premium</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Usuários premium</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">{data?.summary.premiumUsers ?? 0}</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Usuarios free</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Usuários free</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">{data?.summary.freeUsers ?? 0}</CardContent>
         </Card>
@@ -48,7 +48,7 @@ export default function AdminSubscriptionsPage() {
           {(data?.evolution ?? []).map((item) => (
             <div key={item.month} className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
               <span className="font-medium">{item.month}</span>
-              <span className="text-sm text-muted-foreground">{item.premiumActivations} ativacoes</span>
+              <span className="text-sm text-muted-foreground">{item.premiumActivations} ativações</span>
             </div>
           ))}
         </CardContent>

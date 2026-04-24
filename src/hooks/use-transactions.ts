@@ -138,11 +138,13 @@ export function usePreviewTransactionImport() {
       file,
       importSource,
       bankConnectionId,
+      filePassword,
     }: {
       file: File;
       importSource: "bank_statement" | "credit_card_statement";
       bankConnectionId: number | string;
-    }) => previewTransactionImport(file, importSource, bankConnectionId),
+      filePassword?: string;
+    }) => previewTransactionImport(file, importSource, bankConnectionId, { filePassword }),
   });
 }
 

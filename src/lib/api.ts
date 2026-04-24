@@ -93,11 +93,15 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
+  details?: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string, details?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -208,6 +212,8 @@ async function request<T>(path: string, init?: RequestInit, options: RequestOpti
     throw new ApiError(
       safeString(body?.message, safeString(body?.error, "Não foi possível concluir a requisição.")),
       response.status,
+      body?.error,
+      body?.details,
     );
   }
 
@@ -1381,9 +1387,14 @@ export async function previewTransactionImport(
   file: File,
   importSource: "bank_statement" | "credit_card_statement",
   bankConnectionId: number | string,
+  options: { filePassword?: string } = {},
 ) {
   const body = new FormData();
   body.set("file", file);
+
+  if (options.filePassword?.trim()) {
+    body.set("filePassword", options.filePassword.trim());
+  }
 
   const response = await request<ApiImportPreviewResponse>(
     buildPath("/api/transactions/import/preview", { importSource, bankConnectionId }),

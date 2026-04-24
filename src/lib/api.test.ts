@@ -12,6 +12,7 @@ import {
   mapChatReplyResponse,
   mapSpendingResponse,
   mapTransaction,
+  previewTransactionImport,
 } from "@/lib/api";
 
 describe("api mappers", () => {
@@ -59,6 +60,50 @@ describe("api mappers", () => {
         credentials: "include",
       }),
     );
+  });
+
+  it("sends filePassword in transaction import preview form data when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: async () =>
+        JSON.stringify({
+          previewToken: "preview-1",
+          expiresAt: "2026-04-06T10:15:00.000Z",
+          importSource: "credit_card_statement",
+          bankConnectionId: 9,
+          bankConnectionName: "Nubank",
+          fileMetadata: {
+            originalFilename: "fatura.pdf",
+            issuerName: null,
+            statementDueDate: null,
+            statementReferenceMonth: null,
+          },
+          fileSummary: {
+            totalRows: 0,
+            importableRows: 0,
+            errorRows: 0,
+            duplicateRows: 0,
+            actionRequiredRows: 0,
+          },
+          items: [],
+        }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await previewTransactionImport(
+      new File(["%PDF"], "fatura.pdf", { type: "application/pdf" }),
+      "credit_card_statement",
+      9,
+      { filePassword: "123456" },
+    );
+
+    const requestInit = fetchMock.mock.calls[0][1] as RequestInit;
+    const body = requestInit.body as FormData;
+
+    expect(body.get("file")).toBeInstanceOf(File);
+    expect(body.get("filePassword")).toBe("123456");
   });
 
   it("maps transactions and falls back to a safe icon", () => {

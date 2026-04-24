@@ -94,11 +94,13 @@ function formatStatementReferenceLabel(statementReferenceMonth: string | null) {
 
 export default function ImportTransactionsModal({ open, onOpenChange, categories, banks }: ImportTransactionsModalProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
   const previewImport = usePreviewTransactionImport();
   const commitImport = useCommitTransactionImport();
   const createCategory = useCreateCategory();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePassword, setFilePassword] = useState("");
   const [importSource, setImportSource] = useState<ImportSource>("");
   const [bankConnectionId, setBankConnectionId] = useState("");
   const [previews, setPreviews] = useState<ImportPreviewData[]>([]);
@@ -118,6 +120,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   useEffect(() => {
     if (!open) {
       setSelectedFile(null);
+      setFilePassword("");
       setImportSource("");
       setBankConnectionId("");
       setPreviews([]);
@@ -157,6 +160,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   );
 
   const pageCount = Math.max(1, Math.ceil(previewRows.length / PAGE_SIZE));
+  const shouldShowFilePassword = importSource === "credit_card_statement" || /\.pdf$/i.test(selectedFile?.name ?? "");
   const currentRows = useMemo(() => {
     const startIndex = (page - 1) * PAGE_SIZE;
     return previewRows.slice(startIndex, startIndex + PAGE_SIZE);
@@ -207,6 +211,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
         file: selectedFile,
         importSource,
         bankConnectionId,
+        filePassword,
       });
 
       setPreviews((current) => [...current, nextPreview]);
@@ -215,6 +220,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
         ...buildDrafts(nextPreview),
       }));
       setSelectedFile(null);
+      setFilePassword("");
       setPage(1);
 
       if (inputRef.current) {
@@ -223,6 +229,12 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
       toast.success("Previa gerada com sucesso.");
     } catch (error) {
+      const errorCode = error instanceof Error && "code" in error ? String(error.code) : "";
+
+      if (errorCode === "import_pdf_password_required" || errorCode === "import_pdf_password_invalid") {
+        window.setTimeout(() => passwordInputRef.current?.focus(), 0);
+      }
+
       toast.error("Não foi possível gerar a prévia.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
@@ -301,12 +313,14 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     setDrafts((current) =>
       Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${previewToken}:`))),
     );
+    setFilePassword("");
   };
 
   const handleResetImport = () => {
     setPreviews([]);
     setDrafts({});
     setSelectedFile(null);
+    setFilePassword("");
     setPage(1);
 
     if (inputRef.current) {
@@ -400,6 +414,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         onClick={() => {
                           setImportSource("bank_statement");
                           setBankConnectionId("");
+                          setFilePassword("");
                         }}
                         className={cn(
                           "rounded-xl px-4 py-3 text-left text-sm transition-colors",
@@ -418,6 +433,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         onClick={() => {
                           setImportSource("credit_card_statement");
                           setBankConnectionId("");
+                          setFilePassword("");
                         }}
                         className={cn(
                           "rounded-xl px-4 py-3 text-left text-sm transition-colors",
@@ -455,7 +471,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                           type="file"
                           accept={importSource === "credit_card_statement" ? ".csv,.pdf,text/csv,application/pdf" : ".csv,text/csv"}
                           className="hidden"
-                          onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                          onChange={(event) => {
+                            setSelectedFile(event.target.files?.[0] ?? null);
+                            setFilePassword("");
+                          }}
                         />
                         <button
                           type="button"
@@ -474,6 +493,18 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         {previewImport.isPending ? "Gerando prévia..." : "Gerar prévia"}
                       </Button>
                     </div>
+
+                    {shouldShowFilePassword ? (
+                      <Input
+                        ref={passwordInputRef}
+                        type="password"
+                        value={filePassword}
+                        onChange={(event) => setFilePassword(event.target.value)}
+                        placeholder="Senha do PDF (opcional)"
+                        autoComplete="off"
+                        className="h-12 rounded-xl border-border/60 bg-card"
+                      />
+                    ) : null}
                   </div>
                 </div>
               ) : (
@@ -515,7 +546,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                           type="file"
                           accept={importSource === "credit_card_statement" ? ".csv,.pdf,text/csv,application/pdf" : ".csv,text/csv"}
                           className="hidden"
-                          onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                          onChange={(event) => {
+                            setSelectedFile(event.target.files?.[0] ?? null);
+                            setFilePassword("");
+                          }}
                         />
                         <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
                           <Plus size={16} />
@@ -532,8 +566,21 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                     </div>
 
                     {selectedFile ? (
-                      <div className="rounded-xl border border-dashed border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground">
-                        Arquivo selecionado: <span className="font-medium text-foreground">{selectedFile.name}</span>
+                      <div className="space-y-3 rounded-xl border border-dashed border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground">
+                        <div>
+                          Arquivo selecionado: <span className="font-medium text-foreground">{selectedFile.name}</span>
+                        </div>
+                        {shouldShowFilePassword ? (
+                          <Input
+                            ref={passwordInputRef}
+                            type="password"
+                            value={filePassword}
+                            onChange={(event) => setFilePassword(event.target.value)}
+                            placeholder="Senha do PDF (opcional)"
+                            autoComplete="off"
+                            className="h-10 rounded-xl border-border/60 bg-card"
+                          />
+                        ) : null}
                       </div>
                     ) : null}
 

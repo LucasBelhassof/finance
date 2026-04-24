@@ -144,7 +144,7 @@ describe("ImportTransactionsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
     fireEvent.click(screen.getByRole("combobox", { name: "" }));
     fireEvent.click(screen.getByText("Itau"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
@@ -154,6 +154,7 @@ describe("ImportTransactionsModal", () => {
       file: expect.any(File),
       importSource: "bank_statement",
       bankConnectionId: "2",
+      filePassword: "",
     });
   });
 
@@ -182,11 +183,110 @@ describe("ImportTransactionsModal", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cartao/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
 
     expect(fileInput.accept).toContain(".pdf");
     expect(screen.getByText(/Selecione um arquivo CSV ou PDF da fatura/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Senha do PDF/i)).toBeInTheDocument();
+  });
+
+  it("sends the PDF password only through the preview request", async () => {
+    render(
+      <ImportTransactionsModal
+        open
+        onOpenChange={vi.fn()}
+        categories={[]}
+        banks={[
+          {
+            id: 7,
+            slug: "nubank",
+            name: "Nubank",
+            accountType: "credit_card",
+            parentBankConnectionId: 2,
+            parentAccountName: "Itau",
+            statementCloseDay: 10,
+            statementDueDay: 17,
+            connected: true,
+            color: "bg-purple-500",
+            currentBalance: 0,
+            formattedBalance: "R$ 0,00",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["%PDF"], "fatura.pdf", { type: "application/pdf" })],
+      },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/Senha do PDF/i), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(screen.getByRole("combobox", { name: "" }));
+    fireEvent.click(screen.getByText("Nubank"));
+    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
+
+    await waitFor(() => {
+      expect(previewMutateAsync).toHaveBeenCalledWith({
+        file: expect.any(File),
+        importSource: "credit_card_statement",
+        bankConnectionId: "7",
+        filePassword: "123456",
+      });
+    });
+  });
+
+  it("keeps the selected PDF and focuses the password field after password errors", async () => {
+    const passwordError = new Error("Informe a senha do PDF para gerar a previa.") as Error & { code: string };
+    passwordError.code = "import_pdf_password_required";
+    previewMutateAsync.mockRejectedValueOnce(passwordError);
+
+    render(
+      <ImportTransactionsModal
+        open
+        onOpenChange={vi.fn()}
+        categories={[]}
+        banks={[
+          {
+            id: 7,
+            slug: "nubank",
+            name: "Nubank",
+            accountType: "credit_card",
+            parentBankConnectionId: 2,
+            parentAccountName: "Itau",
+            statementCloseDay: 10,
+            statementDueDay: 17,
+            connected: true,
+            color: "bg-purple-500",
+            currentBalance: 0,
+            formattedBalance: "R$ 0,00",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["%PDF"], "fatura.pdf", { type: "application/pdf" })],
+      },
+    });
+    fireEvent.click(screen.getByRole("combobox", { name: "" }));
+    fireEvent.click(screen.getByText("Nubank"));
+    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
+
+    const passwordInput = screen.getByPlaceholderText(/Senha do PDF/i);
+
+    await waitFor(() => {
+      expect(passwordInput).toHaveFocus();
+    });
+
+    expect(screen.getByText("fatura.pdf")).toBeInTheDocument();
   });
 
   it("commits expenses without category so the backend can apply Outros", async () => {
@@ -223,13 +323,13 @@ describe("ImportTransactionsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
     fireEvent.click(screen.getByRole("combobox", { name: "" }));
     fireEvent.click(screen.getByText("Itau"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar importacao/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar importa/i }));
 
     await waitFor(() => {
       expect(commitMutateAsync).toHaveBeenCalledWith({
@@ -281,7 +381,7 @@ describe("ImportTransactionsModal", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cartao/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(fileInput, {
@@ -292,7 +392,7 @@ describe("ImportTransactionsModal", () => {
 
     fireEvent.click(screen.getByRole("combobox", { name: "" }));
     fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar previa/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Adicionar fatura/i })).toBeInTheDocument();
@@ -306,13 +406,13 @@ describe("ImportTransactionsModal", () => {
         files: [new File(["descricao,valor"], "fatura-abril.csv", { type: "text/csv" })],
       },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Gerar previa da fatura/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Gerar pr.*fatura/i }));
 
     await waitFor(() => {
       expect(previewMutateAsync).toHaveBeenCalledTimes(2);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar importacao/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar importa/i }));
 
     await waitFor(() => {
       expect(commitMutateAsync).toHaveBeenCalledTimes(2);

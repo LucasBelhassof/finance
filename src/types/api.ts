@@ -388,6 +388,7 @@ export interface ApiHealthResponse {
 export interface ApiErrorResponse {
   error?: string;
   message?: string;
+  details?: unknown;
 }
 
 export interface SummaryCard {

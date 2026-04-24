@@ -2184,7 +2184,7 @@ export async function deleteTransaction(userId, transactionId, input = {}) {
   }
 }
 
-export async function previewTransactionImport(userId, fileBuffer, importSource = "bank_statement", bankConnectionId, filename, contentType) {
+export async function previewTransactionImport(userId, fileBuffer, importSource = "bank_statement", bankConnectionId, filename, contentType, filePassword) {
   const resolvedUserId = await requireUserId(userId);
   const parsedBankConnectionId = Number(bankConnectionId);
 
@@ -2229,6 +2229,7 @@ export async function previewTransactionImport(userId, fileBuffer, importSource 
     bankConnectionName: bankConnection.name,
     contentType,
     fileBuffer,
+    filePassword,
     filename,
     historicalRows,
     importSource,

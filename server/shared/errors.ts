@@ -33,7 +33,12 @@ export class BadRequestError extends HttpError {
 }
 
 export function isHttpError(error: unknown): error is HttpError {
-  return error instanceof HttpError;
+  return (
+    error instanceof HttpError ||
+    (error instanceof Error &&
+      typeof (error as { status?: unknown }).status === "number" &&
+      typeof (error as { code?: unknown }).code === "string")
+  );
 }
 
 export function toHttpError(error: unknown) {

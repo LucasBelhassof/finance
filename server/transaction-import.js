@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { PDFParse } from "pdf-parse";
+import { PasswordException, PDFParse } from "pdf-parse";
 import { suggestKnownMerchantCategory } from "./merchant-category-rules.js";
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -12,6 +12,31 @@ const IMPORT_FINGERPRINT_VERSION = "v1";
 const PDF_PAGE_JOINER = "\n-- page_number of total_number --\n";
 
 const previewSessions = new Map();
+
+class ImportBadRequestError extends Error {
+  constructor(code, message, details) {
+    super(message);
+    this.name = "HttpError";
+    this.status = 400;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export function createPdfParseOptions(buffer, filePassword) {
+  return {
+    data: buffer,
+    ...(filePassword ? { password: filePassword } : {}),
+  };
+}
+
+export function createPdfPasswordError(filePassword) {
+  return new ImportBadRequestError(
+    filePassword ? "import_pdf_password_invalid" : "import_pdf_password_required",
+    filePassword ? "Senha do PDF incorreta. Verifique e tente novamente." : "Informe a senha do PDF para gerar a previa.",
+    { requiresPassword: true },
+  );
+}
 
 const headerAliases = {
   date: ["data", "data lancamento", "data lançamento", "data movimento", "dt lancamento", "dt lançamento", "date"],
@@ -704,28 +729,32 @@ export function parseCreditCardPdfStatement({ text, filename }) {
   };
 }
 
-async function extractPdfText(buffer) {
-  const parser = new PDFParse({
-    data: buffer,
-  });
+async function extractPdfText(buffer, filePassword) {
+  const parser = new PDFParse(createPdfParseOptions(buffer, filePassword));
 
   try {
     const result = await parser.getText({
       pageJoiner: PDF_PAGE_JOINER,
     });
     return result.text;
+  } catch (error) {
+    if (error instanceof PasswordException) {
+      throw createPdfPasswordError(filePassword);
+    }
+
+    throw error;
   } finally {
     await parser.destroy().catch(() => undefined);
   }
 }
 
-async function extractImportRowsFromFile({ fileBuffer, contentType, filename, importSource }) {
+async function extractImportRowsFromFile({ fileBuffer, contentType, filename, importSource, filePassword }) {
   if (isPdfUpload(contentType, filename)) {
     if (importSource !== "credit_card_statement") {
       throw new Error("PDF e suportado apenas para fatura do cartao nesta versao.");
     }
 
-    const text = await extractPdfText(fileBuffer);
+    const text = await extractPdfText(fileBuffer, filePassword);
 
     if (!text || !text.trim()) {
       throw new Error("Nao foi possivel extrair texto do PDF. Use um PDF com texto selecionavel ou exporte CSV.");
@@ -765,11 +794,35 @@ async function extractImportRowsFromFile({ fileBuffer, contentType, filename, im
     throw new Error("O arquivo excede o limite de 5.000 linhas.");
   }
 
+  if (filePassword) {
+    try {
+      resolveHeaderIndexes(nonEmptyRows[0]);
+    } catch {
+      throw new ImportBadRequestError(
+        "bad_request",
+        "CSV protegido por senha nao e suportado. Exporte o CSV sem senha ou envie a fatura em PDF com senha.",
+      );
+    }
+  }
+
   const fileMetadata = extractImportFileMetadata(filename);
 
   if (importSource === "credit_card_statement" && !resolveStatementReferenceMonth(fileMetadata)) {
     const dataRows = nonEmptyRows.slice(1);
-    const headerIndexes = resolveHeaderIndexes(nonEmptyRows[0]);
+    let headerIndexes;
+
+    try {
+      headerIndexes = resolveHeaderIndexes(nonEmptyRows[0]);
+    } catch (error) {
+      if (filePassword) {
+        throw new ImportBadRequestError(
+          "bad_request",
+          "CSV protegido por senha nao e suportado. Exporte o CSV sem senha ou envie a fatura em PDF com senha.",
+        );
+      }
+
+      throw error;
+    }
     const candidateDates = dataRows
       .map((row) => {
         try {
@@ -1806,12 +1859,14 @@ export function parseMultipartCsvUpload(contentType, bodyBuffer) {
 
   const multipartText = bodyBuffer.toString("latin1");
   const parts = multipartText.split(`--${boundary}`);
+  const upload = {
+    filename: "extrato.csv",
+    contentType: "text/csv",
+    buffer: null,
+    filePassword: undefined,
+  };
 
   for (const part of parts) {
-    if (!part.includes("filename=")) {
-      continue;
-    }
-
     const normalizedPart = part.replace(/^\r\n/, "").replace(/\r\n$/, "");
     const separatorIndex = normalizedPart.indexOf("\r\n\r\n");
 
@@ -1823,12 +1878,24 @@ export function parseMultipartCsvUpload(contentType, bodyBuffer) {
     const contentText = normalizedPart.slice(separatorIndex + 4).replace(/\r\n$/, "");
     const filenameMatch = /filename="([^"]+)"/i.exec(headersText);
     const contentTypeMatch = /content-type:\s*([^\r\n]+)/i.exec(headersText);
+    const nameMatch = /name="([^"]+)"/i.exec(headersText);
+    const fieldName = nameMatch?.[1];
 
-    return {
-      filename: filenameMatch?.[1] ?? "extrato.csv",
-      contentType: contentTypeMatch?.[1]?.trim() ?? "text/csv",
-      buffer: Buffer.from(contentText, "latin1"),
-    };
+    if (filenameMatch) {
+      upload.filename = filenameMatch[1] ?? "extrato.csv";
+      upload.contentType = contentTypeMatch?.[1]?.trim() ?? "text/csv";
+      upload.buffer = Buffer.from(contentText, "latin1");
+      continue;
+    }
+
+    if (fieldName === "filePassword") {
+      const filePassword = Buffer.from(contentText, "latin1").toString("utf8").trim();
+      upload.filePassword = filePassword || undefined;
+    }
+  }
+
+  if (upload.buffer) {
+    return upload;
   }
 
   throw new Error("O upload nao contem um arquivo CSV valido.");
@@ -1841,6 +1908,7 @@ export async function createImportPreview({
   bankConnectionName,
   contentType = "text/csv",
   fileBuffer,
+  filePassword,
   filename = "extrato.csv",
   historicalRows = [],
   importSource = "bank_statement",
@@ -1855,6 +1923,7 @@ export async function createImportPreview({
   const extracted = await extractImportRowsFromFile({
     fileBuffer,
     contentType,
+    filePassword,
     filename,
     importSource,
   });

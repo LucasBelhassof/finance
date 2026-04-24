@@ -185,6 +185,7 @@ export function createApp() {
         request.query.bankConnectionId as string | undefined,
         upload.filename,
         upload.contentType,
+        upload.filePassword,
       );
 
       response.status(201).json(preview);

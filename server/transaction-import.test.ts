@@ -6,6 +6,8 @@ import {
   buildInstallmentTransactionSeedKey,
   buildImportSeedKey,
   buildImportedTransactionEntries,
+  createPdfParseOptions,
+  createPdfPasswordError,
   createImportPreview,
   detectPdfIssuer,
   extractCategorizationMatchKey,
@@ -17,6 +19,7 @@ import {
   normalizeAiCategorizationResult,
   normalizeOccurredOnToStatementMonth,
   parseCreditCardPdfStatement,
+  parseMultipartCsvUpload,
   resolveAllowedCategoryMap,
   parseAmountInput,
   parseOccurredOnInput,
@@ -637,6 +640,51 @@ describe("transaction import helpers", () => {
   it("detects supported PDF issuers", () => {
     expect(detectPdfIssuer("Resumo da fatura Banco Inter", "fatura-inter-2026-03.pdf")).toBe("inter");
     expect(detectPdfIssuer("Fatura Itau Cartoes", "Fatura_Itau_20260407-144227.pdf")).toBe("itau");
+  });
+
+  it("passes PDF passwords only to the parser options", () => {
+    const buffer = Buffer.from("%PDF protected");
+
+    expect(createPdfParseOptions(buffer, "123456")).toMatchObject({
+      data: buffer,
+      password: "123456",
+    });
+    expect(createPdfParseOptions(buffer, "")).not.toHaveProperty("password");
+  });
+
+  it("maps PDF password errors to stable bad request codes", () => {
+    expect(createPdfPasswordError(undefined)).toMatchObject({
+      status: 400,
+      code: "import_pdf_password_required",
+      details: { requiresPassword: true },
+    });
+    expect(createPdfPasswordError("wrong")).toMatchObject({
+      status: 400,
+      code: "import_pdf_password_invalid",
+      details: { requiresPassword: true },
+    });
+  });
+
+  it("reads filePassword from multipart uploads without mixing it into the file buffer", () => {
+    const boundary = "----import-boundary";
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="fatura.pdf"',
+      "Content-Type: application/pdf",
+      "",
+      "%PDF content",
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="filePassword"',
+      "",
+      "123456",
+      `--${boundary}--`,
+      "",
+    ].join("\r\n");
+
+    const upload = parseMultipartCsvUpload(`multipart/form-data; boundary=${boundary}`, Buffer.from(body, "latin1"));
+
+    expect(upload.filePassword).toBe("123456");
+    expect(upload.buffer.toString("latin1")).toBe("%PDF content");
   });
 
   it("parses Inter credit card PDF text and ignores credits", () => {

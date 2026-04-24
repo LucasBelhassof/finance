@@ -9,6 +9,7 @@ import TransactionsDateFilter from "@/components/transactions/TransactionsDateFi
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import SpendingChart from "@/components/SpendingChart";
 import { useDashboard } from "@/hooks/use-dashboard";
+import { resolveDayPeriodGreeting } from "@/lib/greeting";
 import {
   TRANSACTIONS_YEAR_SELECTION,
   getCurrentMonthSelection,
@@ -52,7 +53,7 @@ export default function Index() {
   };
 
   return (
-    <AppShell title="Bom dia" description="Aqui está o resumo das suas finanças" showGreeting>
+    <AppShell title={resolveDayPeriodGreeting()} description="Aqui está o resumo das suas finanças" showGreeting>
       <section data-tour-id="dashboard-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end">

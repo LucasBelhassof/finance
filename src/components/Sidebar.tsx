@@ -56,13 +56,13 @@ const secondaryNavItems = [
 const expenseManagementItems = [
   { label: "Transações", to: appRoutes.transactions },
   { label: "Receitas recorrentes", to: appRoutes.expenseManagementRecurringIncome },
-  { label: "Habitacao", to: appRoutes.expenseManagementHousing },
+  { label: "Habitação", to: appRoutes.expenseManagementHousing },
   { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
-  { label: "Metricas", to: appRoutes.expenseManagementMetrics },
+  { label: "Métricas", to: appRoutes.expenseManagementMetrics },
 ];
 
 const adminItems = [
-  { label: "Visao geral", to: appRoutes.adminOverview },
+  { label: "Visão geral", to: appRoutes.adminOverview },
   { label: "Usuários", to: appRoutes.adminUsers },
   { label: "Financeiro", to: appRoutes.adminFinancialMetrics },
   { label: "Assinaturas", to: appRoutes.adminSubscriptions },

@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -55,6 +56,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useChatConversations,
   useCreateChatConversation,
@@ -105,6 +107,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 export default function ChatPage() {
   const { chatId } = useParams();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { data: chats = [], isLoading, isError } = useChatConversations();
   const createChat = useCreateChatConversation();
   const deleteChat = useDeleteChatConversation();
@@ -118,6 +121,7 @@ export default function ChatPage() {
   const createPlan = useCreatePlan();
   const [recentesOpen, setRecentesOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [planningOpen, setPlanningOpen] = useState(false);
@@ -156,8 +160,15 @@ export default function ChatPage() {
     setRenameTitle(renamingChat.title);
   }, [renamingChat]);
 
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  }, [isMobile]);
+
   const handleCreateChat = async () => {
     try {
+      setMobileSidebarOpen(false);
       const chat = await createChat.mutateAsync();
       navigate(getChatPath(chat.id));
     } catch (error) {
@@ -382,13 +393,19 @@ export default function ChatPage() {
     navigate(getChatPath(resultChatId));
   };
 
-  const renderChatItem = (chat: ChatConversation) => {
+  const handleOpenSearch = () => {
+    setMobileSidebarOpen(false);
+    setSearchOpen(true);
+  };
+
+  const renderChatItem = (chat: ChatConversation, onSelect?: () => void) => {
     const isActive = chat.id === chatId;
 
     return (
       <div key={chat.id} className="group relative">
         <Link
           to={getChatPath(chat.id)}
+          onClick={onSelect}
           className={`block rounded-lg border px-3 py-2 pr-10 transition-colors ${
             isActive
               ? "border-primary/40 bg-primary/10 text-foreground"
@@ -418,20 +435,41 @@ export default function ChatPage() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => handleOpenPlanning(chat)}>
+            <DropdownMenuItem
+              onClick={() => {
+                onSelect?.();
+                handleOpenPlanning(chat);
+              }}
+            >
               <FolderKanban size={15} className="mr-2" />
               Mover para um planejamento
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleTogglePin(chat)}>
+            <DropdownMenuItem
+              onClick={() => {
+                onSelect?.();
+                handleTogglePin(chat);
+              }}
+            >
               <Pin size={15} className="mr-2" />
               {chat.pinned ? "Desfixar Chat" : "Fixar Chat"}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setRenamingChat(chat)}>
+            <DropdownMenuItem
+              onClick={() => {
+                onSelect?.();
+                setRenamingChat(chat);
+              }}
+            >
               <Pencil size={15} className="mr-2" />
               Renomear
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingChat(chat)}>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => {
+                onSelect?.();
+                setDeletingChat(chat);
+              }}
+            >
               <Trash2 size={15} className="mr-2" />
               Excluir
             </DropdownMenuItem>
@@ -441,76 +479,111 @@ export default function ChatPage() {
     );
   };
 
+  const renderChatNavigation = (onSelect?: () => void) => (
+    <>
+      <div className="space-y-2">
+        <Button className="w-full justify-start" onClick={() => void handleCreateChat()} disabled={createChat.isPending}>
+          <Plus size={16} />
+          Novo chat
+        </Button>
+        <Button className="w-full justify-start" variant="secondary" onClick={handleOpenSearch}>
+          <Search size={16} />
+          Buscar em Chats
+        </Button>
+        <Button className="w-full justify-start" variant="secondary" asChild>
+          <Link
+            to={appRoutes.plans}
+            onClick={() => {
+              onSelect?.();
+            }}
+          >
+            <FolderKanban size={16} />
+            Planejamentos
+          </Link>
+        </Button>
+      </div>
+
+      <Collapsible open={recentesOpen} onOpenChange={setRecentesOpen} className="mt-4 flex min-h-0 flex-1 flex-col">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-secondary/60"
+          >
+            <span>Recentes</span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              {chats.length}
+              {recentesOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            </span>
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="min-h-0 flex-1">
+          <div className="mt-2 flex max-h-[calc(100vh-18rem)] min-h-0 flex-col gap-2 overflow-y-auto pr-1 scrollbar-thin">
+            {isLoading ? <div className="rounded-lg bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">Carregando chats...</div> : null}
+
+            {isError ? (
+              <div className="rounded-lg border border-border/30 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
+                Nao foi possivel carregar seus chats.
+              </div>
+            ) : null}
+
+            {!isLoading && !isError && !chats.length ? (
+              <div className="rounded-lg border border-border/30 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
+                Crie um chat para comecar.
+              </div>
+            ) : null}
+
+            {pinnedChats.map((chat) => renderChatItem(chat, onSelect))}
+            {pinnedChats.length > 0 && recentChats.length > 0 ? <div className="h-px bg-border/50" /> : null}
+            {recentChats.map((chat) => renderChatItem(chat, onSelect))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </>
+  );
+
   return (
     <AppShell title="Chat IA" description="Converse com o assistente sobre gastos, contas e metas">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="glass-card flex min-h-[18rem] flex-col p-4">
-          <div data-tour-id="chat-suggestions" className="space-y-2">
-            <Button className="w-full justify-start" onClick={handleCreateChat} disabled={createChat.isPending}>
-              <Plus size={16} />
-              Novo chat
-            </Button>
-            <Button className="w-full justify-start" variant="secondary" onClick={() => setSearchOpen(true)}>
-              <Search size={16} />
-              Buscar em Chats
-            </Button>
-            <Button className="w-full justify-start" variant="secondary" asChild>
-              <Link to={appRoutes.plans}>
-                <FolderKanban size={16} />
-                Planejamentos
-              </Link>
-            </Button>
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent side="left" className="w-[22rem] max-w-[calc(100vw-1rem)] border-border/60 bg-card p-0">
+          <div className="flex h-full min-h-0 flex-col">
+            <SheetHeader className="border-b border-border/50 px-4 py-4 text-left">
+              <SheetTitle>Menu do chat</SheetTitle>
+              <SheetDescription>Acesse atalhos, planejamentos e conversas recentes.</SheetDescription>
+            </SheetHeader>
+            <div className="flex min-h-0 flex-1 flex-col p-4">{renderChatNavigation(() => setMobileSidebarOpen(false))}</div>
           </div>
+        </SheetContent>
+      </Sheet>
 
-          <Collapsible open={recentesOpen} onOpenChange={setRecentesOpen} className="mt-4 flex min-h-0 flex-1 flex-col">
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-secondary/60"
-              >
-                <span>Recentes</span>
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {chats.length}
-                  {recentesOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                </span>
-              </button>
-            </CollapsibleTrigger>
-
-            <CollapsibleContent className="min-h-0 flex-1">
-              <div className="mt-2 flex max-h-[calc(100vh-18rem)] min-h-0 flex-col gap-2 overflow-y-auto pr-1 scrollbar-thin">
-                {isLoading ? (
-                  <div className="rounded-lg bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">Carregando chats...</div>
-                ) : null}
-
-                {isError ? (
-                  <div className="rounded-lg border border-border/30 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
-                    Nao foi possivel carregar seus chats.
-                  </div>
-                ) : null}
-
-                {!isLoading && !isError && !chats.length ? (
-                  <div className="rounded-lg border border-border/30 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
-                    Crie um chat para comecar.
-                  </div>
-                ) : null}
-
-                {pinnedChats.map(renderChatItem)}
-                {pinnedChats.length > 0 && recentChats.length > 0 ? <div className="h-px bg-border/50" /> : null}
-                {recentChats.map(renderChatItem)}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="glass-card hidden min-h-[18rem] flex-col p-4 lg:flex">
+          <div data-tour-id="chat-suggestions" className="flex min-h-0 flex-1 flex-col">
+            {renderChatNavigation()}
+          </div>
         </aside>
 
         <div className="grid min-h-[28rem] grid-rows-[auto_minmax(0,1fr)] gap-3">
           <div className="flex min-h-10 items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="truncate text-base font-semibold text-foreground">
-                {activeChat?.title ?? (chatId ? "Chat nao encontrado" : "Selecione ou crie um chat")}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {chatId ? "As mensagens ficam salvas ate voce excluir o chat." : "Cada conversa tem uma URL propria."}
-              </p>
+            <div className="flex min-w-0 items-start gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+              className="mt-0.5 h-10 w-10 shrink-0 rounded-lg border-border/60 lg:hidden"
+              onClick={() => setMobileSidebarOpen(true)}
+              aria-label="Abrir barra lateral do chat"
+            >
+              <MessageSquare size={18} />
+            </Button>
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold text-foreground">
+                  {activeChat?.title ?? (chatId ? "Chat nao encontrado" : "Selecione ou crie um chat")}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {chatId ? "As mensagens ficam salvas ate voce excluir o chat." : "Cada conversa tem uma URL propria."}
+                </p>
+              </div>
             </div>
             {activeChat ? (
               <Button

@@ -92,7 +92,6 @@ describe("ImportPreviewRow", () => {
             item={baseItem}
             categories={categories}
             onChange={vi.fn()}
-            onCreateCategory={vi.fn()}
             previewToken="preview-1"
           />
         </TableBody>
@@ -111,7 +110,6 @@ describe("ImportPreviewRow", () => {
             item={{ ...baseItem, type: "expense", requiresCategorySelection: false, canImport: true, requiresUserAction: false }}
             categories={categories}
             onChange={vi.fn()}
-            onCreateCategory={vi.fn()}
             previewToken="preview-1"
           />
         </TableBody>
@@ -119,7 +117,7 @@ describe("ImportPreviewRow", () => {
     );
 
     expect(screen.queryByText("Categoria obrigatoria")).not.toBeInTheDocument();
-    expect(screen.getByText(/sera importada como Outros/i)).toBeInTheDocument();
+    expect(screen.getByText(/será importada como Outros/i)).toBeInTheDocument();
   });
 
   it("shows history and recurring source badges from the preview", () => {
@@ -135,7 +133,6 @@ describe("ImportPreviewRow", () => {
             }}
             categories={categories}
             onChange={vi.fn()}
-            onCreateCategory={vi.fn()}
             previewToken="preview-1"
           />
           <ImportPreviewRow
@@ -148,7 +145,6 @@ describe("ImportPreviewRow", () => {
             }}
             categories={categories}
             onChange={vi.fn()}
-            onCreateCategory={vi.fn()}
             previewToken="preview-2"
           />
         </TableBody>
@@ -156,7 +152,7 @@ describe("ImportPreviewRow", () => {
     );
 
     expect(screen.getByRole("button", { name: /Duplicata na linha 1/i })).toBeInTheDocument();
-    expect(screen.getByText(/Historico do usuario: Receita - Salario/i)).toBeInTheDocument();
+    expect(screen.getByText(/Histórico do usuário: Receita - Salario/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Duplicata na linha 2/i })).toBeInTheDocument();
     expect(screen.getByText(/Regra recorrente: Receita - Salario/i)).toBeInTheDocument();
   });
@@ -180,7 +176,6 @@ describe("ImportPreviewRow", () => {
             }}
             categories={categories}
             onChange={vi.fn()}
-            onCreateCategory={vi.fn()}
             previewToken="preview-1"
           />
         </TableBody>

@@ -295,7 +295,7 @@ describe("TransactionsPage", () => {
       expect(screen.getByText("Uber")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("transactions-category-filter-trigger")).toHaveTextContent("Todas categorias");
+    expect(screen.getByTestId("transactions-category-filter-trigger")).toHaveTextContent("Todas as categorias");
   });
 
   it("submits the chosen custom color when creating a category", async () => {
@@ -414,7 +414,7 @@ describe("TransactionsPage", () => {
   it("does not list credit cards when creating an income transaction", async () => {
     render(<TransactionsPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Receita" }));
+    fireEvent.click(screen.getByRole("button", { name: /Nova transação/i }));
     fireEvent.click(screen.getAllByRole("combobox")[0]!);
 
     await waitFor(() => {

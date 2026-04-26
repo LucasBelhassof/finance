@@ -281,7 +281,7 @@ describe("HousingPage", () => {
     fireEvent.change(screen.getByPlaceholderText(/valor mensal/i), {
       target: { value: "1700,00" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /salvar alteracoes/i }));
+    fireEvent.click(screen.getByRole("button", { name: /salvar alterações/i }));
 
     await waitFor(() => {
       expect(mockUpdateHousing).toHaveBeenCalledWith(

@@ -1065,6 +1065,7 @@ export default function TransactionsPage() {
             <Button
                 variant="outline"
                 className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
+                aria-label="Nova transação"
                 onClick={() => openCreateTransaction("income")}
               >
                 <ArrowUpCircle size={14} />

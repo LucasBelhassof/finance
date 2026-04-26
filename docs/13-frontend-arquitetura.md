@@ -30,6 +30,22 @@ As rotas nomeadas ficam em `src/lib/routes.ts`. `App.tsx` monta:
 - rotas protegidas
 - rotas admin
 
+Rotas protegidas relevantes hoje:
+
+- dashboard
+- transações
+- receitas recorrentes
+- parcelamentos
+- habitação
+- métricas
+- chat
+- planejamentos e detalhe do planejamento
+- caixinhas / savings goal
+- notificações
+- perfil
+- configurações
+- onboarding
+
 ## Autenticação no frontend
 
 ### `AuthProvider`
@@ -46,6 +62,28 @@ Funções centrais:
 - `ProtectedRoute`
 - `PublicOnlyRoute`
 - `AdminRoute`
+
+## Módulos dedicados do frontend
+
+### `src/modules/auth`
+
+Além do login/logout, concentra:
+
+- bootstrap de sessão
+- guards de rota
+- atualização de conta, contato e senha
+- tipagem de onboarding/progresso do usuário
+
+### `src/modules/product-tour`
+
+Responsável por:
+
+- definir os passos guiados por rota
+- medir elementos com `data-tour-id`
+- persistir progresso de onboarding no backend via auth
+- reabrir, fechar, retomar e reiniciar o tour
+
+Esse módulo fica no topo da árvore por meio de `ProductTourProvider` em `App.tsx`.
 
 ## Camada HTTP
 
@@ -82,6 +120,10 @@ Exemplos:
 - `useHousing`
 - `useInsights`
 - `useNotifications`
+- `usePlans`
+- `useInvestments`
+- `useHealth`
+- `useChat`
 
 ## Fluxo de dados
 
@@ -106,3 +148,33 @@ Usado para:
 - dialogs
 - formulários
 - seleção temporária de itens
+- preferências locais em `Profile` e `Settings`
+- estado de avanço visual do product tour
+
+## Superfícies novas ou ampliadas
+
+### Planejamentos
+
+As páginas `Plans.tsx` e `PlanDetail.tsx` formam um fluxo próprio com:
+
+- criação manual de plano
+- geração de rascunho por IA a partir de chat
+- revisão do draft antes de persistir
+- vínculo entre chats, itens e meta financeira
+- recomendações e avaliação assistida por IA
+
+### Caixinhas / investimentos
+
+`Investments.tsx` usa hooks próprios e também conversa com planejamentos:
+
+- cada caixinha pode ter aporte fixo ou percentual
+- pode ser criada isoladamente ou vinculada a um planejamento manual
+- mutações invalidam dashboard e plans para manter consistência
+
+### Perfil, configurações e onboarding
+
+As páginas `Profile.tsx`, `Settings.tsx` e `Onboarding.tsx` ampliam a área de conta:
+
+- `Profile` mostra identidade, plano, progresso de onboarding e atalhos de tour
+- `Settings` concentra edição de conta, contato, senha, preferências locais e health check
+- `Onboarding` atua como gatilho para reiniciar o product tour e redirecionar ao dashboard

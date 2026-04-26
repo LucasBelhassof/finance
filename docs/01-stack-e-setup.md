@@ -19,6 +19,15 @@ O projeto é um sistema full-stack de finanças pessoais com frontend React e ba
 - Lucide React
 - Recharts
 - React Hook Form
+- Product tour próprio sobre React Router + estado autenticado
+
+### Qualidade e automação
+
+- Vitest
+- Testing Library
+- ESLint
+- GitHub Actions para gate de CI
+- Playwright instalado no repositório, mas ainda sem pipeline ativo no fluxo principal
 
 ### Backend
 
@@ -77,7 +86,8 @@ O projeto é um sistema full-stack de finanças pessoais com frontend React e ba
 │  ├─ hooks/
 │  ├─ lib/
 │  ├─ modules/
-│  │  └─ auth/
+│  │  ├─ auth/
+│  │  └─ product-tour/
 │  ├─ pages/
 │  ├─ types/
 │  ├─ App.tsx
@@ -108,6 +118,7 @@ O projeto é um sistema full-stack de finanças pessoais com frontend React e ba
 - `lib/routes.ts`: rotas nomeadas da SPA.
 - `hooks/`: hooks por recurso usando React Query.
 - `modules/auth/`: autenticação do frontend separada do restante da app.
+- `modules/product-tour/`: experiência guiada, progresso de onboarding e spotlight por tela.
 - `pages/`: páginas principais da aplicação.
 - `components/`: UI reutilizável e componentes de feature.
 - `types/api.ts`: contratos de payload e tipos normalizados consumidos pela UI.
@@ -116,7 +127,7 @@ O projeto é um sistema full-stack de finanças pessoais com frontend React e ba
 
 ### Pré-requisitos
 
-- Node.js compatível com as dependências atuais
+- Node.js 22+
 - PostgreSQL disponível
 - Banco configurado em `DATABASE_URL`
 
@@ -163,6 +174,18 @@ Esse comando executa:
 ```bash
 npm run server:start
 ```
+
+## Qualidade e automação
+
+Comandos principais já suportados pelo repositório:
+
+```bash
+npm run lint
+npm run test
+npm run build
+```
+
+O workflow atual de CI vive em `.github/workflows/ci.yml` e executa esses três gates em `pull_request`, `push` para `main` e execução manual. Hoje a automação está posicionada como **proteção de qualidade antes do deploy**, sem acoplamento direto a um provedor de publicação.
 
 ## Variáveis de ambiente
 

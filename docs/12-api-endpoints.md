@@ -71,6 +71,29 @@
 
 - Descrição: resposta agregada para home.
 
+## Investimentos / caixinhas
+
+### `GET /api/investments`
+
+- Descrição: lista as caixinhas do usuário.
+
+### `POST /api/investments`
+
+- Descrição: cria uma caixinha manual.
+- Regras:
+  - aceita modo de aporte fixo ou percentual da receita
+  - pode opcionalmente nascer vinculada a um planejamento manual
+
+### `PATCH /api/investments/:id`
+
+- Descrição: atualiza uma caixinha existente.
+
+### `DELETE /api/investments/:id`
+
+- Descrição: remove a caixinha.
+- Regras:
+  - o frontend invalida dashboard e planejamentos relacionados
+
 ## Transações
 
 ### `GET /api/transactions`
@@ -178,15 +201,111 @@
 
 - Descrição: exclui conta/cartão respeitando restrições.
 
+## Planejamentos
+
+### `GET /api/plans`
+
+- Descrição: lista planejamentos do usuário.
+
+### `POST /api/plans`
+
+- Descrição: cria planejamento manual ou derivado de IA.
+
+### `POST /api/plans/ai/draft`
+
+- Descrição: gera rascunho de planejamento a partir de um chat.
+- Entrada: `chatId`.
+
+### `POST /api/plans/ai/revise-draft`
+
+- Descrição: revisa um rascunho existente usando instrução textual do usuário.
+- Entrada: `chatId`, `draft`, `correction`.
+
+### `POST /api/plans/ai/suggest-link`
+
+- Descrição: sugere vínculo de um chat com um planejamento existente ou recomenda criar um novo.
+- Entrada: `chatId`.
+
+### `GET /api/plans/:planId`
+
+- Descrição: retorna detalhes completos do planejamento, incluindo itens, progresso, chats vinculados e avaliação.
+
+### `POST /api/plans/:planId/ai/evaluate`
+
+- Descrição: pede uma avaliação manual da IA sobre o andamento do plano.
+
+### `GET /api/plans/:planId/recommendations`
+
+- Descrição: lista recomendações pendentes/anteriores para o plano.
+
+### `POST /api/plans/:planId/recommendations/:id/apply`
+
+- Descrição: aplica uma recomendação específica ao planejamento.
+
+### `PATCH /api/plans/:planId`
+
+- Descrição: atualiza resumo, meta e itens do plano.
+
+### `DELETE /api/plans/:planId`
+
+- Descrição: remove o planejamento.
+
+### `POST /api/plans/:planId/chats/:chatId`
+
+- Descrição: vincula um chat a um planejamento.
+
+### `DELETE /api/plans/:planId/chats/:chatId`
+
+- Descrição: remove o vínculo entre chat e planejamento.
+
 ## Chat
+
+### `GET /api/chats`
+
+- Descrição: lista conversas do usuário.
+
+### `POST /api/chats`
+
+- Descrição: cria uma nova conversa vazia.
+
+### `GET /api/chats/search`
+
+- Descrição: busca chats por título e conteúdo.
+- Query: `q`, `limit`.
+
+### `PATCH /api/chats/:chatId`
+
+- Descrição: renomeia ou fixa/desfixa um chat.
+- Entrada: `title` e/ou `pinned`.
+
+### `GET /api/chats/:chatId/messages`
+
+- Descrição: lista mensagens de uma conversa específica.
+- Query opcional: `limit`.
+
+### `GET /api/chats/:chatId/summary`
+
+- Descrição: recupera resumo persistido do chat para uso em planejamento.
+
+### `POST /api/chats/:chatId/summary`
+
+- Descrição: gera e persiste resumo do chat.
+
+### `POST /api/chats/:chatId/messages`
+
+- Descrição: envia novas mensagens para uma conversa já existente e recebe a resposta da IA.
+
+### `DELETE /api/chats/:chatId`
+
+- Descrição: exclui a conversa e seu histórico.
 
 ### `GET /api/chat/messages`
 
-- Descrição: lista histórico recente do chat.
+- Descrição: lista mensagens recentes do usuário em formato agregado/legado.
 
 ### `POST /api/chat/messages`
 
-- Descrição: grava mensagem do usuário e gera resposta contextual.
+- Descrição: cria um chat implícito e já grava a primeira mensagem com resposta contextual.
 
 ## Notificações
 

@@ -78,3 +78,38 @@
 3. backend gera transações derivadas
 4. se for financiamento, também cria `installment_purchases`
 5. esses lançamentos entram no dashboard e relatórios automaticamente
+
+## 9. Usuário gera planejamento a partir de um chat
+
+1. na página `Chat.tsx`, o usuário escolhe gerar planejamento
+2. frontend chama `POST /api/plans/ai/draft`
+3. backend gera um rascunho estruturado com meta e itens
+4. usuário revisa o draft no modal e pode enviar correções
+5. frontend chama `POST /api/plans/ai/revise-draft` quando necessário
+6. ao confirmar, frontend envia `POST /api/plans`
+7. o plano é salvo e pode nascer já vinculado ao chat de origem
+
+## 10. Usuário cria uma caixinha vinculada a planejamento
+
+1. página `Investments.tsx` abre o modal de nova caixinha
+2. usuário define nome, tipo de aporte, saldo e meta
+3. opcionalmente escolhe criar ou vincular um planejamento manual
+4. frontend envia `POST /api/investments`
+5. se houver vínculo manual, frontend também coordena a criação/atualização do plano correspondente
+6. dashboard, lista de caixinhas e planejamentos são invalidados
+
+## 11. Usuário atualiza conta, contato ou senha
+
+1. página `Settings.tsx` carrega dados da sessão autenticada
+2. usuário altera conta, contato ou senha em formulários separados
+3. frontend chama `PATCH /api/auth/account`, `PATCH /api/auth/contact` ou `POST /api/auth/change-password`
+4. backend valida payload e atualiza os dados do usuário
+5. no caso de troca de senha, o frontend encerra a sessão após sucesso
+
+## 12. Usuário retoma o onboarding / tour do produto
+
+1. usuário acessa `Profile.tsx` ou a rota de onboarding
+2. frontend usa `ProductTourProvider` para recalcular a próxima etapa pendente
+3. se necessário, chama `PATCH /api/auth/onboarding` para persistir progresso
+4. o tour reposiciona a interface na rota correta e destaca elementos por `data-tour-id`
+5. o progresso fica visível no perfil e influencia a abertura automática do guia

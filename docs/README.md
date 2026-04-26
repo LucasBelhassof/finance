@@ -33,3 +33,5 @@ Esta pasta consolida a documentação técnica da aplicação com base no códig
 ## Escopo
 
 Esta documentação descreve a implementação existente. Quando houver comportamento legado ainda presente em arquivos antigos como `server/index.js`, o foco deste material é o fluxo ativo usado por `server/server.ts` e `server/app.ts`.
+
+O conjunto atual já cobre também as áreas mais recentes adicionadas à aplicação, como planejamentos com IA, caixinhas/investimentos, perfil/configurações, onboarding/product tour e a esteira de CI com GitHub Actions.

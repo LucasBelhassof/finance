@@ -874,18 +874,22 @@ export default function PlansPage() {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <select
-            value={suggestedChatId}
-            onChange={(event) => setSuggestedChatId(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+          <Select
+            value={suggestedChatId || EMPTY_SELECT_VALUE}
+            onValueChange={(value) => setSuggestedChatId(value === EMPTY_SELECT_VALUE ? "" : value)}
           >
-            <option value="">Chat para sugestao</option>
-            {chats.map((chat) => (
-              <option key={chat.id} value={chat.id}>
-                {chat.title}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className={`min-w-[220px] ${INLINE_SELECT_TRIGGER_CLASSNAME}`}>
+              <SelectValue placeholder="Chat para sugestao" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EMPTY_SELECT_VALUE}>Chat para sugestao</SelectItem>
+              {chats.map((chat) => (
+                <SelectItem key={chat.id} value={chat.id}>
+                  {chat.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={handleSuggestLink} disabled={suggestLink.isPending || !suggestedChatId}>
             {suggestLink.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             Sugerir vinculo

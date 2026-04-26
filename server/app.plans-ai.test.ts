@@ -2,6 +2,8 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
+import type { RequestAuthContext } from "./modules/auth/types.js";
+
 const revisePlanDraftFromChat = vi.fn();
 const noop = vi.fn();
 
@@ -62,7 +64,7 @@ vi.mock("./database.js", () => ({
 vi.mock("./modules/auth/routes.js", () => ({
   createAuthRouter: () => express.Router(),
   requireAccessToken: (request: express.Request) => {
-    request.auth = {
+    (request as express.Request & { auth?: RequestAuthContext }).auth = {
       userId: 42,
       user: {
         id: 42,
@@ -70,7 +72,12 @@ vi.mock("./modules/auth/routes.js", () => ({
         email: "lucas@example.com",
         emailVerified: true,
         hasCompletedOnboarding: true,
-        onboardingProgress: {},
+        onboardingProgress: {
+          currentStep: 0,
+          completedSteps: [],
+          skippedSteps: [],
+          dismissed: false,
+        },
         role: "user",
         status: "active",
         isPremium: false,

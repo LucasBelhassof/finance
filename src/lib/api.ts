@@ -164,6 +164,10 @@ function safeNumber(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function safeIdentifier(value: unknown, fallback: number | string = ""): number | string {
+  return (typeof value === "number" && Number.isFinite(value)) || typeof value === "string" ? value : fallback;
+}
+
 function formatCurrency(value: number) {
   return currencyFormatter.format(value);
 }
@@ -453,8 +457,8 @@ function mapNotificationsResponse(response: ApiNotificationsResponse): Notificat
       const notification = item as Record<string, unknown>;
 
       return {
-        recipientId: notification.recipientId ?? "",
-        notificationId: notification.notificationId ?? "",
+        recipientId: safeIdentifier(notification.recipientId),
+        notificationId: safeIdentifier(notification.notificationId),
         title: safeString(notification.title, "Notificação"),
         message: safeString(notification.message),
         category:
@@ -477,7 +481,7 @@ function mapNotificationsResponse(response: ApiNotificationsResponse): Notificat
         createdBy:
           typeof notification.createdBy === "object" && notification.createdBy !== null
             ? {
-                id: (notification.createdBy as Record<string, unknown>).id ?? "",
+                id: safeIdentifier((notification.createdBy as Record<string, unknown>).id),
                 name: safeString((notification.createdBy as Record<string, unknown>).name, "Sistema"),
               }
             : null,

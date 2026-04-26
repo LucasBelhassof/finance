@@ -402,6 +402,11 @@ export default function NotificationsPage() {
                 <div>
                   <h2 className="text-2xl font-semibold text-foreground">{selectedNotification.title}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{selectedNotification.message}</p>
+                  {selectedNotification.actionHref ? (
+                    <Button className="mt-4" onClick={() => navigate(selectedNotification.actionHref!)}>
+                      Abrir planejamento
+                    </Button>
+                  ) : null}
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-xl bg-secondary/25 p-3">

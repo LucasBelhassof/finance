@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronLeft, Link2, Loader2, MessageSquareText, Trash2, Unlink } from "lucide-react";
+import { CheckCircle2, ChevronLeft, Link2, Loader2, MessageSquareText, Sparkles, Trash2, Unlink } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -27,9 +28,14 @@ import { toast } from "@/components/ui/sonner";
 import { useChatConversationMessages, useChatConversations } from "@/hooks/use-chat";
 import { useCategories } from "@/hooks/use-transactions";
 import {
+  useApplyPlanRecommendation,
+  useChatSummary,
   useDeletePlan,
+  useEvaluatePlan,
+  useGenerateChatSummary,
   useLinkChatToPlan,
   usePlan,
+  usePlanRecommendations,
   useUnlinkChatFromPlan,
   useUpdatePlan,
 } from "@/hooks/use-plans";
@@ -39,9 +45,11 @@ import {
   createPlanFormFromPlan,
   formatDate,
   getErrorMessage,
+  getPlanAiStatusLabel,
   getPlanFormValidationError,
   getPlanGoalDetail,
   getPlanGoalSummary,
+  getPriorityLabel,
   normalizePlanForm,
   type PlanFormState,
 } from "@/pages/Plans";
@@ -68,10 +76,18 @@ function ChatSummaryPanel({
   chat,
   messages,
   isLoading,
+  persistedSummary,
+  isLoadingSummary,
+  onGenerateSummary,
+  isGeneratingSummary,
 }: {
   chat: ChatConversation | null;
   messages: ChatMessage[];
   isLoading: boolean;
+  persistedSummary?: string;
+  isLoadingSummary?: boolean;
+  onGenerateSummary: () => void;
+  isGeneratingSummary: boolean;
 }) {
   if (!chat) {
     return (
@@ -98,6 +114,25 @@ function ChatSummaryPanel({
               {summary.questionCount} perguntas e {summary.answerCount} respostas da IA
             </p>
           </div>
+        </div>
+
+        <div className="mt-5 rounded-lg border border-border/40 bg-secondary/20 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h4 className="text-sm font-semibold text-foreground">Resumo textual salvo</h4>
+            <Button type="button" variant="secondary" size="sm" onClick={onGenerateSummary} disabled={isGeneratingSummary}>
+              {isGeneratingSummary ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+              Gerar resumo
+            </Button>
+          </div>
+          {isLoadingSummary ? (
+            <p className="mt-3 text-sm text-muted-foreground">Carregando resumo...</p>
+          ) : persistedSummary ? (
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{persistedSummary}</p>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Ainda nao ha resumo persistido. O resumo visual abaixo continua disponivel.
+            </p>
+          )}
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -170,6 +205,8 @@ export default function PlanDetailPage() {
   const { data: chats = [] } = useChatConversations();
   const { data: categories = [] } = useCategories();
   const updatePlan = useUpdatePlan();
+  const evaluatePlan = useEvaluatePlan();
+  const applyRecommendation = useApplyPlanRecommendation();
   const deletePlan = useDeletePlan();
   const linkChat = useLinkChatToPlan();
   const unlinkChat = useUnlinkChatFromPlan();
@@ -182,6 +219,9 @@ export default function PlanDetailPage() {
   const [activeChatId, setActiveChatId] = useState("");
   const activeChat = plan?.chats.find((chat) => chat.id === activeChatId) ?? plan?.chats[0] ?? null;
   const { data: activeMessages = [], isLoading: isLoadingMessages } = useChatConversationMessages(activeChat?.id, 100);
+  const { data: chatSummary, isLoading: isLoadingSummary } = useChatSummary(activeChat?.id);
+  const generateChatSummary = useGenerateChatSummary();
+  const { data: recommendations = [] } = usePlanRecommendations(plan?.id);
   const unlinkedChats = useMemo(() => chats.filter((chat) => chat.planId !== plan?.id), [chats, plan?.id]);
 
   useEffect(() => {
@@ -279,6 +319,51 @@ export default function PlanDetailPage() {
     }
   };
 
+  const handleEvaluatePlan = async () => {
+    if (!plan) {
+      return;
+    }
+
+    try {
+      await evaluatePlan.mutateAsync(plan.id);
+      toast.success("Avaliacao de IA atualizada.");
+    } catch (error) {
+      toast.error("Nao foi possivel avaliar o planejamento.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+    }
+  };
+
+  const handleApplyRecommendation = async (recommendationId: number | string) => {
+    if (!plan) {
+      return;
+    }
+
+    try {
+      await applyRecommendation.mutateAsync({ planId: plan.id, recommendationId });
+      toast.success("Replanejamento aplicado.");
+    } catch (error) {
+      toast.error("Nao foi possivel aplicar a sugestao.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!activeChat) {
+      return;
+    }
+
+    try {
+      await generateChatSummary.mutateAsync(activeChat.id);
+      toast.success("Resumo textual atualizado.");
+    } catch (error) {
+      toast.error("Nao foi possivel gerar o resumo.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <AppShell title="Planejamento" description="Carregando detalhes do planejamento">
@@ -308,6 +393,10 @@ export default function PlanDetailPage() {
           <Button variant="secondary" onClick={handleOpenEdit}>
             Editar
           </Button>
+          <Button variant="secondary" onClick={handleEvaluatePlan} disabled={evaluatePlan.isPending}>
+            {evaluatePlan.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            Avaliar IA
+          </Button>
           <Button variant="outline" onClick={() => setLinkDialogOpen(true)}>
             <Link2 size={16} />
             Vincular chat
@@ -336,6 +425,54 @@ export default function PlanDetailPage() {
               <Progress value={plan.progress.percentage} className="mt-3 h-2.5 bg-secondary/70" />
               <p className="mt-2 text-xs text-muted-foreground">{getPlanGoalDetail(plan, categories)}</p>
             </div>
+
+            {plan.aiAssessment ? (
+              <div className="mt-4 rounded-lg border border-border/40 bg-background/60 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={plan.aiAssessment.status === "at_risk" ? "destructive" : "secondary"}>
+                    IA: {getPlanAiStatusLabel(plan.aiAssessment.status)}
+                  </Badge>
+                  <Badge variant="outline">Prioridade {getPriorityLabel(plan.aiAssessment.suggestedPriority)}</Badge>
+                  <span className="text-xs text-muted-foreground">{formatDate(plan.aiAssessment.assessedAt)}</span>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">{plan.aiAssessment.riskSummary}</p>
+                {plan.aiAssessment.adjustmentRecommendation ? (
+                  <p className="mt-2 text-sm text-foreground">{plan.aiAssessment.adjustmentRecommendation}</p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="glass-card p-5">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">Sugestoes de replanejamento</h3>
+            {!recommendations.filter((item) => item.status === "pending").length ? (
+              <div className="rounded-lg border border-border/30 bg-secondary/30 p-3 text-sm text-muted-foreground">
+                Nenhuma sugestao pendente.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recommendations
+                  .filter((item) => item.status === "pending")
+                  .map((recommendation) => (
+                    <div key={String(recommendation.id)} className="rounded-lg border border-border/40 bg-secondary/20 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{recommendation.title}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{recommendation.rationale}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleApplyRecommendation(recommendation.id)}
+                          disabled={applyRecommendation.isPending}
+                        >
+                          Aplicar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
 
           <div className="glass-card p-5">
@@ -355,6 +492,9 @@ export default function PlanDetailPage() {
                       />
                       <div>
                         <p className="text-sm font-medium text-foreground">{item.title}</p>
+                        <Badge variant="outline" className="mt-1">
+                          Prioridade {getPriorityLabel(item.priority)}
+                        </Badge>
                         {item.description ? <p className="mt-1 text-sm text-muted-foreground">{item.description}</p> : null}
                       </div>
                     </div>
@@ -364,7 +504,15 @@ export default function PlanDetailPage() {
             )}
           </div>
 
-          <ChatSummaryPanel chat={activeChat} messages={activeMessages} isLoading={isLoadingMessages} />
+          <ChatSummaryPanel
+            chat={activeChat}
+            messages={activeMessages}
+            isLoading={isLoadingMessages}
+            persistedSummary={chatSummary?.summary}
+            isLoadingSummary={isLoadingSummary}
+            onGenerateSummary={handleGenerateSummary}
+            isGeneratingSummary={generateChatSummary.isPending}
+          />
         </div>
 
         <aside className="glass-card h-fit p-5">

@@ -62,7 +62,7 @@ export function NotificationBell() {
               if (!notification.isRead) {
                 void markRead.mutateAsync(notification.recipientId);
               }
-              navigate(`${appRoutes.notifications}/${notification.recipientId}`);
+              navigate(notification.actionHref ?? `${appRoutes.notifications}/${notification.recipientId}`);
             }}
           >
             <div className="flex w-full items-center gap-2">

@@ -309,6 +309,7 @@ export interface ApiPlanItem {
   title?: string;
   description?: string;
   status?: string;
+  priority?: string;
   sortOrder?: number;
 }
 
@@ -333,6 +334,25 @@ export interface ApiPlanProgress {
   totalItems?: number | null;
 }
 
+export interface ApiPlanAiAssessment {
+  id?: number | string;
+  status?: string;
+  riskSummary?: string;
+  suggestedPriority?: string;
+  adjustmentRecommendation?: string;
+  assessedAt?: string;
+}
+
+export interface ApiPlanRecommendation {
+  id?: number | string;
+  status?: string;
+  title?: string;
+  rationale?: string;
+  proposedPlan?: Record<string, unknown>;
+  createdAt?: string;
+  appliedAt?: string | null;
+}
+
 export interface ApiPlan {
   id?: string;
   title?: string;
@@ -344,6 +364,8 @@ export interface ApiPlan {
   updatedAt?: string;
   items?: ApiPlanItem[];
   chats?: ApiChatConversation[];
+  aiAssessment?: ApiPlanAiAssessment | null;
+  pendingRecommendations?: ApiPlanRecommendation[];
 }
 
 export interface ApiPlansResponse {
@@ -369,6 +391,25 @@ export interface ApiPlanLinkSuggestionResponse {
     planId?: string | null;
     rationale?: string;
   };
+}
+
+export interface ApiPlanRecommendationsResponse {
+  recommendations?: ApiPlanRecommendation[];
+}
+
+export interface ApiPlanChatSummary {
+  id?: number | string | null;
+  chatId?: string;
+  summary?: string;
+  messageCount?: number;
+  lastMessageId?: number | null;
+  generatedAt?: string | null;
+  updatedAt?: string | null;
+  stale?: boolean;
+}
+
+export interface ApiPlanChatSummaryResponse {
+  summary?: ApiPlanChatSummary;
 }
 
 export interface ApiChatReplyResponse {
@@ -843,12 +884,16 @@ export type PlanItemStatus = "todo" | "done";
 export type PlanGoalType = "items" | "transaction_sum";
 export type PlanGoalSource = "manual" | "ai";
 export type PlanTransactionType = "income" | "expense";
+export type PlanPriority = "low" | "medium" | "high";
+export type PlanAiAssessmentStatus = "on_track" | "attention" | "at_risk" | "completed";
+export type PlanRecommendationStatus = "pending" | "applied" | "dismissed";
 
 export interface PlanItem {
   id: number | string;
   title: string;
   description: string;
   status: PlanItemStatus;
+  priority: PlanPriority;
   sortOrder: number;
 }
 
@@ -873,6 +918,25 @@ export interface PlanProgress {
   totalItems: number | null;
 }
 
+export interface PlanAiAssessment {
+  id: number | string;
+  status: PlanAiAssessmentStatus;
+  riskSummary: string;
+  suggestedPriority: PlanPriority;
+  adjustmentRecommendation: string;
+  assessedAt: string;
+}
+
+export interface PlanRecommendation {
+  id: number | string;
+  status: PlanRecommendationStatus;
+  title: string;
+  rationale: string;
+  proposedPlan: Record<string, unknown>;
+  createdAt: string;
+  appliedAt: string | null;
+}
+
 export interface Plan {
   id: string;
   title: string;
@@ -884,6 +948,8 @@ export interface Plan {
   updatedAt: string;
   items: PlanItem[];
   chats: ChatConversation[];
+  aiAssessment: PlanAiAssessment | null;
+  pendingRecommendations: PlanRecommendation[];
 }
 
 export interface PlanDraft {
@@ -891,6 +957,12 @@ export interface PlanDraft {
   description: string;
   goal: PlanGoal;
   items: PlanItem[];
+}
+
+export interface RevisePlanDraftInput {
+  chatId: string;
+  draft: PlanDraft;
+  correction: string;
 }
 
 export interface PlanLinkSuggestion {
@@ -908,6 +980,7 @@ export interface CreatePlanInput {
     title: string;
     description?: string;
     status?: PlanItemStatus;
+    priority?: PlanPriority;
     sortOrder?: number;
   }>;
   chatIds?: string[];
@@ -919,6 +992,17 @@ export interface UpdatePlanInput {
   description?: string;
   goal?: PlanGoal;
   items?: CreatePlanInput["items"];
+}
+
+export interface PlanChatSummary {
+  id: number | string | null;
+  chatId: string;
+  summary: string;
+  messageCount: number;
+  lastMessageId: number | null;
+  generatedAt: string | null;
+  updatedAt: string | null;
+  stale: boolean;
 }
 
 export interface ChatReply {
@@ -1250,6 +1334,7 @@ export interface ApiNotificationItem {
   createdAt?: string;
   isRead?: boolean;
   readAt?: string | null;
+  actionHref?: string | null;
   createdBy?: {
     id?: number | string;
     name?: string;
@@ -1280,6 +1365,7 @@ export interface NotificationItem {
   createdAt: string;
   isRead: boolean;
   readAt: string | null;
+  actionHref: string | null;
   createdBy: {
     id: number | string;
     name: string;

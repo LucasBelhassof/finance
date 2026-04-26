@@ -2,12 +2,14 @@ import {
   ChevronDown,
   ChevronRight,
   FolderKanban,
+  Loader2,
   MessageSquare,
   MoreHorizontal,
   Pencil,
   Pin,
   Plus,
   Search,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -44,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/sonner";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useChatConversations,
   useCreateChatConversation,
@@ -56,10 +59,12 @@ import {
   useGeneratePlanDraft,
   useLinkChatToPlan,
   usePlans,
-  useSuggestPlanLink,
+  useRevisePlanDraft,
 } from "@/hooks/use-plans";
+import { useCategories } from "@/hooks/use-transactions";
 import { appRoutes } from "@/lib/routes";
-import type { ChatConversation } from "@/types/api";
+import { createPlanFormFromDraft, getPlanFormValidationError, normalizePlanForm, PlanFormFields, type PlanFormState } from "@/pages/Plans";
+import type { ChatConversation, PlanDraft } from "@/types/api";
 
 function getChatPath(chatId: string) {
   return `${appRoutes.chat}/${chatId}`;
@@ -92,9 +97,10 @@ export default function ChatPage() {
   const deleteChat = useDeleteChatConversation();
   const updateChat = useUpdateChatConversation();
   const { data: plans = [] } = usePlans();
+  const { data: categories = [] } = useCategories();
   const linkChatToPlan = useLinkChatToPlan();
-  const suggestPlanLink = useSuggestPlanLink();
   const generatePlanDraft = useGeneratePlanDraft();
+  const revisePlanDraft = useRevisePlanDraft();
   const createPlan = useCreatePlan();
   const [recentesOpen, setRecentesOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -102,6 +108,12 @@ export default function ChatPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [planningOpen, setPlanningOpen] = useState(false);
   const [planningChat, setPlanningChat] = useState<ChatConversation | null>(null);
+  const [planningReviewOpen, setPlanningReviewOpen] = useState(false);
+  const [planningInProgress, setPlanningInProgress] = useState(false);
+  const [draftForm, setDraftForm] = useState<PlanFormState | null>(null);
+  const [draftChat, setDraftChat] = useState<ChatConversation | null>(null);
+  const [correction, setCorrection] = useState("");
+  const [revisionMessages, setRevisionMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [renamingChat, setRenamingChat] = useState<ChatConversation | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
@@ -147,6 +159,67 @@ export default function ChatPage() {
     setPlanningOpen(true);
   };
 
+  const resetPlanningReview = () => {
+    setPlanningReviewOpen(false);
+    setPlanningInProgress(false);
+    setDraftForm(null);
+    setDraftChat(null);
+    setCorrection("");
+    setRevisionMessages([]);
+  };
+
+  const createDraftFromForm = (form: PlanFormState): PlanDraft => {
+    const normalized = normalizePlanForm(form);
+
+    return {
+      title: normalized.title,
+      description: normalized.description ?? "",
+      goal: normalized.goal ?? {
+        type: "items",
+        source: "ai",
+        targetAmount: null,
+        transactionType: "expense",
+        categoryIds: [],
+        startDate: null,
+        endDate: null,
+      },
+      items: (normalized.items ?? []).map((item, index) => ({
+        id: `draft-${index}`,
+        title: item.title,
+        description: item.description ?? "",
+        status: item.status ?? "todo",
+        priority: item.priority ?? "medium",
+        sortOrder: index,
+      })),
+    };
+  };
+
+  const handleStartPlanDraft = async (chat: ChatConversation | undefined | null) => {
+    if (!chat || planningInProgress || planningReviewOpen) {
+      return;
+    }
+
+    setDraftChat(chat);
+    setDraftForm(null);
+    setCorrection("");
+    setRevisionMessages([]);
+    setPlanningReviewOpen(true);
+    setPlanningInProgress(true);
+
+    try {
+      const draft = await generatePlanDraft.mutateAsync(chat.id);
+      setDraftForm(createPlanFormFromDraft(draft));
+    } catch (error) {
+      resetPlanningReview();
+      toast.error("Nao foi possivel gerar o rascunho do planejamento.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+      return;
+    }
+
+    setPlanningInProgress(false);
+  };
+
   const handleMoveToSelectedPlan = async () => {
     if (!planningChat || !selectedPlanId) {
       return;
@@ -168,39 +241,62 @@ export default function ChatPage() {
       return;
     }
 
+    setPlanningOpen(false);
+    await handleStartPlanDraft(planningChat);
+  };
+
+  const handleReviseDraft = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!draftChat || !draftForm || !correction.trim()) {
+      return;
+    }
+
+    const currentCorrection = correction.trim();
+    setCorrection("");
+    setRevisionMessages((messages) => [...messages, { role: "user", content: currentCorrection }]);
+    setPlanningInProgress(true);
+
     try {
-      const suggestion = await suggestPlanLink.mutateAsync(planningChat.id);
-
-      if (suggestion.action === "link" && suggestion.planId) {
-        await linkChatToPlan.mutateAsync({ planId: suggestion.planId, chatId: planningChat.id });
-        setPlanningOpen(false);
-        toast.success("A IA vinculou o chat a um planejamento existente.", {
-          description: suggestion.rationale,
-        });
-        return;
-      }
-
-      const draft = await generatePlanDraft.mutateAsync(planningChat.id);
-      const plan = await createPlan.mutateAsync({
-        title: draft.title,
-        description: draft.description,
-        source: "ai",
-        goal: draft.goal,
-        items: draft.items.map((item, index) => ({
-          title: item.title,
-          description: item.description,
-          status: item.status,
-          sortOrder: index,
-        })),
-        chatIds: [planningChat.id],
+      const draft = await revisePlanDraft.mutateAsync({
+        chatId: draftChat.id,
+        draft: createDraftFromForm(draftForm),
+        correction: currentCorrection,
       });
-
-      setPlanningOpen(false);
-      toast.success("A IA criou um novo planejamento para este chat.", {
-        description: plan.title,
-      });
+      setDraftForm(createPlanFormFromDraft(draft));
+      setRevisionMessages((messages) => [...messages, { role: "assistant", content: "Rascunho atualizado para revisao." }]);
     } catch (error) {
-      toast.error("Nao foi possivel organizar este chat com IA.", {
+      toast.error("Nao foi possivel revisar o rascunho.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+    } finally {
+      setPlanningInProgress(false);
+    }
+  };
+
+  const handleConfirmDraft = async () => {
+    if (!draftChat || !draftForm) {
+      return;
+    }
+
+    const validationError = getPlanFormValidationError(draftForm);
+
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    try {
+      const input = normalizePlanForm(draftForm);
+      const plan = await createPlan.mutateAsync({
+        ...input,
+        source: "ai",
+        chatIds: [draftChat.id],
+      });
+      resetPlanningReview();
+      navigate(`${appRoutes.plans}/${plan.id}`);
+    } catch (error) {
+      toast.error("Nao foi possivel salvar o planejamento.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
@@ -399,11 +495,26 @@ export default function ChatPage() {
                 {chatId ? "As mensagens ficam salvas ate voce excluir o chat." : "Cada conversa tem uma URL propria."}
               </p>
             </div>
+            {activeChat ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => handleStartPlanDraft(activeChat)}
+                disabled={planningInProgress || planningReviewOpen}
+              >
+                <Sparkles size={16} />
+                Gerar planejamento
+              </Button>
+            ) : null}
           </div>
 
           <div data-tour-id="chat-conversation" className="h-[calc(100vh-15.5rem)] min-h-[28rem] sm:h-[calc(100vh-14.5rem)]">
             {chatId && activeChat ? (
-              <AiChat chatId={chatId} />
+              <AiChat
+                chatId={chatId}
+                planningInProgress={planningInProgress}
+                onPlanningIntent={() => handleStartPlanDraft(activeChat)}
+              />
             ) : (
               <div className="glass-card flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
                 Use Novo chat para iniciar uma conversa com seu consultor.
@@ -513,12 +624,80 @@ export default function ChatPage() {
             <Button
               variant="outline"
               onClick={handleAiPlanningAction}
-              disabled={!planningChat || suggestPlanLink.isPending || generatePlanDraft.isPending || createPlan.isPending}
+              disabled={!planningChat || planningInProgress || generatePlanDraft.isPending}
             >
-              {suggestPlanLink.isPending || generatePlanDraft.isPending || createPlan.isPending ? "Organizando..." : "Usar IA"}
+              {planningInProgress || generatePlanDraft.isPending ? "Gerando..." : "Usar IA"}
             </Button>
             <Button onClick={handleMoveToSelectedPlan} disabled={!planningChat || !selectedPlanId || linkChatToPlan.isPending}>
               Vincular
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={planningReviewOpen} onOpenChange={(open) => (!open ? resetPlanningReview() : setPlanningReviewOpen(true))}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Revisar planejamento</DialogTitle>
+            <DialogDescription>
+              {draftChat ? `Rascunho temporario gerado a partir de "${draftChat.title}".` : "Rascunho temporario gerado pela IA."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {planningInProgress && !draftForm ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-secondary/30 p-4 text-sm text-muted-foreground">
+              <Loader2 size={16} className="animate-spin" />
+              Gerando rascunho para revisao...
+            </div>
+          ) : null}
+
+          {draftForm ? (
+            <div className="space-y-5">
+              <PlanFormFields form={draftForm} categories={categories} onChange={setDraftForm} />
+
+              <div className="rounded-lg border border-border/40 bg-secondary/20 p-3">
+                <div className="mb-3 space-y-2">
+                  {revisionMessages.length ? (
+                    revisionMessages.map((message, index) => (
+                      <div
+                        key={`${message.role}-${index}`}
+                        className={`rounded-lg px-3 py-2 text-sm ${
+                          message.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-background text-muted-foreground"
+                        } max-w-[85%]`}
+                      >
+                        {message.content}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Peça ajustes antes de confirmar, sem gravar no historico do chat.</p>
+                  )}
+                </div>
+
+                <form onSubmit={handleReviseDraft} className="space-y-2">
+                  <Textarea
+                    value={correction}
+                    onChange={(event) => setCorrection(event.target.value)}
+                    placeholder="Ex.: reduza para 3 etapas e foque em cartao de credito"
+                    rows={2}
+                    disabled={planningInProgress}
+                  />
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="secondary" disabled={!correction.trim() || planningInProgress}>
+                      {planningInProgress ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                      Corrigir rascunho
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={resetPlanningReview} disabled={createPlan.isPending}>
+              Recusar
+            </Button>
+            <Button onClick={handleConfirmDraft} disabled={!draftForm || planningInProgress || createPlan.isPending}>
+              Confirmar plano
             </Button>
           </DialogFooter>
         </DialogContent>

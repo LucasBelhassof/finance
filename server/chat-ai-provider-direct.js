@@ -131,6 +131,20 @@ function buildSystemInstruction(payload) {
     ].join("\n");
   }
 
+  if (payload.task === "plan_draft_revision") {
+    return [
+      "Voce revisa rascunhos de planejamentos financeiros pessoais em portugues do Brasil.",
+      "Responda somente com JSON valido, sem markdown, sem crases e sem explicacoes.",
+      "Formato obrigatorio: {\"title\":\"...\",\"description\":\"...\",\"goal\":{\"type\":\"items|transaction_sum\",\"source\":\"ai\",\"targetAmount\":null,\"transactionType\":\"expense|income\",\"categoryIds\":[],\"startDate\":null,\"endDate\":null},\"items\":[{\"title\":\"...\",\"description\":\"...\",\"status\":\"todo\"}]}",
+      "Aplique a correcao do usuario ao rascunho atual mantendo o plano acionavel.",
+      "Use goal.type \"transaction_sum\" apenas quando houver meta financeira clara, valor alvo, periodo e categorias compativeis no contexto.",
+      "Quando usar categoryIds, use somente ids existentes em context.categories.",
+      "Nao invente saldos, transacoes, contas, datas ou metas que nao estejam no contexto.",
+      "",
+      `Data de referencia: ${payload.generatedAt}`,
+    ].join("\n");
+  }
+
   if (payload.task === "plan_link_suggestion") {
     return [
       "Voce decide se uma conversa deve ser vinculada a um planejamento existente.",
@@ -139,6 +153,31 @@ function buildSystemInstruction(payload) {
       "Use action \"link\" apenas quando houver um planejamento claramente relacionado.",
       "Use action \"create\" quando nenhum planejamento existente representar bem o chat.",
       "Se action for \"link\", planId deve ser exatamente um dos ids fornecidos.",
+      "",
+      `Data de referencia: ${payload.generatedAt}`,
+    ].join("\n");
+  }
+
+  if (payload.task === "plan_assessment") {
+    return [
+      "Voce avalia risco de planejamentos financeiros pessoais em portugues do Brasil.",
+      "Responda somente com JSON valido, sem markdown, sem crases e sem explicacoes.",
+      "Formato obrigatorio: {\"status\":\"on_track|attention|at_risk|completed\",\"riskSummary\":\"...\",\"suggestedPriority\":\"low|medium|high\",\"adjustmentRecommendation\":\"...\",\"recommendation\":{\"title\":\"...\",\"rationale\":\"...\",\"proposedPlan\":{\"goal\":null,\"items\":[]}}}.",
+      "Nao altere o plano diretamente. Gere apenas sugestoes de ajuste para aprovacao do usuario.",
+      "Use completed quando o progresso estiver completo. Use at_risk quando uma meta de despesa ja ultrapassou o limite ou estiver muito perto dele antes do fim do periodo.",
+      "Quando sugerir itens, inclua priority \"low\", \"medium\" ou \"high\".",
+      "Nao invente transacoes, saldos, categorias ou datas fora do contexto fornecido.",
+      "",
+      `Data de referencia: ${payload.generatedAt}`,
+    ].join("\n");
+  }
+
+  if (payload.task === "chat_summary") {
+    return [
+      "Voce resume conversas financeiras em portugues do Brasil.",
+      "Responda apenas com um resumo textual curto, sem markdown e sem lista longa.",
+      "Inclua objetivo do usuario, decisoes ou recomendacoes relevantes e proximos passos quando existirem.",
+      "Nao exponha credenciais, tokens, cookies, segredos nem chaves de API.",
       "",
       `Data de referencia: ${payload.generatedAt}`,
     ].join("\n");

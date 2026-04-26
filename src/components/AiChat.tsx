@@ -1,4 +1,4 @@
-import { Bot, Loader2, Send, User } from "lucide-react";
+import { Bot, Send, User } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { toast } from "@/components/ui/sonner";
@@ -7,6 +7,8 @@ import { DEFAULT_CHAT_LIMIT, useChatConversationMessages, useSendChatConversatio
 
 interface AiChatProps {
   chatId?: string;
+  planningInProgress?: boolean;
+  onPlanningIntent?: () => void;
 }
 
 function ChatLoadingState() {
@@ -74,7 +76,16 @@ function TypingIndicator() {
   );
 }
 
-export default function AiChat({ chatId }: AiChatProps) {
+function hasPlanningIntent(message: string) {
+  const normalized = message
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  return /\b(planejamento|plano financeiro|crie um plano|monte um plano|organize um planejamento)\b/.test(normalized);
+}
+
+export default function AiChat({ chatId, planningInProgress = false, onPlanningIntent }: AiChatProps) {
   const [input, setInput] = useState("");
   const [queuedMessages, setQueuedMessages] = useState<Array<{ id: string; content: string; createdAt: string }>>([]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -105,7 +116,7 @@ export default function AiChat({ chatId }: AiChatProps) {
     }
 
     container.scrollTop = container.scrollHeight;
-  }, [messages.length, queuedMessages.length, isSendingMessages]);
+  }, [messages.length, queuedMessages.length, isSendingMessages, planningInProgress]);
 
   useEffect(() => {
     setInput("");
@@ -130,6 +141,9 @@ export default function AiChat({ chatId }: AiChatProps) {
 
       try {
         await sendQueuedMessages(messagesToSend.map((message) => message.content));
+        if (messagesToSend.some((message) => hasPlanningIntent(message.content))) {
+          onPlanningIntent?.();
+        }
       } catch (mutationError) {
         setInput(messagesToSend.map((message) => message.content).join(" "));
         toast.error("Nao foi possivel enviar sua mensagem.", {
@@ -139,14 +153,14 @@ export default function AiChat({ chatId }: AiChatProps) {
     }, 1200);
 
     return () => window.clearTimeout(timeoutId);
-  }, [chatId, isSendingMessages, queuedMessages.length, sendQueuedMessages]);
+  }, [chatId, isSendingMessages, onPlanningIntent, queuedMessages.length, sendQueuedMessages]);
 
   const handleSubmit = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
     const message = input.trim();
 
-    if (!message || !chatId) {
+    if (!message || !chatId || planningInProgress) {
       return;
     }
 
@@ -183,7 +197,7 @@ export default function AiChat({ chatId }: AiChatProps) {
       </div>
 
       <div ref={scrollContainerRef} className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
-        {!messages.length && !queuedMessages.length && !isSendingMessages ? (
+        {!messages.length && !queuedMessages.length && !isSendingMessages && !planningInProgress ? (
           <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
             {isError ? "Nao foi possivel carregar a conversa agora." : "Comece uma conversa com o assistente."}
           </div>
@@ -228,7 +242,7 @@ export default function AiChat({ chatId }: AiChatProps) {
               </div>
             ))}
 
-            {queuedMessages.length || isSendingMessages ? (
+            {queuedMessages.length || isSendingMessages || planningInProgress ? (
               <>
                 <div className="flex gap-2.5">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -250,20 +264,16 @@ export default function AiChat({ chatId }: AiChatProps) {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={chatId ? "Pergunte sobre suas financas..." : "Crie ou selecione um chat"}
-              disabled={!chatId}
+              placeholder={planningInProgress ? "Gerando rascunho de planejamento..." : chatId ? "Pergunte sobre suas financas..." : "Crie ou selecione um chat"}
+              disabled={!chatId || planningInProgress}
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              disabled={!input.trim() || !chatId}
+              disabled={!input.trim() || !chatId || planningInProgress}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             >
-              {isSendingMessages ? (
-                <Loader2 size={14} className="animate-spin text-primary-foreground" />
-              ) : (
-                <Send size={14} className="text-primary-foreground" />
-              )}
+              <Send size={14} className="text-primary-foreground" />
             </button>
           </div>
         </form>

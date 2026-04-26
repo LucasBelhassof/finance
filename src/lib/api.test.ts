@@ -10,6 +10,7 @@ import {
   mapInstallmentsOverviewResponse,
   mapChatMessagesResponse,
   mapChatReplyResponse,
+  revisePlanDraft,
   mapSpendingResponse,
   mapTransaction,
   previewTransactionImport,
@@ -234,6 +235,73 @@ describe("api mappers", () => {
       expect(reply.assistantMessage.role).toBe("assistant");
       expect(reply.assistantMessage.content).toBe("Comece pelo delivery.");
       expect(reply.assistantMessage.totalTokens).toBe(192);
+  });
+
+  it("posts plan draft revisions without persisting chat messages", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          draft: {
+            title: "Plano revisado",
+            description: "Ajustado com foco em cartao.",
+            goal: {
+              type: "items",
+              source: "ai",
+              targetAmount: null,
+              transactionType: "expense",
+              categoryIds: [],
+              startDate: null,
+              endDate: null,
+            },
+            items: [
+              {
+                title: "Revisar fatura",
+                description: "Mapear maiores gastos.",
+                status: "todo",
+                priority: "high",
+                sortOrder: 0,
+              },
+            ],
+          },
+        }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const draft = await revisePlanDraft({
+      chatId: "chat-1",
+      correction: "foque no cartao",
+      draft: {
+        title: "Plano inicial",
+        description: "",
+        goal: {
+          type: "items",
+          source: "ai",
+          targetAmount: null,
+          transactionType: "expense",
+          categoryIds: [],
+          startDate: null,
+          endDate: null,
+        },
+        items: [],
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/plans/ai/revise-draft"),
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+      }),
+    );
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({
+      chatId: "chat-1",
+      correction: "foque no cartao",
+    });
+    expect(draft.title).toBe("Plano revisado");
+    expect(draft.items[0].priority).toBe("high");
   });
 
   it("maps import preview and commit payloads", () => {

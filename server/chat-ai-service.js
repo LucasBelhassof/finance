@@ -228,6 +228,7 @@ function normalizePlanItem(item, index) {
     title: title.length > 120 ? `${title.slice(0, 117).trim()}...` : title,
     description: String(item?.description ?? "").trim(),
     status: item?.status === "done" ? "done" : "todo",
+    priority: item?.priority === "high" || item?.priority === "low" ? item.priority : "medium",
     sortOrder: index,
   };
 }
@@ -359,6 +360,41 @@ export async function generatePlanDraft(payload) {
   return normalizePlanDraft(extractJsonObject(reply.content), fallback);
 }
 
+export async function revisePlanDraft(payload) {
+  const fallback = normalizePlanDraft(payload.draft, buildFallbackPlanDraft(payload.chat));
+  const correction = String(payload.correction ?? "").trim();
+  const config = getChatAiConfig();
+
+  if (!correction) {
+    throw new Error("correction is required");
+  }
+
+  if (!config.enabled) {
+    return fallback;
+  }
+
+  const reply = await requestConfiguredChatPayload(
+    {
+      task: "plan_draft_revision",
+      generatedAt: payload.generatedAt,
+      history: [
+        {
+          role: "user",
+          content: JSON.stringify({
+            chat: payload.chat,
+            context: payload.context,
+            draft: fallback,
+            correction,
+          }),
+        },
+      ],
+    },
+    config,
+  );
+
+  return normalizePlanDraft(extractJsonObject(reply.content), fallback);
+}
+
 function buildFallbackLinkSuggestion(chat, plans) {
   const haystack = [
     chat?.title,
@@ -430,4 +466,181 @@ export async function suggestPlanLink(payload) {
   );
 
   return normalizePlanLinkSuggestion(extractJsonObject(reply.content), payload.plans, fallback);
+}
+
+function normalizePlanAssessmentStatus(value, progress) {
+  if (value === "completed" || progress?.percentage >= 100) {
+    return "completed";
+  }
+
+  if (value === "at_risk") {
+    return "at_risk";
+  }
+
+  if (value === "attention") {
+    return "attention";
+  }
+
+  return "on_track";
+}
+
+function normalizePriority(value, fallback = "medium") {
+  if (value === "high" || value === "medium" || value === "low") {
+    return value;
+  }
+
+  return fallback === "high" || fallback === "low" ? fallback : "medium";
+}
+
+function buildFallbackPlanAssessment(plan) {
+  const progress = plan?.progress ?? {};
+  const percentage = Number(progress.percentage ?? 0);
+  const isTransactionGoal = plan?.goal?.type === "transaction_sum";
+  const targetValue = Number(progress.targetValue ?? plan?.goal?.targetAmount ?? 0);
+  const currentValue = Number(progress.currentValue ?? 0);
+  const endDate = plan?.goal?.endDate ? new Date(`${plan.goal.endDate}T12:00:00Z`) : null;
+  const today = new Date();
+  const daysToEnd = endDate && !Number.isNaN(endDate.getTime()) ? Math.ceil((endDate.getTime() - today.getTime()) / 86400000) : null;
+
+  let status = "on_track";
+  let priority = "medium";
+  let riskSummary = "O planejamento segue sem sinais criticos com os dados atuais.";
+  let recommendation = "Continue acompanhando o progresso e revise novas transacoes vinculadas a meta.";
+
+  if (percentage >= 100) {
+    status = "completed";
+    priority = "low";
+    riskSummary = "A meta do planejamento foi concluida.";
+    recommendation = "Revise o plano e marque proximas acoes ou encerre o acompanhamento.";
+  } else if (isTransactionGoal && targetValue > 0 && currentValue > targetValue) {
+    status = "at_risk";
+    priority = "high";
+    riskSummary = "A meta financeira ja ultrapassou o limite definido.";
+    recommendation = "Replaneje o valor alvo, reduza novas despesas relacionadas ou ajuste o periodo.";
+  } else if ((isTransactionGoal && percentage >= 80) || (daysToEnd !== null && daysToEnd < 0 && percentage < 100)) {
+    status = "attention";
+    priority = "high";
+    riskSummary = daysToEnd !== null && daysToEnd < 0 ? "O periodo da meta terminou sem conclusao." : "A meta esta proxima do limite definido.";
+    recommendation = "Revise as acoes pendentes e ajuste prioridade antes de novas movimentacoes.";
+  }
+
+  return {
+    status,
+    riskSummary,
+    suggestedPriority: priority,
+    adjustmentRecommendation: recommendation,
+    recommendation:
+      status === "on_track" || status === "completed"
+        ? null
+        : {
+            title: status === "at_risk" ? "Replanejar meta em risco" : "Ajustar prioridades da meta",
+            rationale: recommendation,
+            proposedPlan: {
+              goal: plan?.goal ?? null,
+              items: (plan?.items ?? []).map((item, index) => ({
+                title: item.title,
+                description: item.description,
+                status: item.status,
+                priority: index === 0 ? "high" : normalizePriority(item.priority),
+                sortOrder: item.sortOrder ?? index,
+              })),
+            },
+          },
+  };
+}
+
+function normalizePlanAssessment(value, fallback) {
+  const status = value?.status ? normalizePlanAssessmentStatus(value.status, null) : fallback.status;
+  const recommendation = value?.recommendation && typeof value.recommendation === "object" ? value.recommendation : fallback.recommendation;
+
+  return {
+    status,
+    riskSummary: String(value?.riskSummary ?? value?.risk_summary ?? fallback.riskSummary).trim() || fallback.riskSummary,
+    suggestedPriority: normalizePriority(value?.suggestedPriority ?? value?.suggested_priority, fallback.suggestedPriority),
+    adjustmentRecommendation:
+      String(value?.adjustmentRecommendation ?? value?.adjustment_recommendation ?? fallback.adjustmentRecommendation).trim() ||
+      fallback.adjustmentRecommendation,
+    recommendation: recommendation
+      ? {
+          title: String(recommendation.title ?? fallback.recommendation?.title ?? "Sugestao de replanejamento").trim(),
+          rationale: String(recommendation.rationale ?? fallback.recommendation?.rationale ?? "").trim(),
+          proposedPlan:
+            typeof recommendation.proposedPlan === "object" && recommendation.proposedPlan !== null
+              ? recommendation.proposedPlan
+              : recommendation.proposed_plan && typeof recommendation.proposed_plan === "object"
+                ? recommendation.proposed_plan
+                : fallback.recommendation?.proposedPlan ?? {},
+        }
+      : null,
+  };
+}
+
+export async function generatePlanAssessment(payload) {
+  const fallback = buildFallbackPlanAssessment(payload.plan);
+  const config = getChatAiConfig();
+
+  if (!config.enabled) {
+    return fallback;
+  }
+
+  const reply = await requestConfiguredChatPayload(
+    {
+      task: "plan_assessment",
+      generatedAt: payload.generatedAt,
+      history: [
+        {
+          role: "user",
+          content: JSON.stringify({
+            plan: payload.plan,
+            context: payload.context,
+            trigger: payload.trigger ?? null,
+          }),
+        },
+      ],
+    },
+    config,
+  );
+
+  return normalizePlanAssessment(extractJsonObject(reply.content), fallback);
+}
+
+function buildFallbackChatSummary(chat) {
+  const messages = chat?.messages ?? [];
+  const firstUserMessage = messages.find((message) => message.role === "user")?.content;
+  const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")?.content;
+  const base = firstUserMessage || chat?.title || "Conversa financeira";
+  const next = lastAssistantMessage ? ` Ultima orientacao registrada: ${String(lastAssistantMessage).replace(/\s+/g, " ").trim()}` : "";
+
+  return `${String(base).replace(/\s+/g, " ").trim().slice(0, 240)}.${next}`.slice(0, 900);
+}
+
+export async function generateChatSummary(payload) {
+  const fallback = buildFallbackChatSummary(payload.chat);
+  const config = getChatAiConfig();
+
+  if (!config.enabled) {
+    return {
+      summary: fallback,
+    };
+  }
+
+  const reply = await requestConfiguredChatPayload(
+    {
+      task: "chat_summary",
+      generatedAt: payload.generatedAt,
+      history: [
+        {
+          role: "user",
+          content: JSON.stringify({
+            chat: payload.chat,
+          }),
+        },
+      ],
+    },
+    config,
+  );
+
+  return {
+    summary: String(reply.content ?? "").replace(/\s+/g, " ").trim().slice(0, 1200) || fallback,
+  };
 }

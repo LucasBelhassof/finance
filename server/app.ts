@@ -20,10 +20,14 @@ import {
   deleteHousing,
   deletePlan,
   deleteTransaction,
+  evaluatePlanWithAi,
+  applyPlanRecommendation,
   generatePlanDraftFromChat,
+  generatePlanChatSummary,
   getDashboardData,
   getInstallmentsOverview,
   getPlanDetail,
+  getPlanChatSummary,
   getTransactionImportAiSuggestions,
   listBanks,
   listCategories,
@@ -33,11 +37,13 @@ import {
   listHousing,
   listInsights,
   listPlans,
+  listPlanRecommendations,
   listSpendingByCategory,
   listTransactions,
   linkChatToPlan,
   pingDatabase,
   previewTransactionImport,
+  revisePlanDraftFromChat,
   searchChatConversations,
   suggestPlanLinkForChat,
   unlinkChatFromPlan,
@@ -350,6 +356,30 @@ export function createApp() {
     response.json({ draft });
   });
 
+  app.post("/api/plans/ai/revise-draft", async (request, response) => {
+    const chatId = request.body?.chatId;
+    const draft = request.body?.draft;
+    const correction = request.body?.correction;
+
+    if (typeof chatId !== "string" || !chatId.trim()) {
+      response.status(400).json({ error: "chatId is required" });
+      return;
+    }
+
+    if (!draft || typeof draft !== "object") {
+      response.status(400).json({ error: "draft is required" });
+      return;
+    }
+
+    if (typeof correction !== "string" || !correction.trim()) {
+      response.status(400).json({ error: "correction is required" });
+      return;
+    }
+
+    const revisedDraft = await revisePlanDraftFromChat(getAuthenticatedUserId(request), chatId.trim(), draft, correction.trim());
+    response.json({ draft: revisedDraft });
+  });
+
   app.post("/api/plans/ai/suggest-link", async (request, response) => {
     const chatId = request.body?.chatId;
 
@@ -366,6 +396,30 @@ export function createApp() {
 
   app.get("/api/plans/:planId", async (request, response) => {
     const plan = await getPlanDetail(getAuthenticatedUserId(request), request.params.planId);
+    response.json({ plan });
+  });
+
+  app.post("/api/plans/:planId/ai/evaluate", async (request, response) => {
+    const plan = await evaluatePlanWithAi(getAuthenticatedUserId(request), request.params.planId, {
+      type: "manual_evaluation",
+    });
+    response.status(201).json({ plan });
+  });
+
+  app.get("/api/plans/:planId/recommendations", async (request, response) => {
+    const recommendations = await listPlanRecommendations(getAuthenticatedUserId(request), request.params.planId);
+    response.json({ recommendations });
+  });
+
+  app.post("/api/plans/:planId/recommendations/:id/apply", async (request, response) => {
+    const recommendationId = parseIntegerRouteParam(request.params.id, "invalid_recommendation_id");
+
+    if (recommendationId.error) {
+      response.status(400).json(recommendationId);
+      return;
+    }
+
+    const plan = await applyPlanRecommendation(getAuthenticatedUserId(request), request.params.planId, recommendationId.value);
     response.json({ plan });
   });
 
@@ -444,6 +498,16 @@ export function createApp() {
       Number.isNaN(limit) ? 20 : limit,
     );
     response.json({ messages });
+  });
+
+  app.get("/api/chats/:chatId/summary", async (request, response) => {
+    const summary = await getPlanChatSummary(getAuthenticatedUserId(request), request.params.chatId);
+    response.json({ summary });
+  });
+
+  app.post("/api/chats/:chatId/summary", async (request, response) => {
+    const summary = await generatePlanChatSummary(getAuthenticatedUserId(request), request.params.chatId);
+    response.status(201).json({ summary });
   });
 
   app.post("/api/chats/:chatId/messages", async (request, response) => {

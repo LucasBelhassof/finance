@@ -30,11 +30,13 @@ import type {
   CategoryItem,
   CreatePlanInput,
   Plan,
+  PlanAiAssessmentStatus,
   PlanDraft,
   PlanGoal,
   PlanGoalSource,
   PlanGoalType,
   PlanItemStatus,
+  PlanPriority,
   PlanTransactionType,
 } from "@/types/api";
 
@@ -42,6 +44,7 @@ export interface PlanFormItem {
   title: string;
   description: string;
   status: PlanItemStatus;
+  priority: PlanPriority;
 }
 
 export interface PlanFormGoal {
@@ -103,7 +106,7 @@ function createEmptyPlanForm(): PlanFormState {
     title: "",
     description: "",
     goal: createEmptyGoal("manual"),
-    items: [{ title: "", description: "", status: "todo" }],
+    items: [{ title: "", description: "", status: "todo", priority: "medium" }],
   };
 }
 
@@ -149,8 +152,9 @@ export function createPlanFormFromPlan(plan: Plan): PlanFormState {
           title: item.title,
           description: item.description,
           status: item.status,
+          priority: item.priority,
         }))
-      : [{ title: "", description: "", status: "todo" }],
+      : [{ title: "", description: "", status: "todo", priority: "medium" }],
   };
 }
 
@@ -164,8 +168,9 @@ export function createPlanFormFromDraft(draft: PlanDraft): PlanFormState {
           title: item.title,
           description: item.description,
           status: item.status,
+          priority: item.priority,
         }))
-      : [{ title: "", description: "", status: "todo" }],
+      : [{ title: "", description: "", status: "todo", priority: "medium" }],
   };
 }
 
@@ -200,6 +205,7 @@ export function normalizePlanForm(form: PlanFormState): CreatePlanInput {
         title: item.title.trim(),
         description: item.description.trim(),
         status: item.status,
+        priority: item.priority,
         sortOrder: index,
       }))
       .filter((item) => item.title),
@@ -299,6 +305,23 @@ export function getPlanGoalDetail(plan: Plan, categories: CategoryItem[]) {
   return plan.goal.source === "ai" ? "Progresso por etapas sugeridas pela IA" : "Progresso por etapas concluidas";
 }
 
+export function getPlanAiStatusLabel(status: PlanAiAssessmentStatus) {
+  switch (status) {
+    case "completed":
+      return "Concluido";
+    case "at_risk":
+      return "Em risco";
+    case "attention":
+      return "Atencao";
+    default:
+      return "No ritmo";
+  }
+}
+
+export function getPriorityLabel(priority: PlanPriority) {
+  return priority === "high" ? "Alta" : priority === "low" ? "Baixa" : "Media";
+}
+
 export function PlanCard({
   plan,
   categories,
@@ -323,6 +346,20 @@ export function PlanCard({
           {plan.progress.percentage}%
         </span>
       </div>
+
+      {plan.aiAssessment ? (
+        <div
+          className={`mt-3 inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+            plan.aiAssessment.status === "at_risk"
+              ? "bg-destructive/10 text-destructive"
+              : plan.aiAssessment.status === "attention"
+                ? "bg-warning/10 text-warning"
+                : "bg-secondary/70 text-muted-foreground"
+          }`}
+        >
+          IA: {getPlanAiStatusLabel(plan.aiAssessment.status)}
+        </div>
+      ) : null}
 
       <p className="mt-3 line-clamp-3 min-h-[3.75rem] text-sm text-muted-foreground">
         {plan.description || "Sem descricao."}
@@ -503,7 +540,9 @@ export function PlanFormFields({
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => onChange({ ...form, items: [...form.items, { title: "", description: "", status: "todo" }] })}
+            onClick={() =>
+              onChange({ ...form, items: [...form.items, { title: "", description: "", status: "todo", priority: "medium" }] })
+            }
           >
             <Plus size={15} />
             Item
@@ -525,6 +564,19 @@ export function PlanFormFields({
               >
                 <option value="todo">A fazer</option>
                 <option value="done">Concluido</option>
+              </select>
+              <select
+                value={item.priority}
+                onChange={(event) =>
+                  updateItem(index, {
+                    priority: event.target.value === "high" || event.target.value === "low" ? event.target.value : "medium",
+                  })
+                }
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              >
+                <option value="high">Alta</option>
+                <option value="medium">Media</option>
+                <option value="low">Baixa</option>
               </select>
             </div>
             <Textarea

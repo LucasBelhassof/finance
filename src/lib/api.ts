@@ -48,6 +48,8 @@ import type {
   ApiPlanGoal,
   ApiPlanItem,
   ApiPlanLinkSuggestionResponse,
+  ApiPlanRecommendationsResponse,
+  ApiPlanChatSummaryResponse,
   ApiPlanProgress,
   ApiPlanResponse,
   ApiPlansResponse,
@@ -94,11 +96,14 @@ import type {
   NotificationItem,
   NotificationsFilters,
   Plan,
+  PlanChatSummary,
   PlanDraft,
   PlanGoal,
   PlanItem,
+  PlanRecommendation,
   PlanProgress,
   PlanLinkSuggestion,
+  RevisePlanDraftInput,
   UpdateCategoryInput,
   UpdateHousingInput,
   UpdatePlanInput,
@@ -463,6 +468,7 @@ function mapNotificationsResponse(response: ApiNotificationsResponse): Notificat
         createdAt: safeString(notification.createdAt),
         isRead: Boolean(notification.isRead),
         readAt: notification.readAt ? safeString(notification.readAt) : null,
+        actionHref: notification.actionHref ? safeString(notification.actionHref) : null,
         createdBy:
           typeof notification.createdBy === "object" && notification.createdBy !== null
             ? {
@@ -742,6 +748,18 @@ function normalizePlanItemStatus(status?: string) {
   return status === "done" ? "done" : "todo";
 }
 
+function normalizePlanPriority(priority?: string) {
+  return priority === "high" || priority === "low" ? priority : "medium";
+}
+
+function normalizePlanAssessmentStatus(status?: string) {
+  if (status === "completed" || status === "at_risk" || status === "attention") {
+    return status;
+  }
+
+  return "on_track";
+}
+
 function normalizePlanGoalType(type?: string) {
   return type === "transaction_sum" ? "transaction_sum" : "items";
 }
@@ -821,13 +839,31 @@ export function mapPlanItem(item: ApiPlanItem): PlanItem {
     title: safeString(item.title, "Item do planejamento"),
     description: safeString(item.description, ""),
     status: normalizePlanItemStatus(item.status),
+    priority: normalizePlanPriority(item.priority),
     sortOrder: typeof item.sortOrder === "number" ? item.sortOrder : 0,
+  };
+}
+
+export function mapPlanRecommendation(recommendation: Record<string, unknown>): PlanRecommendation {
+  return {
+    id: recommendation.id ?? "",
+    status:
+      recommendation.status === "applied" || recommendation.status === "dismissed" ? recommendation.status : "pending",
+    title: safeString(recommendation.title, "Sugestao de replanejamento"),
+    rationale: safeString(recommendation.rationale, ""),
+    proposedPlan:
+      typeof recommendation.proposedPlan === "object" && recommendation.proposedPlan !== null
+        ? (recommendation.proposedPlan as Record<string, unknown>)
+        : {},
+    createdAt: safeString(recommendation.createdAt, new Date(0).toISOString()),
+    appliedAt: recommendation.appliedAt ? safeString(recommendation.appliedAt) : null,
   };
 }
 
 export function mapPlan(plan: ApiPlan): Plan {
   const goal = mapPlanGoal(plan.goal);
   const items = (plan.items ?? []).map(mapPlanItem).sort((left, right) => left.sortOrder - right.sortOrder);
+  const assessment = plan.aiAssessment ?? null;
 
   return {
     id: safeString(plan.id, ""),
@@ -840,6 +876,17 @@ export function mapPlan(plan: ApiPlan): Plan {
     updatedAt: safeString(plan.updatedAt, new Date(0).toISOString()),
     items,
     chats: (plan.chats ?? []).map(mapChatConversation).filter((chat) => chat.id),
+    aiAssessment: assessment
+      ? {
+          id: assessment.id ?? "",
+          status: normalizePlanAssessmentStatus(assessment.status),
+          riskSummary: safeString(assessment.riskSummary, ""),
+          suggestedPriority: normalizePlanPriority(assessment.suggestedPriority),
+          adjustmentRecommendation: safeString(assessment.adjustmentRecommendation, ""),
+          assessedAt: safeString(assessment.assessedAt, new Date(0).toISOString()),
+        }
+      : null,
+    pendingRecommendations: (plan.pendingRecommendations ?? []).map((item) => mapPlanRecommendation(item as Record<string, unknown>)),
   };
 }
 
@@ -1038,6 +1085,26 @@ export function mapPlanLinkSuggestionResponse(response: ApiPlanLinkSuggestionRes
     action: suggestion.action === "link" ? "link" : "create",
     planId: safeString(suggestion.planId, "") || null,
     rationale: safeString(suggestion.rationale, ""),
+  };
+}
+
+export function mapPlanRecommendationsResponse(response: ApiPlanRecommendationsResponse): PlanRecommendation[] {
+  return (response.recommendations ?? []).map((item) => mapPlanRecommendation(item as Record<string, unknown>));
+}
+
+export function mapPlanChatSummaryResponse(response: ApiPlanChatSummaryResponse): PlanChatSummary {
+  const summary = response.summary ?? {};
+
+  return {
+    id: summary.id ?? null,
+    chatId: safeString(summary.chatId, ""),
+    summary: safeString(summary.summary, ""),
+    messageCount: safeNumber(summary.messageCount),
+    lastMessageId:
+      summary.lastMessageId === null || summary.lastMessageId === undefined ? null : safeNumber(summary.lastMessageId),
+    generatedAt: summary.generatedAt ? safeString(summary.generatedAt) : null,
+    updatedAt: summary.updatedAt ? safeString(summary.updatedAt) : null,
+    stale: Boolean(summary.stale),
   };
 }
 
@@ -1556,6 +1623,30 @@ export async function getPlan(planId: string) {
   return mapPlanResponse(response);
 }
 
+export async function evaluatePlan(planId: string) {
+  const response = await request<ApiPlanResponse>(`/api/plans/${encodeURIComponent(planId)}/ai/evaluate`, {
+    method: "POST",
+  });
+  return mapPlanResponse(response);
+}
+
+export async function getPlanRecommendations(planId: string) {
+  const response = await request<ApiPlanRecommendationsResponse>(
+    `/api/plans/${encodeURIComponent(planId)}/recommendations`,
+  );
+  return mapPlanRecommendationsResponse(response);
+}
+
+export async function applyPlanRecommendation(planId: string, recommendationId: number | string) {
+  const response = await request<ApiPlanResponse>(
+    `/api/plans/${encodeURIComponent(planId)}/recommendations/${encodeURIComponent(String(recommendationId))}/apply`,
+    {
+      method: "POST",
+    },
+  );
+  return mapPlanResponse(response);
+}
+
 export async function postPlan(input: CreatePlanInput) {
   const response = await request<ApiPlanResponse>("/api/plans", {
     method: "POST",
@@ -1616,6 +1707,15 @@ export async function generatePlanDraft(chatId: string) {
   return mapPlanDraftResponse(response);
 }
 
+export async function revisePlanDraft(input: RevisePlanDraftInput) {
+  const response = await request<ApiPlanDraftResponse>("/api/plans/ai/revise-draft", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+  return mapPlanDraftResponse(response);
+}
+
 export async function suggestPlanLink(chatId: string) {
   const response = await request<ApiPlanLinkSuggestionResponse>("/api/plans/ai/suggest-link", {
     method: "POST",
@@ -1623,6 +1723,18 @@ export async function suggestPlanLink(chatId: string) {
   });
 
   return mapPlanLinkSuggestionResponse(response);
+}
+
+export async function getChatSummary(chatId: string) {
+  const response = await request<ApiPlanChatSummaryResponse>(`/api/chats/${encodeURIComponent(chatId)}/summary`);
+  return mapPlanChatSummaryResponse(response);
+}
+
+export async function postChatSummary(chatId: string) {
+  const response = await request<ApiPlanChatSummaryResponse>(`/api/chats/${encodeURIComponent(chatId)}/summary`, {
+    method: "POST",
+  });
+  return mapPlanChatSummaryResponse(response);
 }
 
 export async function getChatConversationMessages(chatId: string, limit?: number) {

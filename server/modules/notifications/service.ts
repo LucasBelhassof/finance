@@ -20,6 +20,7 @@ export interface NotificationItem {
   createdAt: string;
   isRead: boolean;
   readAt: string | null;
+  actionHref: string | null;
   createdBy: {
     id: number;
     name: string;
@@ -161,6 +162,7 @@ function mapNotificationRow(row: Record<string, unknown>): NotificationItem {
     createdAt: new Date(String(row.created_at)).toISOString(),
     isRead: Boolean(row.is_read),
     readAt: row.read_at ? new Date(String(row.read_at)).toISOString() : null,
+    actionHref: row.action_href ? String(row.action_href) : null,
     createdBy:
       row.created_by_user_id && row.created_by_user_name
         ? {
@@ -252,6 +254,7 @@ export async function listNotificationsForUser(
         n.category,
         n.source,
         n.trigger_at,
+        n.action_href,
         n.created_at,
         nr.is_read,
         nr.read_at,

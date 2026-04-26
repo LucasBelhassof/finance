@@ -1,21 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  applyPlanRecommendation,
   deletePlan,
+  evaluatePlan,
   generatePlanDraft,
+  getChatSummary,
   getPlan,
+  getPlanRecommendations,
   getPlans,
   linkChatToPlan,
   patchPlan,
+  postChatSummary,
   postPlan,
+  revisePlanDraft,
   suggestPlanLink,
   unlinkChatFromPlan,
 } from "@/lib/api";
-import type { CreatePlanInput, Plan, UpdatePlanInput } from "@/types/api";
+import type { CreatePlanInput, Plan, RevisePlanDraftInput, UpdatePlanInput } from "@/types/api";
 import { chatConversationsQueryKey } from "@/hooks/use-chat";
 
 export const plansQueryKey = ["plans"] as const;
 export const planQueryKey = (planId: string) => ["plans", planId] as const;
+export const planRecommendationsQueryKey = (planId: string) => ["plans", planId, "recommendations"] as const;
+export const chatSummaryQueryKey = (chatId: string) => ["chats", chatId, "summary"] as const;
 
 function sortPlans(plans: Plan[]) {
   return [...plans].sort((left, right) => {
@@ -81,6 +89,49 @@ export function useUpdatePlan() {
   });
 }
 
+export function useEvaluatePlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (planId: string) => evaluatePlan(planId),
+    onSuccess: (plan) => {
+      queryClient.setQueryData(plansQueryKey, (currentPlans = []) => {
+        const plans = Array.isArray(currentPlans) ? currentPlans : [];
+        return upsertPlan(plans, plan);
+      });
+      queryClient.setQueryData(planQueryKey(plan.id), plan);
+      queryClient.invalidateQueries({ queryKey: planRecommendationsQueryKey(plan.id) });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+export function usePlanRecommendations(planId: string | undefined) {
+  return useQuery({
+    queryKey: planRecommendationsQueryKey(planId ?? ""),
+    queryFn: () => getPlanRecommendations(planId ?? ""),
+    enabled: Boolean(planId),
+    staleTime: 10_000,
+  });
+}
+
+export function useApplyPlanRecommendation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ planId, recommendationId }: { planId: string; recommendationId: number | string }) =>
+      applyPlanRecommendation(planId, recommendationId),
+    onSuccess: (plan) => {
+      queryClient.setQueryData(plansQueryKey, (currentPlans = []) => {
+        const plans = Array.isArray(currentPlans) ? currentPlans : [];
+        return upsertPlan(plans, plan);
+      });
+      queryClient.setQueryData(planQueryKey(plan.id), plan);
+      queryClient.invalidateQueries({ queryKey: planRecommendationsQueryKey(plan.id) });
+    },
+  });
+}
+
 export function useDeletePlan() {
   const queryClient = useQueryClient();
 
@@ -135,8 +186,34 @@ export function useGeneratePlanDraft() {
   });
 }
 
+export function useRevisePlanDraft() {
+  return useMutation({
+    mutationFn: (input: RevisePlanDraftInput) => revisePlanDraft(input),
+  });
+}
+
 export function useSuggestPlanLink() {
   return useMutation({
     mutationFn: suggestPlanLink,
+  });
+}
+
+export function useChatSummary(chatId: string | undefined) {
+  return useQuery({
+    queryKey: chatSummaryQueryKey(chatId ?? ""),
+    queryFn: () => getChatSummary(chatId ?? ""),
+    enabled: Boolean(chatId),
+    staleTime: 10_000,
+  });
+}
+
+export function useGenerateChatSummary() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (chatId: string) => postChatSummary(chatId),
+    onSuccess: (summary) => {
+      queryClient.setQueryData(chatSummaryQueryKey(summary.chatId), summary);
+    },
   });
 }

@@ -9,6 +9,10 @@ interface AiChatProps {
   chatId?: string;
   planningInProgress?: boolean;
   onPlanningIntent?: () => void;
+  creatingConversation?: boolean;
+  initialMessage?: string | null;
+  onInitialMessageHandled?: () => void;
+  onStartConversation?: (message: string) => Promise<boolean>;
 }
 
 function ChatLoadingState() {
@@ -85,7 +89,15 @@ function hasPlanningIntent(message: string) {
   return /\b(planejamento|plano financeiro|crie um plano|monte um plano|organize um planejamento)\b/.test(normalized);
 }
 
-export default function AiChat({ chatId, planningInProgress = false, onPlanningIntent }: AiChatProps) {
+export default function AiChat({
+  chatId,
+  planningInProgress = false,
+  onPlanningIntent,
+  creatingConversation = false,
+  initialMessage = null,
+  onInitialMessageHandled,
+  onStartConversation,
+}: AiChatProps) {
   const [input, setInput] = useState("");
   const [queuedMessages, setQueuedMessages] = useState<Array<{ id: string; content: string; createdAt: string }>>([]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -125,6 +137,22 @@ export default function AiChat({ chatId, planningInProgress = false, onPlanningI
   }, [chatId]);
 
   useEffect(() => {
+    if (!chatId || !initialMessage) {
+      return;
+    }
+
+    setQueuedMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        id: `queued-initial-${Date.now()}-${currentMessages.length}`,
+        content: initialMessage,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    onInitialMessageHandled?.();
+  }, [chatId, initialMessage, onInitialMessageHandled]);
+
+  useEffect(() => {
     if (!chatId || !queuedMessages.length || isSendingMessages) {
       return;
     }
@@ -160,7 +188,21 @@ export default function AiChat({ chatId, planningInProgress = false, onPlanningI
 
     const message = input.trim();
 
-    if (!message || !chatId || planningInProgress) {
+    if (!message || planningInProgress || creatingConversation) {
+      return;
+    }
+
+    if (!chatId) {
+      if (!onStartConversation) {
+        return;
+      }
+
+      const started = await onStartConversation(message);
+
+      if (started) {
+        setInput("");
+      }
+
       return;
     }
 
@@ -197,7 +239,7 @@ export default function AiChat({ chatId, planningInProgress = false, onPlanningI
       </div>
 
       <div ref={scrollContainerRef} className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
-        {!messages.length && !queuedMessages.length && !isSendingMessages && !planningInProgress ? (
+        {!messages.length && !queuedMessages.length && !isSendingMessages && !planningInProgress && !creatingConversation ? (
           <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
             {isError ? "Nao foi possivel carregar a conversa agora." : "Comece uma conversa com o assistente."}
           </div>
@@ -242,7 +284,7 @@ export default function AiChat({ chatId, planningInProgress = false, onPlanningI
               </div>
             ))}
 
-            {queuedMessages.length || isSendingMessages || planningInProgress ? (
+            {queuedMessages.length || isSendingMessages || planningInProgress || creatingConversation ? (
               <>
                 <div className="flex gap-2.5">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -264,13 +306,19 @@ export default function AiChat({ chatId, planningInProgress = false, onPlanningI
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={planningInProgress ? "Gerando rascunho de planejamento..." : chatId ? "Pergunte sobre suas financas..." : "Crie ou selecione um chat"}
-              disabled={!chatId || planningInProgress}
+              placeholder={
+                planningInProgress
+                  ? "Gerando rascunho de planejamento..."
+                  : creatingConversation
+                    ? "Criando novo chat..."
+                    : "Pergunte sobre suas financas..."
+              }
+              disabled={planningInProgress || creatingConversation || (!chatId && !onStartConversation)}
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              disabled={!input.trim() || !chatId || planningInProgress}
+              disabled={!input.trim() || planningInProgress || creatingConversation || (!chatId && !onStartConversation)}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             >
               <Send size={14} className="text-primary-foreground" />

@@ -128,6 +128,7 @@ export default function ChatPage() {
   const [planningChat, setPlanningChat] = useState<ChatConversation | null>(null);
   const [planningReviewOpen, setPlanningReviewOpen] = useState(false);
   const [planningInProgress, setPlanningInProgress] = useState(false);
+  const [pendingInitialMessage, setPendingInitialMessage] = useState<string | null>(null);
   const [draftForm, setDraftForm] = useState<PlanFormState | null>(null);
   const [draftChat, setDraftChat] = useState<ChatConversation | null>(null);
   const [correction, setCorrection] = useState("");
@@ -169,12 +170,28 @@ export default function ChatPage() {
   const handleCreateChat = async () => {
     try {
       setMobileSidebarOpen(false);
+      setPendingInitialMessage(null);
       const chat = await createChat.mutateAsync();
       navigate(getChatPath(chat.id));
     } catch (error) {
       toast.error("Nao foi possivel criar um novo chat.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
+    }
+  };
+
+  const handleStartConversation = async (message: string) => {
+    try {
+      setMobileSidebarOpen(false);
+      const chat = await createChat.mutateAsync();
+      setPendingInitialMessage(message);
+      navigate(getChatPath(chat.id));
+      return true;
+    } catch (error) {
+      toast.error("Nao foi possivel iniciar um novo chat.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+      return false;
     }
   };
 
@@ -603,12 +620,20 @@ export default function ChatPage() {
               <AiChat
                 chatId={chatId}
                 planningInProgress={planningInProgress}
+                creatingConversation={createChat.isPending && !chatId}
+                initialMessage={pendingInitialMessage}
+                onInitialMessageHandled={() => setPendingInitialMessage(null)}
                 onPlanningIntent={() => handleStartPlanDraft(activeChat)}
+                onStartConversation={handleStartConversation}
               />
             ) : (
-              <div className="glass-card flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                Use Novo chat para iniciar uma conversa com seu consultor.
-              </div>
+              <AiChat
+                planningInProgress={planningInProgress}
+                creatingConversation={createChat.isPending}
+                initialMessage={pendingInitialMessage}
+                onInitialMessageHandled={() => setPendingInitialMessage(null)}
+                onStartConversation={handleStartConversation}
+              />
             )}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import AiChat from "@/components/AiChat";
@@ -58,5 +58,20 @@ describe("AiChat", () => {
 
     fireEvent.change(input, { target: { value: "mais uma mensagem" } });
     expect(screen.getByRole("button")).toBeDisabled();
+  });
+
+  it("starts a new conversation from the first message when no chat exists", async () => {
+    arrangeChat();
+    const onStartConversation = vi.fn().mockResolvedValue(true);
+
+    render(<AiChat onStartConversation={onStartConversation} />);
+
+    const input = screen.getByPlaceholderText("Pergunte sobre suas financas...");
+    fireEvent.change(input, { target: { value: "Quero organizar minhas contas" } });
+    fireEvent.submit(input.closest("form")!);
+
+    await waitFor(() => {
+      expect(onStartConversation).toHaveBeenCalledWith("Quero organizar minhas contas");
+    });
   });
 });

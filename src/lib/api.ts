@@ -47,6 +47,7 @@ import type {
   ApiNotificationsResponse,
   ApiPlan,
   ApiPlanDraftResponse,
+  ApiPlanDraftSessionResponse,
   ApiPlanGoal,
   ApiPlanItem,
   ApiPlanLinkSuggestionResponse,
@@ -102,12 +103,14 @@ import type {
   Plan,
   PlanChatSummary,
   PlanDraft,
+  PlanDraftSession,
   PlanGoal,
   PlanItem,
   PlanRecommendation,
   PlanProgress,
   PlanLinkSuggestion,
   RevisePlanDraftInput,
+  RevisePlanDraftSessionInput,
   UpdateCategoryInput,
   UpdateHousingInput,
   UpdateInvestmentInput,
@@ -729,6 +732,13 @@ export function mapChatMessage(message: ApiChatMessage): ChatMessage {
     requestCount: typeof message.requestCount === "number" ? message.requestCount : null,
     estimatedCostUsd: typeof message.estimatedCostUsd === "number" ? message.estimatedCostUsd : null,
     createdAt: safeString(message.createdAt, new Date(0).toISOString()),
+    planDraftAction: message.planDraftAction?.draftId
+      ? {
+          draftId: safeString(message.planDraftAction.draftId),
+          status: normalizePlanDraftStatus(message.planDraftAction.status),
+          label: safeString(message.planDraftAction.label, "Revisar plano"),
+        }
+      : null,
   };
 
   if (message.chatId !== undefined) {
@@ -767,6 +777,10 @@ function normalizePlanAssessmentStatus(status?: string) {
   }
 
   return "on_track";
+}
+
+function normalizePlanDraftStatus(status?: string) {
+  return status === "confirmed" || status === "dismissed" ? status : "pending";
 }
 
 function normalizePlanGoalType(type?: string) {
@@ -1132,6 +1146,28 @@ export function mapPlanDraftResponse(response: ApiPlanDraftResponse): PlanDraft 
     description: safeString(response.draft?.description, ""),
     goal,
     items,
+  };
+}
+
+export function mapPlanDraftSessionResponse(response: ApiPlanDraftSessionResponse): PlanDraftSession {
+  const draftSession = response.draftSession ?? {};
+  const revisionMessages = (draftSession.revisionMessages ?? [])
+    .map((message) => ({
+      role: message.role === "assistant" ? "assistant" as const : "user" as const,
+      content: safeString(message.content, ""),
+    }))
+    .filter((message) => message.content);
+
+  return {
+    id: safeString(draftSession.id, ""),
+    chatId: safeString(draftSession.chatId, ""),
+    assistantMessageId: draftSession.assistantMessageId ?? null,
+    draft: mapPlanDraftResponse({ draft: draftSession.draft }),
+    revisionMessages,
+    status: normalizePlanDraftStatus(draftSession.status),
+    createdAt: safeString(draftSession.createdAt, new Date(0).toISOString()),
+    updatedAt: safeString(draftSession.updatedAt, new Date(0).toISOString()),
+    resolvedAt: draftSession.resolvedAt ? safeString(draftSession.resolvedAt) : null,
   };
 }
 
@@ -1806,6 +1842,57 @@ export async function generatePlanDraft(chatId: string) {
   });
 
   return mapPlanDraftResponse(response);
+}
+
+export async function createPlanDraftSession(chatId: string) {
+  const response = await request<ApiPlanDraftSessionResponse>("/api/plans/ai/draft-session", {
+    method: "POST",
+    body: JSON.stringify({ chatId }),
+  });
+
+  return mapPlanDraftSessionResponse(response);
+}
+
+export async function getPlanDraftSession(draftId: string) {
+  const response = await request<ApiPlanDraftSessionResponse>(`/api/plan-drafts/${encodeURIComponent(draftId)}`);
+  return mapPlanDraftSessionResponse(response);
+}
+
+export async function patchPlanDraftSession(draftId: string, draft: PlanDraft) {
+  const response = await request<ApiPlanDraftSessionResponse>(`/api/plan-drafts/${encodeURIComponent(draftId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ draft }),
+  });
+
+  return mapPlanDraftSessionResponse(response);
+}
+
+export async function revisePlanDraftSession(input: RevisePlanDraftSessionInput) {
+  const response = await request<ApiPlanDraftSessionResponse>(
+    `/api/plan-drafts/${encodeURIComponent(input.draftId)}/revise`,
+    {
+      method: "POST",
+      body: JSON.stringify({ correction: input.correction }),
+    },
+  );
+
+  return mapPlanDraftSessionResponse(response);
+}
+
+export async function confirmPlanDraftSession(draftId: string) {
+  const response = await request<ApiPlanResponse>(`/api/plan-drafts/${encodeURIComponent(draftId)}/confirm`, {
+    method: "POST",
+  });
+
+  return mapPlanResponse(response);
+}
+
+export async function dismissPlanDraftSession(draftId: string) {
+  const response = await request<ApiPlanDraftSessionResponse>(`/api/plan-drafts/${encodeURIComponent(draftId)}/dismiss`, {
+    method: "POST",
+  });
+
+  return mapPlanDraftSessionResponse(response);
 }
 
 export async function revisePlanDraft(input: RevisePlanDraftInput) {

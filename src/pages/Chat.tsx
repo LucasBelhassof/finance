@@ -12,11 +12,13 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import AiChat from "@/components/AiChat";
+import CreateInvestmentDialog from "@/components/investments/CreateInvestmentDialog";
+import { formatDecimalInput, parseDecimalInput, type InvestmentCoreFormState } from "@/components/investments/investment-form-utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,17 +67,20 @@ import {
   useUpdateChatConversation,
 } from "@/hooks/use-chat";
 import {
-  useCreatePlan,
-  useGeneratePlanDraft,
+  useConfirmPlanDraftSession,
+  useCreatePlanDraftSession,
+  useDismissPlanDraftSession,
+  usePlanDraftSession,
   useLinkChatToPlan,
   usePlans,
-  useRevisePlanDraft,
+  useRevisePlanDraftSession,
+  useUpdatePlanDraftSession,
 } from "@/hooks/use-plans";
 import { useInvestments } from "@/hooks/use-investments";
 import { useCategories } from "@/hooks/use-transactions";
 import { appRoutes } from "@/lib/routes";
 import { createPlanFormFromDraft, getPlanFormValidationError, normalizePlanForm, PlanFormFields, type PlanFormState } from "@/pages/Plans";
-import type { ChatConversation, PlanDraft } from "@/types/api";
+import type { ChatConversation, InvestmentItem, PlanDraft } from "@/types/api";
 
 const EMPTY_SELECT_VALUE = "__empty__";
 const MODAL_SELECT_TRIGGER_CLASSNAME = "h-11 rounded-xl border-border/60 bg-secondary/35";
@@ -104,8 +109,57 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function getInclusiveMonthSpan(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return 1;
+  }
+
+  return Math.max((end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1, 1);
+}
+
+function buildInvestmentInitialValues(form: PlanFormState | null): Partial<InvestmentCoreFormState> | undefined {
+  if (!form) {
+    return undefined;
+  }
+
+  const suggestedInvestment = form.goal.investmentBox;
+  const parsedTargetAmount = parseDecimalInput(form.goal.targetAmount);
+  const hasPlanningTargetAmount = Number.isFinite(parsedTargetAmount) && parsedTargetAmount > 0;
+  const targetAmount = hasPlanningTargetAmount
+    ? formatDecimalInput(Number(parsedTargetAmount.toFixed(2)))
+    : suggestedInvestment?.targetAmount !== null && suggestedInvestment?.targetAmount !== undefined
+      ? formatDecimalInput(suggestedInvestment.targetAmount)
+      : "";
+  const suggestedFixedAmount = hasPlanningTargetAmount
+    ? formatDecimalInput(Number((parsedTargetAmount / getInclusiveMonthSpan(form.goal.startDate, form.goal.endDate)).toFixed(2)))
+    : suggestedInvestment?.fixedAmount && suggestedInvestment.fixedAmount > 0
+      ? formatDecimalInput(suggestedInvestment.fixedAmount)
+      : "";
+  const contributionMode = hasPlanningTargetAmount ? "fixed_amount" : suggestedInvestment?.contributionMode ?? "fixed_amount";
+
+  return {
+    name: suggestedInvestment?.name?.trim() || form.title.trim(),
+    description: suggestedInvestment?.description?.trim() || form.description.trim(),
+    contributionMode,
+    fixedAmount: contributionMode === "fixed_amount" ? suggestedFixedAmount : "",
+    incomePercentage:
+      contributionMode === "income_percentage" && suggestedInvestment?.incomePercentage !== null
+        ? formatDecimalInput(suggestedInvestment.incomePercentage)
+        : "",
+    currentAmount:
+      suggestedInvestment?.currentAmount !== null && suggestedInvestment?.currentAmount !== undefined
+        ? formatDecimalInput(suggestedInvestment.currentAmount)
+        : "0",
+    targetAmount,
+  };
+}
+
 export default function ChatPage() {
   const { chatId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { data: chats = [], isLoading, isError } = useChatConversations();
@@ -116,9 +170,11 @@ export default function ChatPage() {
   const { data: categories = [] } = useCategories();
   const { data: investments = [] } = useInvestments();
   const linkChatToPlan = useLinkChatToPlan();
-  const generatePlanDraft = useGeneratePlanDraft();
-  const revisePlanDraft = useRevisePlanDraft();
-  const createPlan = useCreatePlan();
+  const createPlanDraftSession = useCreatePlanDraftSession();
+  const { mutateAsync: updatePlanDraftSessionAsync } = useUpdatePlanDraftSession();
+  const revisePlanDraftSession = useRevisePlanDraftSession();
+  const confirmPlanDraftSession = useConfirmPlanDraftSession();
+  const dismissPlanDraftSession = useDismissPlanDraftSession();
   const [recentesOpen, setRecentesOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -127,10 +183,13 @@ export default function ChatPage() {
   const [planningOpen, setPlanningOpen] = useState(false);
   const [planningChat, setPlanningChat] = useState<ChatConversation | null>(null);
   const [planningReviewOpen, setPlanningReviewOpen] = useState(false);
+  const [createInvestmentOpen, setCreateInvestmentOpen] = useState(false);
   const [planningInProgress, setPlanningInProgress] = useState(false);
   const [pendingInitialMessage, setPendingInitialMessage] = useState<string | null>(null);
   const [draftForm, setDraftForm] = useState<PlanFormState | null>(null);
   const [draftChat, setDraftChat] = useState<ChatConversation | null>(null);
+  const [draftSessionId, setDraftSessionId] = useState<string | null>(null);
+  const { data: loadedDraftSession } = usePlanDraftSession(draftSessionId ?? undefined);
   const [correction, setCorrection] = useState("");
   const [revisionMessages, setRevisionMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
@@ -144,6 +203,7 @@ export default function ChatPage() {
   const nonEmptySearch = debouncedSearchTerm.trim();
   const pinnedChats = useMemo(() => chats.filter((chat) => chat.pinned), [chats]);
   const recentChats = useMemo(() => chats.filter((chat) => !chat.pinned), [chats]);
+  const createInvestmentInitialValues = useMemo(() => buildInvestmentInitialValues(draftForm), [draftForm]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -166,6 +226,23 @@ export default function ChatPage() {
       setMobileSidebarOpen(false);
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    const initialMessage =
+      location.state &&
+      typeof location.state === "object" &&
+      "initialMessage" in location.state &&
+      typeof location.state.initialMessage === "string"
+        ? location.state.initialMessage.trim()
+        : "";
+
+    if (!chatId || !initialMessage) {
+      return;
+    }
+
+    setPendingInitialMessage(initialMessage);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [chatId, location.pathname, location.state, navigate]);
 
   const handleCreateChat = async () => {
     try {
@@ -206,6 +283,7 @@ export default function ChatPage() {
     setPlanningInProgress(false);
     setDraftForm(null);
     setDraftChat(null);
+    setDraftSessionId(null);
     setCorrection("");
     setRevisionMessages([]);
   };
@@ -239,12 +317,58 @@ export default function ChatPage() {
     };
   };
 
+  const applyDraftSessionToReview = useCallback(
+    (draftSession: NonNullable<typeof loadedDraftSession>) => {
+      setDraftSessionId(draftSession.id);
+      setDraftForm(createPlanFormFromDraft(draftSession.draft));
+      setDraftChat(chats.find((chat) => chat.id === draftSession.chatId) ?? null);
+      setRevisionMessages(draftSession.revisionMessages);
+      setCorrection("");
+      setPlanningReviewOpen(true);
+    },
+    [chats],
+  );
+
+  const saveCurrentDraftSession = useCallback(async () => {
+    if (!draftSessionId || !draftForm) {
+      return;
+    }
+
+    await updatePlanDraftSessionAsync({
+      draftId: draftSessionId,
+      draft: createDraftFromForm(draftForm),
+    });
+  }, [draftForm, draftSessionId, updatePlanDraftSessionAsync]);
+
+  useEffect(() => {
+    if (!planningReviewOpen || !draftSessionId || !draftForm || planningInProgress) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void saveCurrentDraftSession().catch(() => {
+        toast.error("Nao foi possivel salvar o rascunho automaticamente.");
+      });
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [draftForm, draftSessionId, planningInProgress, planningReviewOpen, saveCurrentDraftSession]);
+
+  useEffect(() => {
+    if (!loadedDraftSession || !draftSessionId || !planningReviewOpen || draftForm) {
+      return;
+    }
+
+    applyDraftSessionToReview(loadedDraftSession);
+  }, [applyDraftSessionToReview, draftForm, draftSessionId, loadedDraftSession, planningReviewOpen]);
+
   const handleStartPlanDraft = async (chat: ChatConversation | undefined | null) => {
     if (!chat || planningInProgress || planningReviewOpen) {
       return;
     }
 
     setDraftChat(chat);
+    setDraftSessionId(null);
     setDraftForm(null);
     setCorrection("");
     setRevisionMessages([]);
@@ -252,8 +376,8 @@ export default function ChatPage() {
     setPlanningInProgress(true);
 
     try {
-      const draft = await generatePlanDraft.mutateAsync(chat.id);
-      setDraftForm(createPlanFormFromDraft(draft));
+      const draftSession = await createPlanDraftSession.mutateAsync(chat.id);
+      applyDraftSessionToReview(draftSession);
     } catch (error) {
       resetPlanningReview();
       toast.error("Nao foi possivel gerar o rascunho do planejamento.", {
@@ -293,23 +417,21 @@ export default function ChatPage() {
   const handleReviseDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!draftChat || !draftForm || !correction.trim()) {
+    if (!draftSessionId || !draftForm || !correction.trim()) {
       return;
     }
 
     const currentCorrection = correction.trim();
     setCorrection("");
-    setRevisionMessages((messages) => [...messages, { role: "user", content: currentCorrection }]);
     setPlanningInProgress(true);
 
     try {
-      const draft = await revisePlanDraft.mutateAsync({
-        chatId: draftChat.id,
-        draft: createDraftFromForm(draftForm),
+      await saveCurrentDraftSession();
+      const draftSession = await revisePlanDraftSession.mutateAsync({
+        draftId: draftSessionId,
         correction: currentCorrection,
       });
-      setDraftForm(createPlanFormFromDraft(draft));
-      setRevisionMessages((messages) => [...messages, { role: "assistant", content: "Rascunho atualizado para revisao." }]);
+      applyDraftSessionToReview(draftSession);
     } catch (error) {
       toast.error("Nao foi possivel revisar o rascunho.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
@@ -320,7 +442,7 @@ export default function ChatPage() {
   };
 
   const handleConfirmDraft = async () => {
-    if (!draftChat || !draftForm) {
+    if (!draftSessionId || !draftForm) {
       return;
     }
 
@@ -332,12 +454,8 @@ export default function ChatPage() {
     }
 
     try {
-      const input = normalizePlanForm(draftForm);
-      const plan = await createPlan.mutateAsync({
-        ...input,
-        source: "ai",
-        chatIds: [draftChat.id],
-      });
+      await saveCurrentDraftSession();
+      const plan = await confirmPlanDraftSession.mutateAsync(draftSessionId);
       resetPlanningReview();
       navigate(`${appRoutes.plans}/${plan.id}`);
     } catch (error) {
@@ -345,6 +463,62 @@ export default function ChatPage() {
         description: getErrorMessage(error, "Tente novamente em instantes."),
       });
     }
+  };
+
+  const handleCreatedInvestment = (investment: InvestmentItem) => {
+    setDraftForm((currentForm) => {
+      if (!currentForm) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        goal: {
+          ...currentForm.goal,
+          targetModel: "investment_box",
+          transactionType: "income",
+          investmentBoxId: String(investment.id),
+          investmentBox: investment,
+        },
+      };
+    });
+  };
+
+  const handleDismissDraft = async () => {
+    if (!draftSessionId) {
+      resetPlanningReview();
+      return;
+    }
+
+    try {
+      await dismissPlanDraftSession.mutateAsync(draftSessionId);
+      resetPlanningReview();
+    } catch (error) {
+      toast.error("Nao foi possivel recusar o rascunho.", {
+        description: getErrorMessage(error, "Tente novamente em instantes."),
+      });
+    }
+  };
+
+  const handlePlanningReviewOpenChange = (open: boolean) => {
+    if (open) {
+      setPlanningReviewOpen(true);
+      return;
+    }
+
+    void saveCurrentDraftSession().catch(() => {
+      toast.error("Nao foi possivel salvar o rascunho antes de fechar.");
+    });
+    setPlanningReviewOpen(false);
+  };
+
+  const handleOpenDraftSession = (draftId: string) => {
+    setDraftSessionId(draftId);
+    setDraftForm(null);
+    setDraftChat(null);
+    setCorrection("");
+    setRevisionMessages([]);
+    setPlanningReviewOpen(true);
   };
 
   const handleTogglePin = async (chat: ChatConversation) => {
@@ -625,6 +799,7 @@ export default function ChatPage() {
                 onInitialMessageHandled={() => setPendingInitialMessage(null)}
                 onPlanningIntent={() => handleStartPlanDraft(activeChat)}
                 onStartConversation={handleStartConversation}
+                onPlanDraftAction={(action) => handleOpenDraftSession(action.draftId)}
               />
             ) : (
               <AiChat
@@ -633,6 +808,7 @@ export default function ChatPage() {
                 initialMessage={pendingInitialMessage}
                 onInitialMessageHandled={() => setPendingInitialMessage(null)}
                 onStartConversation={handleStartConversation}
+                onPlanDraftAction={(action) => handleOpenDraftSession(action.draftId)}
               />
             )}
           </div>
@@ -745,9 +921,9 @@ export default function ChatPage() {
             <Button
               variant="outline"
               onClick={handleAiPlanningAction}
-              disabled={!planningChat || planningInProgress || generatePlanDraft.isPending}
+              disabled={!planningChat || planningInProgress || createPlanDraftSession.isPending}
             >
-              {planningInProgress || generatePlanDraft.isPending ? "Gerando..." : "Usar IA"}
+              {planningInProgress || createPlanDraftSession.isPending ? "Gerando..." : "Usar IA"}
             </Button>
             <Button onClick={handleMoveToSelectedPlan} disabled={!planningChat || !selectedPlanId || linkChatToPlan.isPending}>
               Vincular
@@ -756,12 +932,12 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={planningReviewOpen} onOpenChange={(open) => (!open ? resetPlanningReview() : setPlanningReviewOpen(true))}>
+      <Dialog open={planningReviewOpen} onOpenChange={handlePlanningReviewOpenChange}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Revisar planejamento</DialogTitle>
             <DialogDescription>
-              {draftChat ? `Rascunho temporario gerado a partir de "${draftChat.title}".` : "Rascunho temporario gerado pela IA."}
+              {draftChat ? `Rascunho pendente gerado a partir de "${draftChat.title}".` : "Rascunho pendente gerado pela IA."}
             </DialogDescription>
           </DialogHeader>
 
@@ -775,7 +951,13 @@ export default function ChatPage() {
           {draftForm ? (
             <ScrollArea className={SCROLLABLE_MODAL_CONTENT_CLASSNAME}>
               <div className="space-y-5 pr-4">
-                <PlanFormFields form={draftForm} categories={categories} investments={investments} onChange={setDraftForm} />
+                <PlanFormFields
+                  form={draftForm}
+                  categories={categories}
+                  investments={investments}
+                  onChange={setDraftForm}
+                  onCreateInvestment={() => setCreateInvestmentOpen(true)}
+                />
 
                 <div className="rounded-lg border border-border/40 bg-secondary/20 p-3">
                   <div className="mb-3 space-y-2">
@@ -816,15 +998,22 @@ export default function ChatPage() {
           ) : null}
 
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={resetPlanningReview} disabled={createPlan.isPending}>
+            <Button type="button" variant="secondary" onClick={handleDismissDraft} disabled={dismissPlanDraftSession.isPending || confirmPlanDraftSession.isPending}>
               Recusar
             </Button>
-            <Button onClick={handleConfirmDraft} disabled={!draftForm || planningInProgress || createPlan.isPending}>
+            <Button onClick={handleConfirmDraft} disabled={!draftForm || planningInProgress || confirmPlanDraftSession.isPending}>
               Confirmar plano
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CreateInvestmentDialog
+        open={createInvestmentOpen}
+        onOpenChange={setCreateInvestmentOpen}
+        onCreated={handleCreatedInvestment}
+        initialValues={createInvestmentInitialValues}
+      />
 
       <Dialog open={Boolean(renamingChat)} onOpenChange={(open) => (!open ? setRenamingChat(null) : null)}>
         <DialogContent>

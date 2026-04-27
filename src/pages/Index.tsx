@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import BalanceCards from "@/components/BalanceCards";
 import BankConnection from "@/components/BankConnection";
-import { Button } from "@/components/ui/button";
+import DashboardChatCard from "@/components/DashboardChatCard";
 import ExpensesList from "@/components/ExpensesList";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import SpendingChart from "@/components/SpendingChart";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { resolveDayPeriodGreeting } from "@/lib/greeting";
-import { appRoutes } from "@/lib/routes";
 import {
   TRANSACTIONS_YEAR_SELECTION,
   getCurrentMonthSelection,
@@ -99,19 +97,7 @@ export default function Index() {
               disabledReason="Os insights estão desabilitados até a definição da regra de negócio. Use o chat para análises financeiras por enquanto."
             />
           </div> */}
-          <div className="glass-card flex min-h-[220px] flex-col justify-between p-5">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Chat financeiro</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Abra uma conversa persistente para analisar gastos, contas e metas com uma URL propria.
-              </p>
-            </div>
-            <div className="mt-5">
-              <Button asChild>
-                <Link to={appRoutes.chat}>Abrir chat</Link>
-              </Button>
-            </div>
-          </div>
+          <DashboardChatCard />
         </div>
 
         <div className="space-y-6">

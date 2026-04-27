@@ -1,9 +1,10 @@
-import { Bot, Send, User } from "lucide-react";
+import { Bot, FolderKanban, Send, User } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { toast } from "@/components/ui/sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DEFAULT_CHAT_LIMIT, useChatConversationMessages, useSendChatConversationMessages } from "@/hooks/use-chat";
+import type { PlanDraftAction } from "@/types/api";
 
 interface AiChatProps {
   chatId?: string;
@@ -13,6 +14,7 @@ interface AiChatProps {
   initialMessage?: string | null;
   onInitialMessageHandled?: () => void;
   onStartConversation?: (message: string) => Promise<boolean>;
+  onPlanDraftAction?: (action: PlanDraftAction) => void;
 }
 
 function ChatLoadingState() {
@@ -97,6 +99,7 @@ export default function AiChat({
   initialMessage = null,
   onInitialMessageHandled,
   onStartConversation,
+  onPlanDraftAction,
 }: AiChatProps) {
   const [input, setInput] = useState("");
   const [queuedMessages, setQueuedMessages] = useState<Array<{ id: string; content: string; createdAt: string }>>([]);
@@ -269,6 +272,20 @@ export default function AiChat({
                   }`}
                 >
                   {renderMessageContent(message.content)}
+                  {message.role === "assistant" &&
+                  message.planDraftAction &&
+                  message.planDraftAction.status === "pending" ? (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => onPlanDraftAction?.(message.planDraftAction!)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-background/70 px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-background"
+                      >
+                        <FolderKanban size={13} />
+                        {message.planDraftAction.label}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}

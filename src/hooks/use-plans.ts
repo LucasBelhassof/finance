@@ -2,28 +2,35 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   applyPlanRecommendation,
+  confirmPlanDraftSession,
+  createPlanDraftSession,
   deletePlan,
+  dismissPlanDraftSession,
   evaluatePlan,
   generatePlanDraft,
   getChatSummary,
   getPlan,
+  getPlanDraftSession,
   getPlanRecommendations,
   getPlans,
   linkChatToPlan,
+  patchPlanDraftSession,
   patchPlan,
   postChatSummary,
   postPlan,
   revisePlanDraft,
+  revisePlanDraftSession,
   suggestPlanLink,
   unlinkChatFromPlan,
 } from "@/lib/api";
-import type { CreatePlanInput, Plan, RevisePlanDraftInput, UpdatePlanInput } from "@/types/api";
-import { chatConversationsQueryKey } from "@/hooks/use-chat";
+import type { CreatePlanInput, Plan, PlanDraft, RevisePlanDraftInput, RevisePlanDraftSessionInput, UpdatePlanInput } from "@/types/api";
+import { chatConversationMessagesQueryKey, chatConversationsQueryKey, DEFAULT_CHAT_LIMIT } from "@/hooks/use-chat";
 
 export const plansQueryKey = ["plans"] as const;
 export const planQueryKey = (planId: string) => ["plans", planId] as const;
 export const planRecommendationsQueryKey = (planId: string) => ["plans", planId, "recommendations"] as const;
 export const chatSummaryQueryKey = (chatId: string) => ["chats", chatId, "summary"] as const;
+export const planDraftSessionQueryKey = (draftId: string) => ["planDrafts", draftId] as const;
 
 function sortPlans(plans: Plan[]) {
   return [...plans].sort((left, right) => {
@@ -183,6 +190,83 @@ export function useUnlinkChatFromPlan() {
 export function useGeneratePlanDraft() {
   return useMutation({
     mutationFn: generatePlanDraft,
+  });
+}
+
+export function useCreatePlanDraftSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createPlanDraftSession,
+    onSuccess: (draftSession) => {
+      queryClient.setQueryData(planDraftSessionQueryKey(draftSession.id), draftSession);
+      queryClient.invalidateQueries({ queryKey: chatConversationMessagesQueryKey(draftSession.chatId, DEFAULT_CHAT_LIMIT) });
+      queryClient.invalidateQueries({ queryKey: chatConversationsQueryKey });
+    },
+  });
+}
+
+export function usePlanDraftSession(draftId: string | undefined) {
+  return useQuery({
+    queryKey: planDraftSessionQueryKey(draftId ?? ""),
+    queryFn: () => getPlanDraftSession(draftId ?? ""),
+    enabled: Boolean(draftId),
+    staleTime: 10_000,
+  });
+}
+
+export function useUpdatePlanDraftSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ draftId, draft }: { draftId: string; draft: PlanDraft }) => patchPlanDraftSession(draftId, draft),
+    onSuccess: (draftSession) => {
+      queryClient.setQueryData(planDraftSessionQueryKey(draftSession.id), draftSession);
+    },
+  });
+}
+
+export function useRevisePlanDraftSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RevisePlanDraftSessionInput) => revisePlanDraftSession(input),
+    onSuccess: (draftSession) => {
+      queryClient.setQueryData(planDraftSessionQueryKey(draftSession.id), draftSession);
+    },
+  });
+}
+
+export function useConfirmPlanDraftSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: confirmPlanDraftSession,
+    onSuccess: (plan, draftId) => {
+      queryClient.setQueryData(plansQueryKey, (currentPlans = []) => {
+        const plans = Array.isArray(currentPlans) ? currentPlans : [];
+        return upsertPlan(plans, plan);
+      });
+      queryClient.setQueryData(planQueryKey(plan.id), plan);
+      queryClient.invalidateQueries({ queryKey: planDraftSessionQueryKey(draftId) });
+      queryClient.invalidateQueries({ queryKey: chatConversationsQueryKey });
+      plan.chats.forEach((chat) => {
+        queryClient.invalidateQueries({ queryKey: chatConversationMessagesQueryKey(chat.id, DEFAULT_CHAT_LIMIT) });
+      });
+    },
+  });
+}
+
+export function useDismissPlanDraftSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: dismissPlanDraftSession,
+    onSuccess: (draftSession) => {
+      queryClient.setQueryData(planDraftSessionQueryKey(draftSession.id), draftSession);
+      queryClient.invalidateQueries({ queryKey: chatConversationMessagesQueryKey(draftSession.chatId, DEFAULT_CHAT_LIMIT) });
+      queryClient.invalidateQueries({ queryKey: chatConversationsQueryKey });
+    },
   });
 }
 

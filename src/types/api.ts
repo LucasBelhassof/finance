@@ -127,6 +127,13 @@ export interface ApiChatMessage {
   requestCount?: number | null;
   estimatedCostUsd?: number | null;
   createdAt?: string;
+  planDraftAction?: ApiPlanDraftAction | null;
+}
+
+export interface ApiPlanDraftAction {
+  draftId?: string;
+  status?: string;
+  label?: string;
 }
 
 export interface ApiChatConversation {
@@ -412,6 +419,22 @@ export interface ApiPlanDraftResponse {
     goal?: ApiPlanGoal;
     items?: ApiPlanItem[];
   };
+}
+
+export interface ApiPlanDraftSession {
+  id?: string;
+  chatId?: string;
+  assistantMessageId?: number | string | null;
+  draft?: ApiPlanDraftResponse["draft"];
+  revisionMessages?: Array<{ role?: string; content?: string }>;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  resolvedAt?: string | null;
+}
+
+export interface ApiPlanDraftSessionResponse {
+  draftSession?: ApiPlanDraftSession;
 }
 
 export interface ApiPlanLinkSuggestionResponse {
@@ -926,6 +949,13 @@ export interface ChatMessage {
   requestCount: number | null;
   estimatedCostUsd: number | null;
   createdAt: string;
+  planDraftAction: PlanDraftAction | null;
+}
+
+export interface PlanDraftAction {
+  draftId: string;
+  status: PlanDraftStatus;
+  label: string;
 }
 
 export interface ChatConversation {
@@ -954,6 +984,7 @@ export type PlanGoalTargetModel = "category" | "investment_box";
 export type PlanPriority = "low" | "medium" | "high";
 export type PlanAiAssessmentStatus = "on_track" | "attention" | "at_risk" | "completed";
 export type PlanRecommendationStatus = "pending" | "applied" | "dismissed";
+export type PlanDraftStatus = "pending" | "confirmed" | "dismissed";
 
 export interface PlanItem {
   id: number | string;
@@ -1029,9 +1060,26 @@ export interface PlanDraft {
   items: PlanItem[];
 }
 
+export interface PlanDraftSession {
+  id: string;
+  chatId: string;
+  assistantMessageId: number | string | null;
+  draft: PlanDraft;
+  revisionMessages: Array<{ role: "user" | "assistant"; content: string }>;
+  status: PlanDraftStatus;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
 export interface RevisePlanDraftInput {
   chatId: string;
   draft: PlanDraft;
+  correction: string;
+}
+
+export interface RevisePlanDraftSessionInput {
+  draftId: string;
   correction: string;
 }
 

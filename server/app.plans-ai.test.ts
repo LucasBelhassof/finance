@@ -5,6 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { RequestAuthContext } from "./modules/auth/types.js";
 
 const revisePlanDraftFromChat = vi.fn();
+const createOrGetPlanAiDraftSession = vi.fn();
+const getPlanAiDraft = vi.fn();
+const updatePlanAiDraft = vi.fn();
+const revisePlanAiDraft = vi.fn();
+const confirmPlanAiDraft = vi.fn();
+const dismissPlanAiDraft = vi.fn();
 const noop = vi.fn();
 
 vi.mock("./database.js", () => ({
@@ -16,6 +22,7 @@ vi.mock("./database.js", () => ({
   createChatReply: noop,
   createHousing: noop,
   createInvestment: noop,
+  createOrGetPlanAiDraftSession,
   createPlan: noop,
   createTransaction: noop,
   deleteBankConnection: noop,
@@ -28,6 +35,7 @@ vi.mock("./database.js", () => ({
   evaluatePlanWithAi: noop,
   generatePlanChatSummary: noop,
   generatePlanDraftFromChat: noop,
+  getPlanAiDraft,
   getDashboardData: noop,
   getInstallmentsOverview: noop,
   getPlanChatSummary: noop,
@@ -48,6 +56,9 @@ vi.mock("./database.js", () => ({
   listTransactions: noop,
   pingDatabase: noop,
   previewTransactionImport: noop,
+  confirmPlanAiDraft,
+  dismissPlanAiDraft,
+  revisePlanAiDraft,
   revisePlanDraftFromChat,
   searchChatConversations: noop,
   suggestPlanLinkForChat: noop,
@@ -57,6 +68,7 @@ vi.mock("./database.js", () => ({
   updateChatConversation: noop,
   updateHousing: noop,
   updateInvestment: noop,
+  updatePlanAiDraft,
   updatePlan: noop,
   updateTransaction: noop,
 }));
@@ -105,6 +117,30 @@ vi.mock("./modules/notifications/routes.js", () => ({
 }));
 
 describe("plans AI routes", () => {
+  it("creates or returns a persistent draft session for a chat", async () => {
+    createOrGetPlanAiDraftSession.mockResolvedValue({
+      id: "draft-1",
+      chatId: "chat-1",
+      assistantMessageId: 7,
+      draft: { title: "Plano", items: [] },
+      revisionMessages: [],
+      status: "pending",
+      createdAt: "2026-04-26T10:00:00.000Z",
+      updatedAt: "2026-04-26T10:00:00.000Z",
+      resolvedAt: null,
+    });
+
+    const { createApp } = await import("./app.js");
+    const app = createApp();
+
+    const response = await request(app).post("/api/plans/ai/draft-session").send({ chatId: "chat-1" });
+
+    expect(response.status).toBe(201);
+    expect(response.body.draftSession.id).toBe("draft-1");
+    expect(response.body.draftSession.status).toBe("pending");
+    expect(createOrGetPlanAiDraftSession).toHaveBeenCalledWith(42, "chat-1");
+  });
+
   it("validates revise-draft payload", async () => {
     const { createApp } = await import("./app.js");
     const app = createApp();
@@ -143,5 +179,26 @@ describe("plans AI routes", () => {
     expect(response.body.draft.title).toBe("Plano revisado");
     expect(revisePlanDraftFromChat).toHaveBeenCalledWith(42, "chat-1", { title: "Plano", items: [] }, "ajuste o foco");
     expect(noop).not.toHaveBeenCalledWith(expect.objectContaining({ content: "ajuste o foco" }));
+  });
+
+  it("confirms a persistent draft into a plan", async () => {
+    confirmPlanAiDraft.mockResolvedValue({
+      id: "plan-1",
+      title: "Plano confirmado",
+      description: "",
+      source: "ai",
+      goal: { type: "items", source: "ai" },
+      items: [],
+      chats: [{ id: "chat-1", title: "Chat", pinned: false, planId: "plan-1", planTitle: "Plano confirmado" }],
+    });
+
+    const { createApp } = await import("./app.js");
+    const app = createApp();
+
+    const response = await request(app).post("/api/plan-drafts/draft-1/confirm").send();
+
+    expect(response.status).toBe(201);
+    expect(response.body.plan.id).toBe("plan-1");
+    expect(confirmPlanAiDraft).toHaveBeenCalledWith(42, "draft-1");
   });
 });

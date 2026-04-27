@@ -25,6 +25,7 @@ function arrangeChat({ isPending = false } = {}) {
         id: 1,
         role: "assistant",
         content: "Ola",
+        planDraftAction: null,
         createdAt: "2026-04-06T10:00:00.000Z",
       },
     ],
@@ -72,6 +73,42 @@ describe("AiChat", () => {
 
     await waitFor(() => {
       expect(onStartConversation).toHaveBeenCalledWith("Quero organizar minhas contas");
+    });
+  });
+
+  it("renders the review button for a pending plan draft action", () => {
+    const onPlanDraftAction = vi.fn();
+    mockUseChatConversationMessages.mockReturnValue({
+      data: [
+        {
+          id: 1,
+          role: "assistant",
+          content: "Criei um rascunho de planejamento para voce revisar.",
+          planDraftAction: {
+            draftId: "draft-1",
+            status: "pending",
+            label: "Revisar plano",
+          },
+          createdAt: "2026-04-06T10:00:00.000Z",
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    mockUseSendChatConversationMessages.mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn().mockResolvedValue({}),
+    });
+
+    render(<AiChat chatId="chat-1" onPlanDraftAction={onPlanDraftAction} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /revisar plano/i }));
+
+    expect(onPlanDraftAction).toHaveBeenCalledWith({
+      draftId: "draft-1",
+      status: "pending",
+      label: "Revisar plano",
     });
   });
 });

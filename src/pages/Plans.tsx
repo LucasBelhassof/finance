@@ -425,11 +425,13 @@ export function PlanFormFields({
   categories,
   investments,
   onChange,
+  onCreateInvestment,
 }: {
   form: PlanFormState;
   categories: CategoryItem[];
   investments: InvestmentItem[];
   onChange: (form: PlanFormState) => void;
+  onCreateInvestment?: () => void;
 }) {
   const availableGoalCategories = categories.filter((category) => category.transactionType === form.goal.transactionType);
 
@@ -642,6 +644,12 @@ export function PlanFormFields({
                     ))}
                   </SelectContent>
                 </Select>
+                {onCreateInvestment ? (
+                  <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onCreateInvestment}>
+                    <Plus size={14} />
+                    Criar caixinha
+                  </Button>
+                ) : null}
                 {selectedInvestment ? (
                   <div className="rounded-md border border-border/40 bg-background p-3 text-sm text-muted-foreground">
                     <p className="font-medium text-foreground">{selectedInvestment.name}</p>
@@ -659,7 +667,9 @@ export function PlanFormFields({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Escolha uma caixinha existente ou mantenha a sugestao criada pela IA no rascunho.
+                    {onCreateInvestment
+                      ? "Escolha uma caixinha existente, crie uma nova ou mantenha a sugestao criada pela IA no rascunho."
+                      : "Escolha uma caixinha existente ou mantenha a sugestao criada pela IA no rascunho."}
                   </p>
                 )}
               </div>

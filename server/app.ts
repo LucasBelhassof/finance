@@ -13,6 +13,7 @@ import {
   createChatReply,
   createHousing,
   createInvestment,
+  createOrGetPlanAiDraftSession,
   createPlan,
   createTransaction,
   deleteBankConnection,
@@ -28,6 +29,7 @@ import {
   generatePlanChatSummary,
   getDashboardData,
   getInstallmentsOverview,
+  getPlanAiDraft,
   getPlanDetail,
   getPlanChatSummary,
   getTransactionImportAiSuggestions,
@@ -46,6 +48,9 @@ import {
   linkChatToPlan,
   pingDatabase,
   previewTransactionImport,
+  confirmPlanAiDraft,
+  dismissPlanAiDraft,
+  revisePlanAiDraft,
   revisePlanDraftFromChat,
   searchChatConversations,
   suggestPlanLinkForChat,
@@ -55,6 +60,7 @@ import {
   updateCategory,
   updateHousing,
   updateInvestment,
+  updatePlanAiDraft,
   updatePlan,
   updateTransaction,
 } from "./database.js";
@@ -392,6 +398,59 @@ export function createApp() {
 
     const draft = await generatePlanDraftFromChat(getAuthenticatedUserId(request), chatId.trim());
     response.json({ draft });
+  });
+
+  app.post("/api/plans/ai/draft-session", async (request, response) => {
+    const chatId = request.body?.chatId;
+
+    if (typeof chatId !== "string" || !chatId.trim()) {
+      response.status(400).json({
+        error: "chatId is required",
+      });
+      return;
+    }
+
+    const draftSession = await createOrGetPlanAiDraftSession(getAuthenticatedUserId(request), chatId.trim());
+    response.status(201).json({ draftSession });
+  });
+
+  app.get("/api/plan-drafts/:draftId", async (request, response) => {
+    const draftSession = await getPlanAiDraft(getAuthenticatedUserId(request), request.params.draftId);
+    response.json({ draftSession });
+  });
+
+  app.patch("/api/plan-drafts/:draftId", async (request, response) => {
+    const draft = request.body?.draft;
+
+    if (!draft || typeof draft !== "object" || Array.isArray(draft)) {
+      response.status(400).json({ error: "draft is required" });
+      return;
+    }
+
+    const draftSession = await updatePlanAiDraft(getAuthenticatedUserId(request), request.params.draftId, draft);
+    response.json({ draftSession });
+  });
+
+  app.post("/api/plan-drafts/:draftId/revise", async (request, response) => {
+    const correction = request.body?.correction;
+
+    if (typeof correction !== "string" || !correction.trim()) {
+      response.status(400).json({ error: "correction is required" });
+      return;
+    }
+
+    const draftSession = await revisePlanAiDraft(getAuthenticatedUserId(request), request.params.draftId, correction.trim());
+    response.json({ draftSession });
+  });
+
+  app.post("/api/plan-drafts/:draftId/confirm", async (request, response) => {
+    const plan = await confirmPlanAiDraft(getAuthenticatedUserId(request), request.params.draftId);
+    response.status(201).json({ plan });
+  });
+
+  app.post("/api/plan-drafts/:draftId/dismiss", async (request, response) => {
+    const draftSession = await dismissPlanAiDraft(getAuthenticatedUserId(request), request.params.draftId);
+    response.json({ draftSession });
   });
 
   app.post("/api/plans/ai/revise-draft", async (request, response) => {

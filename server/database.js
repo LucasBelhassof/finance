@@ -3979,6 +3979,303 @@ export async function revisePlanDraftFromChat(userId, chatPublicId, draft, corre
   });
 }
 
+function normalizeRevisionMessages(messages = []) {
+  if (!Array.isArray(messages)) {
+    return [];
+  }
+
+  return messages
+    .map((message) => ({
+      role: message?.role === "assistant" ? "assistant" : "user",
+      content: String(message?.content ?? "").trim().slice(0, 2000),
+    }))
+    .filter((message) => message.content);
+}
+
+function mapPlanAiDraft(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.public_id,
+    chatId: row.chat_public_id,
+    assistantMessageId: row.assistant_message_id ?? null,
+    draft: row.draft ?? {},
+    revisionMessages: normalizeRevisionMessages(row.revision_messages ?? []),
+    status: row.status === "confirmed" || row.status === "dismissed" ? row.status : "pending",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    resolvedAt: row.resolved_at ?? null,
+  };
+}
+
+async function getPlanAiDraftByPublicId(userId, draftPublicId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT
+        pad.public_id,
+        c.public_id AS chat_public_id,
+        pad.assistant_message_id,
+        pad.draft,
+        pad.revision_messages,
+        pad.status,
+        pad.created_at,
+        pad.updated_at,
+        pad.resolved_at
+      FROM plan_ai_drafts pad
+      INNER JOIN chat_conversations c ON c.id = pad.chat_id
+      WHERE pad.user_id = $1
+        AND pad.public_id = $2
+      LIMIT 1
+    `,
+    [userId, draftPublicId],
+  );
+
+  return mapPlanAiDraft(result.rows[0]);
+}
+
+async function getPendingPlanAiDraftForChat(userId, chatId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT
+        pad.public_id,
+        c.public_id AS chat_public_id,
+        pad.assistant_message_id,
+        pad.draft,
+        pad.revision_messages,
+        pad.status,
+        pad.created_at,
+        pad.updated_at,
+        pad.resolved_at
+      FROM plan_ai_drafts pad
+      INNER JOIN chat_conversations c ON c.id = pad.chat_id
+      WHERE pad.user_id = $1
+        AND pad.chat_id = $2
+        AND pad.status = 'pending'
+      LIMIT 1
+    `,
+    [userId, chatId],
+  );
+
+  return mapPlanAiDraft(result.rows[0]);
+}
+
+async function insertPlanDraftAssistantMessage(client, userId, chatId) {
+  const result = await client.query(
+    `
+      INSERT INTO chat_messages (user_id, chat_id, role, content)
+      VALUES ($1, $2, 'assistant', 'Criei um rascunho de planejamento para voce revisar.')
+      RETURNING id
+    `,
+    [userId, chatId],
+  );
+
+  await client.query("DELETE FROM plan_chat_summaries WHERE user_id = $1 AND chat_id = $2", [userId, chatId]);
+
+  return result.rows[0].id;
+}
+
+export async function createOrGetPlanAiDraftSession(userId, chatPublicId) {
+  const resolvedUserId = await requireUserId(userId);
+  const conversation = await getChatConversationByPublicId(resolvedUserId, chatPublicId);
+
+  if (!conversation) {
+    throw new Error("chat not found");
+  }
+
+  const pendingDraft = await getPendingPlanAiDraftForChat(resolvedUserId, conversation.id);
+
+  if (pendingDraft) {
+    return pendingDraft;
+  }
+
+  const draft = await generatePlanDraftFromChat(resolvedUserId, conversation.public_id);
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const existingDraft = await getPendingPlanAiDraftForChat(resolvedUserId, conversation.id, client);
+    if (existingDraft) {
+      await client.query("COMMIT");
+      return existingDraft;
+    }
+
+    const assistantMessageId = await insertPlanDraftAssistantMessage(client, resolvedUserId, conversation.id);
+    const result = await client.query(
+      `
+        INSERT INTO plan_ai_drafts (
+          user_id,
+          chat_id,
+          assistant_message_id,
+          public_id,
+          draft,
+          revision_messages
+        )
+        VALUES ($1, $2, $3, $4, $5::jsonb, '[]'::jsonb)
+        RETURNING public_id
+      `,
+      [resolvedUserId, conversation.id, assistantMessageId, randomUUID(), JSON.stringify(draft)],
+    );
+
+    await client.query(
+      `
+        UPDATE chat_conversations
+        SET updated_at = NOW()
+        WHERE user_id = $1 AND id = $2
+      `,
+      [resolvedUserId, conversation.id],
+    );
+
+    await client.query("COMMIT");
+    return getPlanAiDraftByPublicId(resolvedUserId, result.rows[0].public_id);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getPlanAiDraft(userId, draftPublicId) {
+  const resolvedUserId = await requireUserId(userId);
+  const draft = await getPlanAiDraftByPublicId(resolvedUserId, draftPublicId);
+
+  if (!draft) {
+    throw new Error("plan draft not found");
+  }
+
+  return draft;
+}
+
+export async function updatePlanAiDraft(userId, draftPublicId, draftInput) {
+  const resolvedUserId = await requireUserId(userId);
+
+  if (!draftInput || typeof draftInput !== "object" || Array.isArray(draftInput)) {
+    throw new Error("draft is required");
+  }
+
+  const result = await pool.query(
+    `
+      UPDATE plan_ai_drafts
+      SET draft = $3::jsonb,
+          updated_at = NOW()
+      WHERE user_id = $1
+        AND public_id = $2
+        AND status = 'pending'
+      RETURNING public_id
+    `,
+    [resolvedUserId, draftPublicId, JSON.stringify(draftInput)],
+  );
+
+  if (!result.rowCount) {
+    throw new Error("pending plan draft not found");
+  }
+
+  return getPlanAiDraftByPublicId(resolvedUserId, draftPublicId);
+}
+
+export async function revisePlanAiDraft(userId, draftPublicId, correction) {
+  const resolvedUserId = await requireUserId(userId);
+  const currentDraft = await getPlanAiDraftByPublicId(resolvedUserId, draftPublicId);
+
+  if (!currentDraft || currentDraft.status !== "pending") {
+    throw new Error("pending plan draft not found");
+  }
+
+  const normalizedCorrection = String(correction ?? "").trim();
+
+  if (!normalizedCorrection) {
+    throw new Error("correction is required");
+  }
+
+  const revisedDraft = await revisePlanDraftFromChat(
+    resolvedUserId,
+    currentDraft.chatId,
+    currentDraft.draft,
+    normalizedCorrection,
+  );
+  const revisionMessages = [
+    ...currentDraft.revisionMessages,
+    { role: "user", content: normalizedCorrection },
+    { role: "assistant", content: "Rascunho atualizado para revisao." },
+  ];
+
+  const result = await pool.query(
+    `
+      UPDATE plan_ai_drafts
+      SET draft = $3::jsonb,
+          revision_messages = $4::jsonb,
+          updated_at = NOW()
+      WHERE user_id = $1
+        AND public_id = $2
+        AND status = 'pending'
+      RETURNING public_id
+    `,
+    [resolvedUserId, draftPublicId, JSON.stringify(revisedDraft), JSON.stringify(revisionMessages)],
+  );
+
+  if (!result.rowCount) {
+    throw new Error("pending plan draft not found");
+  }
+
+  return getPlanAiDraftByPublicId(resolvedUserId, draftPublicId);
+}
+
+export async function confirmPlanAiDraft(userId, draftPublicId) {
+  const resolvedUserId = await requireUserId(userId);
+  const currentDraft = await getPlanAiDraftByPublicId(resolvedUserId, draftPublicId);
+
+  if (!currentDraft || currentDraft.status !== "pending") {
+    throw new Error("pending plan draft not found");
+  }
+
+  const plan = await createPlan(resolvedUserId, {
+    ...currentDraft.draft,
+    source: "ai",
+    chatIds: [currentDraft.chatId],
+  });
+
+  await pool.query(
+    `
+      UPDATE plan_ai_drafts
+      SET status = 'confirmed',
+          resolved_at = NOW(),
+          updated_at = NOW()
+      WHERE user_id = $1
+        AND public_id = $2
+        AND status = 'pending'
+    `,
+    [resolvedUserId, draftPublicId],
+  );
+
+  return plan;
+}
+
+export async function dismissPlanAiDraft(userId, draftPublicId) {
+  const resolvedUserId = await requireUserId(userId);
+  const result = await pool.query(
+    `
+      UPDATE plan_ai_drafts
+      SET status = 'dismissed',
+          resolved_at = NOW(),
+          updated_at = NOW()
+      WHERE user_id = $1
+        AND public_id = $2
+        AND status = 'pending'
+      RETURNING public_id
+    `,
+    [resolvedUserId, draftPublicId],
+  );
+
+  if (!result.rowCount) {
+    throw new Error("pending plan draft not found");
+  }
+
+  return getPlanAiDraftByPublicId(resolvedUserId, draftPublicId);
+}
+
 export async function suggestPlanLinkForChat(userId, chatPublicId) {
   const payload = await buildPlanAiChatPayload(userId, chatPublicId);
   const plans = await listPlans(payload.userId);
@@ -4376,6 +4673,8 @@ function mapChatSearchResult(row) {
 }
 
 function mapChatMessage(row) {
+  const draftStatus = row.plan_draft_status ?? null;
+
   return {
     id: row.id,
     chatId: row.chat_public_id ?? row.chat_id ?? null,
@@ -4389,6 +4688,13 @@ function mapChatMessage(row) {
     requestCount: row.request_count === null ? null : Number(row.request_count),
     estimatedCostUsd: row.estimated_cost_usd === null ? null : Number.parseFloat(row.estimated_cost_usd),
     createdAt: row.created_at,
+    planDraftAction: row.plan_draft_public_id
+      ? {
+          draftId: row.plan_draft_public_id,
+          status: draftStatus === "confirmed" || draftStatus === "dismissed" ? draftStatus : "pending",
+          label: "Revisar plano",
+        }
+      : null,
   };
 }
 
@@ -4634,7 +4940,9 @@ export async function listChatMessages(userId, publicId, limit = 20) {
         recent.total_tokens,
         recent.request_count,
         recent.estimated_cost_usd,
-        recent.created_at
+        recent.created_at,
+        pad.public_id AS plan_draft_public_id,
+        pad.status AS plan_draft_status
       FROM (
         SELECT
           id,
@@ -4654,6 +4962,7 @@ export async function listChatMessages(userId, publicId, limit = 20) {
         ORDER BY created_at DESC, id DESC
         LIMIT $4
       ) recent
+      LEFT JOIN plan_ai_drafts pad ON pad.assistant_message_id = recent.id
       ORDER BY recent.created_at ASC, recent.id ASC
     `,
     [resolvedUserId, conversation.public_id, conversation.id, limit],

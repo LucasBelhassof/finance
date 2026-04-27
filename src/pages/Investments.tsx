@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  buildEmptyInvestmentCoreForm,
+  formatDecimalInput,
+  getInvestmentCoreFormError,
+  normalizeInvestmentCoreForm,
+  type InvestmentCoreFormState,
+} from "@/components/investments/investment-form-utils";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -42,17 +49,6 @@ import type {
 } from "@/types/api";
 
 type InvestmentFormState = {
-  name: string;
-  description: string;
-  contributionMode: InvestmentContributionMode;
-  fixedAmount: string;
-  incomePercentage: string;
-  currentAmount: string;
-  targetAmount: string;
-  status: InvestmentStatus;
-  color: string;
-  notes: string;
-  bankConnectionId: string;
   planLinkMode: "none" | "existing_manual" | "new_manual";
   existingPlanId: string;
   manualGoalTargetAmount: string;
@@ -66,7 +62,7 @@ type InvestmentFormState = {
     status: PlanItemStatus;
     priority: PlanPriority;
   }>;
-};
+} & InvestmentCoreFormState;
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -75,16 +71,6 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 
 function formatCurrency(value: number) {
   return currencyFormatter.format(value);
-}
-
-function parseDecimalInput(value: string) {
-  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : Number.NaN;
-}
-
-function formatDecimalInput(value: number | null) {
-  return value === null ? "" : String(value).replace(".", ",");
 }
 
 function formatInputDate(date: Date) {
@@ -118,17 +104,7 @@ function buildEmptyForm(): InvestmentFormState {
   const range = getCurrentMonthRange();
 
   return {
-    name: "",
-    description: "",
-    contributionMode: "fixed_amount",
-    fixedAmount: "",
-    incomePercentage: "",
-    currentAmount: "0",
-    targetAmount: "",
-    status: "active",
-    color: "",
-    notes: "",
-    bankConnectionId: "none",
+    ...buildEmptyInvestmentCoreForm(),
     planLinkMode: "none",
     existingPlanId: "",
     manualGoalTargetAmount: "",
@@ -142,6 +118,7 @@ function buildEmptyForm(): InvestmentFormState {
 
 function createFormFromInvestment(investment: InvestmentItem): InvestmentFormState {
   return {
+    ...buildEmptyInvestmentCoreForm(),
     name: investment.name,
     description: investment.description,
     contributionMode: investment.contributionMode,
@@ -163,40 +140,11 @@ function createFormFromInvestment(investment: InvestmentItem): InvestmentFormSta
     manualPlanItems: [buildDefaultPlanItem()],
   };
 }
-
 function getFormError(form: InvestmentFormState) {
-  if (!form.name.trim()) {
-    return "Informe o nome da caixinha.";
-  }
+  const coreFormError = getInvestmentCoreFormError(form);
 
-  const currentAmount = parseDecimalInput(form.currentAmount || "0");
-
-  if (!Number.isFinite(currentAmount) || currentAmount < 0) {
-    return "Informe um saldo atual valido.";
-  }
-
-  if (form.targetAmount.trim()) {
-    const targetAmount = parseDecimalInput(form.targetAmount);
-
-    if (!Number.isFinite(targetAmount) || targetAmount < 0) {
-      return "Informe um valor alvo valido.";
-    }
-  }
-
-  if (form.contributionMode === "fixed_amount") {
-    const fixedAmount = parseDecimalInput(form.fixedAmount);
-
-    if (!Number.isFinite(fixedAmount) || fixedAmount < 0) {
-      return "Informe um aporte fixo valido.";
-    }
-  }
-
-  if (form.contributionMode === "income_percentage") {
-    const incomePercentage = parseDecimalInput(form.incomePercentage);
-
-    if (!Number.isFinite(incomePercentage) || incomePercentage < 0 || incomePercentage > 100) {
-      return "Informe um percentual de receita entre 0 e 100.";
-    }
+  if (coreFormError) {
+    return coreFormError;
   }
 
   if (form.planLinkMode !== "none") {
@@ -248,24 +196,6 @@ function buildManualPlanGoal(form: InvestmentFormState, investmentId: number | s
     endDate: form.manualGoalEndDate,
   };
 }
-
-function normalizeForm(form: InvestmentFormState): CreateInvestmentInput {
-  return {
-    name: form.name.trim(),
-    description: form.description.trim(),
-    contributionMode: form.contributionMode,
-    fixedAmount: form.contributionMode === "fixed_amount" ? Number(parseDecimalInput(form.fixedAmount).toFixed(2)) : null,
-    incomePercentage:
-      form.contributionMode === "income_percentage" ? Number(parseDecimalInput(form.incomePercentage).toFixed(2)) : null,
-    currentAmount: Number(parseDecimalInput(form.currentAmount || "0").toFixed(2)),
-    targetAmount: form.targetAmount.trim() ? Number(parseDecimalInput(form.targetAmount).toFixed(2)) : null,
-    status: form.status,
-    color: form.color.trim() || null,
-    notes: form.notes.trim(),
-    bankConnectionId: form.bankConnectionId === "none" ? null : form.bankConnectionId,
-  };
-}
-
 export default function InvestmentsPage() {
   const { data: investments = [], isLoading, isError } = useInvestments();
   const { data: plans = [] } = usePlans();
@@ -340,13 +270,13 @@ export default function InvestmentsPage() {
       if (editingInvestment) {
         const payload: UpdateInvestmentInput = {
           id: editingInvestment.id,
-          ...normalizeForm(form),
+          ...normalizeInvestmentCoreForm(form),
         };
 
         await updateInvestment.mutateAsync(payload);
         toast.success("Caixinha atualizada.");
       } else {
-        const createdInvestment = await createInvestment.mutateAsync(normalizeForm(form));
+        const createdInvestment = await createInvestment.mutateAsync(normalizeInvestmentCoreForm(form));
 
         if (form.planLinkMode === "existing_manual") {
           const goal = buildManualPlanGoal(form, createdInvestment.id);

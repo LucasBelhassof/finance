@@ -19,9 +19,11 @@ import type {
   CategoryItem,
   CreateCategoryInput,
   CreateTransactionInput,
+  DashboardData,
   DeleteTransactionInput,
   ImportCommitItem,
   ImportPreviewData,
+  TransactionItem,
   UpdateCategoryInput,
   UpdateTransactionInput,
 } from "@/types/api";
@@ -113,11 +115,79 @@ export function useUpdateTransaction(limit?: number) {
 
   return useMutation({
     mutationFn: (input: UpdateTransactionInput) => patchTransaction(input),
-    onSuccess: () => {
+    onSuccess: (transaction) => {
+      queryClient.setQueriesData<TransactionItem[]>(
+        { queryKey: ["transactions"] },
+        (items) => {
+          if (!items) {
+            return items;
+          }
+
+          const targetInstallmentPurchaseId = transaction.installmentPurchaseId;
+
+          return items.map((item) => {
+            const isEditedTransaction = String(item.id) === String(transaction.id);
+            const isSiblingInstallment =
+              targetInstallmentPurchaseId &&
+              item.installmentPurchaseId &&
+              String(item.installmentPurchaseId) === String(targetInstallmentPurchaseId);
+
+            if (!isEditedTransaction && !isSiblingInstallment) {
+              return item;
+            }
+
+            if (isEditedTransaction) {
+              return transaction;
+            }
+
+            return {
+              ...item,
+              category: transaction.category,
+            };
+          });
+        },
+      );
+      queryClient.setQueriesData<DashboardData>(
+        { queryKey: dashboardQueryKey },
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const targetInstallmentPurchaseId = transaction.installmentPurchaseId;
+
+          return {
+            ...current,
+            recentTransactions: current.recentTransactions.map((item) => {
+              const isEditedTransaction = String(item.id) === String(transaction.id);
+              const isSiblingInstallment =
+                targetInstallmentPurchaseId &&
+                item.installmentPurchaseId &&
+                String(item.installmentPurchaseId) === String(targetInstallmentPurchaseId);
+
+              if (!isEditedTransaction && !isSiblingInstallment) {
+                return item;
+              }
+
+              if (isEditedTransaction) {
+                return transaction;
+              }
+
+              return {
+                ...item,
+                category: transaction.category,
+              };
+            }),
+          };
+        },
+      );
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey(limit) });
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey() });
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["installments", "overview"] });
+      queryClient.invalidateQueries({ queryKey: spendingQueryKey });
+      queryClient.invalidateQueries({ queryKey: insightsQueryKey });
     },
   });
 }

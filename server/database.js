@@ -2191,7 +2191,7 @@ async function createInstallmentPurchase(
   return result.rows[0];
 }
 
-async function getOrCreateInstallmentPurchase(input, client = pool) {
+export async function getOrCreateInstallmentPurchase(input, client = pool) {
   const existing = await findInstallmentPurchaseBySeedKey(input.userId, input.seedKey, client);
 
   if (existing) {
@@ -2201,7 +2201,7 @@ async function getOrCreateInstallmentPurchase(input, client = pool) {
   return createInstallmentPurchase(input, client);
 }
 
-async function createImportedTransaction(
+export async function createImportedTransaction(
   { userId, bankConnectionId, categoryId, description, amount, occurredOn, seedKey, installmentPurchaseId = null, installmentNumber = null },
   client = pool,
 ) {

@@ -1,19 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const queryMock = vi.fn();
+const createImportedTransactionMock = vi.fn();
+const dbQueryMock = vi.fn();
 const findConnectionsByUserIdMock = vi.fn();
+const getOrCreateInstallmentPurchaseMock = vi.fn();
 const setConnectionSyncedMock = vi.fn();
 const upsertBankConnectionForPluggyMock = vi.fn();
 const listCategoriesMock = vi.fn();
 const listHistoricalCategorizationRowsMock = vi.fn();
 const listRecurringCategorizationRulesMock = vi.fn();
 const upsertTransactionCategorizationRuleMock = vi.fn();
-
-vi.mock("../../shared/db.js", () => ({
-  db: {
-    query: queryMock,
-  },
-}));
 
 vi.mock("./repository.js", () => ({
   deleteConnection: vi.fn(),
@@ -24,7 +20,15 @@ vi.mock("./repository.js", () => ({
   upsertConnection: vi.fn(),
 }));
 
+vi.mock("../../shared/db.js", () => ({
+  db: {
+    query: dbQueryMock,
+  },
+}));
+
 vi.mock("../../database.js", () => ({
+  createImportedTransaction: createImportedTransactionMock,
+  getOrCreateInstallmentPurchase: getOrCreateInstallmentPurchaseMock,
   listCategories: listCategoriesMock,
   listHistoricalCategorizationRows: listHistoricalCategorizationRowsMock,
   listRecurringCategorizationRules: listRecurringCategorizationRulesMock,
@@ -63,7 +67,12 @@ describe("Pluggy sync transaction categorization", () => {
     ]);
     setConnectionSyncedMock.mockResolvedValue(undefined);
     upsertTransactionCategorizationRuleMock.mockResolvedValue(undefined);
-    queryMock.mockResolvedValue({ rowCount: 1, rows: [{ id: 999 }] });
+    getOrCreateInstallmentPurchaseMock.mockResolvedValue({ id: 77 });
+    createImportedTransactionMock.mockResolvedValue({ id: 999 });
+    dbQueryMock
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] })
+      .mockResolvedValueOnce({ rows: [] });
 
     vi.stubGlobal(
       "fetch",
@@ -130,6 +139,18 @@ describe("Pluggy sync transaction categorization", () => {
                 type: "DEBIT",
                 status: "CREATED",
               },
+              {
+                id: "tx-installment",
+                accountId: "acc-1",
+                description: "Notebook 2/10",
+                descriptionRaw: null,
+                currencyCode: "BRL",
+                amount: 320,
+                date: "2026-04-20T12:00:00Z",
+                category: null,
+                type: "DEBIT",
+                status: "CREATED",
+              },
             ],
           }),
         }),
@@ -141,12 +162,38 @@ describe("Pluggy sync transaction categorization", () => {
 
     const result = await syncTransactions(1);
 
-    expect(result).toEqual({ imported: 1, skipped: 2, accounts: 1 });
-    expect(queryMock).toHaveBeenCalledTimes(1);
-    expect(queryMock).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO transactions"),
-      [1, 88, 1, "iFood", -67.9, "2026-04-11", "pluggy:tx-ifood"],
+    expect(result).toEqual({ imported: 2, skipped: 2, accounts: 1 });
+    expect(dbQueryMock).toHaveBeenCalledWith(
+      expect.stringContaining("FROM transactions"),
+      [1, "pluggy:tx-ifood"],
     );
+    expect(createImportedTransactionMock).toHaveBeenCalledWith({
+      userId: 1,
+      bankConnectionId: 88,
+      categoryId: 1,
+      description: "iFood",
+      amount: -67.9,
+      occurredOn: "2026-04-11",
+      seedKey: "pluggy:tx-ifood",
+      installmentPurchaseId: null,
+      installmentNumber: null,
+    });
+    expect(dbQueryMock).toHaveBeenCalledWith(
+      expect.stringContaining("FROM installment_purchases"),
+      [1, 88, "notebook", 10, 2],
+    );
+    expect(getOrCreateInstallmentPurchaseMock).not.toHaveBeenCalled();
+    expect(createImportedTransactionMock).toHaveBeenCalledWith({
+      userId: 1,
+      bankConnectionId: 88,
+      categoryId: 4,
+      description: "Notebook 2/10",
+      amount: -320,
+      occurredOn: "2026-04-20",
+      seedKey: "pluggy:tx-installment",
+      installmentPurchaseId: 77,
+      installmentNumber: 2,
+    });
     expect(upsertTransactionCategorizationRuleMock).toHaveBeenCalledWith({
       userId: 1,
       matchKey: "ifood",

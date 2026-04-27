@@ -56,6 +56,23 @@ describe("transaction import helpers", () => {
     expect(parseOccurredOnInput("06-04-2026")).toBe("2026-04-06");
   });
 
+  it("detects installment markers prefixed by letters and strips them from the base description", () => {
+    expect(extractInstallmentMetadata("COMMCENTERRIO DE J15/15")).toEqual({
+      isInstallment: true,
+      installmentIndex: 15,
+      installmentCount: 15,
+      generatedInstallmentCount: 15,
+    });
+    expect(stripInstallmentMarker("COMMCENTERRIO DE J15/15")).toBe("COMMCENTERRIO DE");
+    expect(extractInstallmentMetadata("DL *Alipay Alipay 11/12")).toEqual({
+      isInstallment: true,
+      installmentIndex: 11,
+      installmentCount: 12,
+      generatedInstallmentCount: 12,
+    });
+    expect(stripInstallmentMarker("DL *Alipay Alipay 11/12")).toBe("DL *Alipay Alipay");
+  });
+
   it("builds a preview, ignores blank rows and flags duplicates", async () => {
     const csv = [
       "Data;Descricao;Valor",

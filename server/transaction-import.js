@@ -287,7 +287,7 @@ export function extractInstallmentMetadata(description) {
 
   const patterns = [
     /\bparcela\s+(\d{1,2})\s*(?:de|\/)\s*(\d{1,2})\b/i,
-    /\b(\d{1,2})\/(\d{1,2})\b/,
+    /\b[a-z]{0,2}(\d{1,2})\/(\d{1,2})\b/i,
   ];
 
   for (const pattern of patterns) {
@@ -338,7 +338,7 @@ export function stripInstallmentMarker(description) {
     .trim();
   const withoutInlineMarker = withoutParenthesizedMarker
     .replace(/\bparcela\s+\d{1,2}\s*(?:de|\/)\s*\d{1,2}\b/i, "")
-    .replace(/\b\d{1,2}\/\d{1,2}\b/, "")
+    .replace(/\b[a-z]{0,2}\d{1,2}\/\d{1,2}\b/i, "")
     .replace(/\s+-\s*$/, "")
     .replace(/\s{2,}/g, " ")
     .trim();

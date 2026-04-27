@@ -2,15 +2,22 @@ import { db } from "../../shared/db.js";
 import { env } from "../../shared/env.js";
 import { BadRequestError } from "../../shared/errors.js";
 import {
+  createImportedTransaction,
+  getOrCreateInstallmentPurchase,
   listCategories,
   listHistoricalCategorizationRows,
   listRecurringCategorizationRules,
   upsertTransactionCategorizationRule,
 } from "../../database.js";
 import {
+  addMonthsToOccurredOn,
+  buildInstallmentPurchaseSeedKey,
   buildHistoricalCategorizationMatches,
   buildRecurringRuleMatches,
+  extractInstallmentMetadata,
+  normalizeDescription,
   resolveImportedTransactionCategory,
+  stripInstallmentMarker,
 } from "../../transaction-import.js";
 import {
   deleteConnection,
@@ -78,6 +85,48 @@ interface PluggyCategorizationContext {
   recurringRuleMatches: ReturnType<typeof buildRecurringRuleMatches>;
 }
 
+interface PluggyInstallmentContext {
+  installmentPurchaseId: number | null;
+  installmentNumber: number | null;
+}
+
+async function findExistingPluggyInstallmentPurchase({
+  userId,
+  bankConnectionId,
+  normalizedDescriptionBase,
+  installmentCount,
+  installmentNumber,
+}: {
+  userId: number;
+  bankConnectionId: number;
+  normalizedDescriptionBase: string;
+  installmentCount: number;
+  installmentNumber: number;
+}): Promise<{ id: number; purchase_occurred_on: string | Date | null } | null> {
+  const exactMatch = await db.query<{ id: number; purchase_occurred_on: string | Date | null }>(
+    `
+      SELECT ip.id, ip.purchase_occurred_on
+      FROM installment_purchases ip
+      WHERE ip.user_id = $1
+        AND ip.bank_connection_id = $2
+        AND ip.normalized_description_base = $3
+        AND ip.installment_count = $4
+        AND NOT EXISTS (
+          SELECT 1
+          FROM transactions t
+          WHERE t.user_id = ip.user_id
+            AND t.installment_purchase_id = ip.id
+            AND t.installment_number = $5
+        )
+      ORDER BY ip.created_at DESC, ip.id DESC
+      LIMIT 1
+    `,
+    [userId, bankConnectionId, normalizedDescriptionBase, installmentCount, installmentNumber],
+  );
+
+  return exactMatch.rows[0] ?? null;
+}
+
 async function loadPluggyCategorizationContext(userId: number): Promise<PluggyCategorizationContext> {
   const [categories, historicalRows, recurringRules] = await Promise.all([
     listCategories(),
@@ -107,6 +156,182 @@ async function loadPluggyCategorizationContext(userId: number): Promise<PluggyCa
     historicalMatches: buildHistoricalCategorizationMatches(historicalRows),
     recurringRuleMatches: buildRecurringRuleMatches(recurringRules),
   };
+}
+
+async function resolvePluggyInstallmentContext(
+  userId: number,
+  bankConnectionId: number,
+  categoryId: number,
+  description: string,
+  occurredOn: string,
+  amount: number,
+): Promise<PluggyInstallmentContext> {
+  const installmentMetadata = extractInstallmentMetadata(description);
+
+  if (
+    !installmentMetadata.isInstallment ||
+    !Number.isInteger(installmentMetadata.installmentIndex) ||
+    !Number.isInteger(installmentMetadata.installmentCount)
+  ) {
+    return {
+      installmentPurchaseId: null,
+      installmentNumber: null,
+    };
+  }
+
+  const descriptionBase = stripInstallmentMarker(description);
+  const normalizedDescriptionBase = normalizeDescription(descriptionBase);
+
+  if (!normalizedDescriptionBase) {
+    return {
+      installmentPurchaseId: null,
+      installmentNumber: null,
+    };
+  }
+
+  const purchaseOccurredOn = addMonthsToOccurredOn(occurredOn, 1 - installmentMetadata.installmentIndex);
+  const existingInstallmentPurchase = await findExistingPluggyInstallmentPurchase({
+    userId,
+    bankConnectionId,
+    normalizedDescriptionBase,
+    installmentCount: installmentMetadata.installmentCount,
+    installmentNumber: installmentMetadata.installmentIndex,
+  });
+
+  if (existingInstallmentPurchase) {
+    const existingPurchaseOccurredOn = existingInstallmentPurchase.purchase_occurred_on
+      ? String(existingInstallmentPurchase.purchase_occurred_on).slice(0, 10)
+      : null;
+
+    if (existingPurchaseOccurredOn && purchaseOccurredOn < existingPurchaseOccurredOn) {
+      await db.query(
+        `
+          UPDATE installment_purchases
+          SET purchase_occurred_on = $3,
+              updated_at = NOW()
+          WHERE user_id = $1
+            AND id = $2
+        `,
+        [userId, existingInstallmentPurchase.id, purchaseOccurredOn],
+      );
+    }
+
+    return {
+      installmentPurchaseId: existingInstallmentPurchase.id,
+      installmentNumber: installmentMetadata.installmentIndex,
+    };
+  }
+
+  const seedKey = buildInstallmentPurchaseSeedKey(
+    userId,
+    bankConnectionId,
+    purchaseOccurredOn,
+    normalizedDescriptionBase,
+    Math.abs(amount),
+    installmentMetadata.installmentCount,
+  );
+  const installmentPurchase = await getOrCreateInstallmentPurchase({
+    userId,
+    bankConnectionId,
+    categoryId,
+    seedKey,
+    descriptionBase,
+    normalizedDescriptionBase,
+    purchaseOccurredOn,
+    installmentCount: installmentMetadata.installmentCount,
+    amountPerInstallment: Math.abs(amount),
+  });
+
+  return {
+    installmentPurchaseId: installmentPurchase?.id ?? null,
+    installmentNumber: installmentMetadata.installmentIndex,
+  };
+}
+
+async function upsertPluggyImportedTransaction({
+  userId,
+  bankConnectionId,
+  categoryId,
+  description,
+  amount,
+  occurredOn,
+  seedKey,
+  installmentPurchaseId,
+  installmentNumber,
+}: {
+  userId: number;
+  bankConnectionId: number;
+  categoryId: number;
+  description: string;
+  amount: number;
+  occurredOn: string;
+  seedKey: string;
+  installmentPurchaseId: number | null;
+  installmentNumber: number | null;
+}): Promise<boolean> {
+  const existing = await db.query<{
+    id: number;
+    category_id: number;
+    installment_purchase_id: number | null;
+    installment_number: number | null;
+  }>(
+    `
+      SELECT id, category_id, installment_purchase_id, installment_number
+      FROM transactions
+      WHERE user_id = $1
+        AND seed_key = $2
+      LIMIT 1
+    `,
+    [userId, seedKey],
+  );
+
+  const existingRow = existing.rows[0] ?? null;
+
+  if (!existingRow) {
+    const transaction = await createImportedTransaction({
+      userId,
+      bankConnectionId,
+      categoryId,
+      description,
+      amount,
+      occurredOn,
+      seedKey,
+      installmentPurchaseId,
+      installmentNumber,
+    });
+
+    return Boolean(transaction);
+  }
+
+  const shouldUpdateCategory = Number(existingRow.category_id) !== categoryId;
+  const shouldUpdateInstallmentPurchaseId =
+    Number.isInteger(installmentPurchaseId) &&
+    Number(existingRow.installment_purchase_id ?? null) !== Number(installmentPurchaseId);
+  const shouldUpdateInstallmentNumber =
+    Number.isInteger(installmentNumber) &&
+    Number(existingRow.installment_number ?? null) !== Number(installmentNumber);
+
+  if (shouldUpdateCategory || shouldUpdateInstallmentPurchaseId || shouldUpdateInstallmentNumber) {
+    await db.query(
+      `
+        UPDATE transactions
+        SET category_id = $3,
+            installment_purchase_id = $4,
+            installment_number = $5
+        WHERE user_id = $1
+          AND id = $2
+      `,
+      [
+        userId,
+        existingRow.id,
+        categoryId,
+        shouldUpdateInstallmentPurchaseId ? installmentPurchaseId : existingRow.installment_purchase_id,
+        shouldUpdateInstallmentNumber ? installmentNumber : existingRow.installment_number,
+      ],
+    );
+  }
+
+  return false;
 }
 
 // ── Public service functions ───────────────────────────────────────────────
@@ -468,17 +693,23 @@ async function importTransaction(
   const amount = categorization.type === "income" ? Math.abs(tx.amount) : -Math.abs(tx.amount);
   const seedKey = `pluggy:${tx.id}`;
   const occurredOn = tx.date.slice(0, 10);
+  const installmentContext =
+    accountType === "credit_card" && categorization.type === "expense"
+      ? await resolvePluggyInstallmentContext(userId, bankConnectionId, categoryId, tx.description, occurredOn, amount)
+      : { installmentPurchaseId: null, installmentNumber: null };
+  const inserted = await upsertPluggyImportedTransaction({
+    userId,
+    bankConnectionId,
+    categoryId,
+    description: tx.description,
+    amount,
+    occurredOn,
+    seedKey,
+    installmentPurchaseId: installmentContext.installmentPurchaseId,
+    installmentNumber: installmentContext.installmentNumber,
+  });
 
-  const result = await db.query<{ id: number }>(
-    `INSERT INTO transactions
-       (user_id, bank_connection_id, category_id, description, amount, occurred_on, seed_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (user_id, seed_key) DO NOTHING
-     RETURNING id`,
-    [userId, bankConnectionId, categoryId, tx.description, amount, occurredOn, seedKey],
-  );
-
-  if ((result.rowCount ?? 0) === 0) {
+  if (!inserted) {
     return false;
   }
 

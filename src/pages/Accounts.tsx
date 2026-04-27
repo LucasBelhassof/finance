@@ -255,21 +255,40 @@ function PluggyConnectSection({ isPremium }: { isPremium: boolean }) {
         <Wifi size={16} className={isConnected ? "text-income" : "text-muted-foreground"} />
         <span className="text-sm font-medium text-foreground">Open Finance</span>
         {isConnected ? (
-          <span className="ml-auto rounded-full bg-income/15 px-2 py-0.5 text-xs text-income">Conectado</span>
+          <span className="ml-auto rounded-full bg-income/15 px-2 py-0.5 text-xs text-income">
+            {(status?.connectionCount ?? 0) > 1 ? `${status?.connectionCount} bancos` : "Conectado"}
+          </span>
         ) : null}
       </div>
 
       {isConnected ? (
         <div className="space-y-3">
-          <div className="flex items-start gap-2 rounded-lg bg-income/5 p-2.5">
-            <CheckCircle size={14} className="mt-0.5 shrink-0 text-income" />
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-foreground">Banco conectado via Pluggy</p>
-              <LastSyncInfo lastSyncAt={status?.lastSyncAt ?? null} />
+          {/* List of connected institutions */}
+          {(status?.connections ?? []).map((conn) => (
+            <div key={conn.pluggyItemId} className="flex items-center gap-2 rounded-lg bg-income/5 p-2.5">
+              {conn.institutionImageUrl ? (
+                <img
+                  src={conn.institutionImageUrl}
+                  alt={conn.institutionName ?? "Banco"}
+                  className="h-6 w-6 rounded-full object-contain"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <CheckCircle size={14} className="shrink-0 text-income" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground">
+                  {conn.institutionName ?? "Banco conectado via Pluggy"}
+                </p>
+                <LastSyncInfo lastSyncAt={conn.lastSyncAt} />
+              </div>
+              {conn.lastError ? (
+                <TriangleAlert size={13} className="shrink-0 text-destructive" aria-label={conn.lastError} />
+              ) : null}
             </div>
-          </div>
+          ))}
 
-          {status?.lastError ? (
+          {status?.lastError && !(status?.connections ?? []).some((c) => c.lastError) ? (
             <div className="flex items-start gap-2 rounded-lg bg-destructive/5 p-2.5">
               <TriangleAlert size={14} className="mt-0.5 shrink-0 text-destructive" />
               <p className="text-xs text-destructive">Erro na última sincronização. Tente sincronizar novamente.</p>
@@ -286,6 +305,16 @@ function PluggyConnectSection({ isPremium }: { isPremium: boolean }) {
             >
               <RefreshCw size={12} className={syncMutation.isPending ? "animate-spin" : ""} />
               {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => void handleConnect()}
+              disabled={isBusy}
+              title="Conectar outro banco"
+            >
+              <Wifi size={12} />
             </Button>
             <Button
               variant="ghost"
@@ -396,6 +425,7 @@ export default function AccountsPage() {
   const creditCards = useMemo(() => banks.filter((bank) => bank.accountType === "credit_card"), [banks]);
   const cashAccounts = useMemo(() => banks.filter((bank) => bank.accountType === "cash"), [banks]);
   const hasBankAccounts = bankAccounts.length > 0;
+  const linkedBankAccountIds = useMemo(() => new Set(bankAccounts.map((a) => String(a.id))), [bankAccounts]);
   const groupedBankAccounts = useMemo(
     () =>
       bankAccounts.map((account) => ({
@@ -403,6 +433,14 @@ export default function AccountsPage() {
         cards: creditCards.filter((card) => String(card.parentBankConnectionId) === String(account.id)),
       })),
     [bankAccounts, creditCards],
+  );
+  // Orphan credit cards: linked to a parent that is no longer in the list (shouldn't happen with new sync logic, kept as safety net)
+  const orphanCreditCards = useMemo(
+    () =>
+      creditCards.filter(
+        (card) => !card.parentBankConnectionId || !linkedBankAccountIds.has(String(card.parentBankConnectionId)),
+      ),
+    [creditCards, linkedBankAccountIds],
   );
   const isEditing = Boolean(form.id);
   const formCopy = getAccountTypeCopy(form.accountType);
@@ -718,12 +756,26 @@ export default function AccountsPage() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-3">
                       <div className={cn("mt-1 flex h-10 w-10 items-center justify-center rounded-xl text-foreground", account.color)}>
-                        <AccountTypeIcon accountType="bank_account" />
+                        {account.institutionImageUrl ? (
+                          <img
+                            src={account.institutionImageUrl}
+                            alt={account.institutionName ?? account.name}
+                            className="h-7 w-7 rounded-lg object-contain"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                          />
+                        ) : (
+                          <AccountTypeIcon accountType="bank_account" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-lg font-semibold text-foreground">{account.name}</p>
                           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Conta</span>
+                          {account.institutionName ? (
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                              {account.institutionName}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -774,6 +826,43 @@ export default function AccountsPage() {
                   )}
                 </div>
               ))}
+
+              {orphanCreditCards.length > 0 ? (
+                <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-foreground">Cartões sem conta vinculada</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {orphanCreditCards.map((card) => (
+                      <div key={card.id} className="flex flex-col gap-3 rounded-xl border border-border/30 bg-card/50 p-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg text-foreground", card.color)}>
+                            <AccountTypeIcon accountType="credit_card" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium text-foreground">{card.name}</p>
+                              <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">Cartão</span>
+                            </div>
+                            {card.creditLimit && card.creditLimit > 0 ? (
+                              <CreditLimitBar
+                                currentBalance={card.currentBalance}
+                                creditLimit={card.creditLimit}
+                                formattedCreditLimit={card.formattedCreditLimit}
+                              />
+                            ) : card.formattedCreditLimit ? (
+                              <p className="text-sm text-muted-foreground">Limite total {card.formattedCreditLimit}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="self-end sm:self-auto" onClick={() => openEditDialog(card)}>
+                          <Pencil size={15} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {cashAccounts.length ? (
                 <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">

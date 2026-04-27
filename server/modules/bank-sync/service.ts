@@ -3,14 +3,16 @@ import { env } from "../../shared/env.js";
 import { BadRequestError } from "../../shared/errors.js";
 import {
   deleteConnection,
-  findConnectionByUserId,
+  findConnectionsByUserId,
   setConnectionSynced,
+  updateConnectionInstitution,
   upsertBankConnectionForPluggy,
   upsertConnection,
 } from "./repository.js";
 import type {
   PluggyAccount,
   PluggyApiKey,
+  PluggyConnection,
   PluggyConnectionStatus,
   PluggyConnectToken,
   PluggySyncResult,
@@ -97,44 +99,121 @@ export async function createConnectToken(userId: number): Promise<string> {
   return data.accessToken;
 }
 
-/** Saves a Pluggy item connection for a user and triggers an initial sync. */
+/** Saves a Pluggy item connection for a user and triggers an initial sync for that item only. */
 export async function connectItem(
   userId: number,
   pluggyItemId: string,
 ): Promise<PluggySyncResult> {
-  await upsertConnection(userId, pluggyItemId);
-  return syncTransactions(userId);
+  if (!env.pluggy.clientId || !env.pluggy.clientSecret) {
+    throw new BadRequestError("pluggy_not_configured", "Pluggy integration is not configured.");
+  }
+
+  // Fetch item metadata so we can store institution name + logo
+  let institutionName: string | null = null;
+  let institutionImageUrl: string | null = null;
+  try {
+    const apiKey = await getApiKey();
+    const item = await pluggyGet<{ id: string; connector: { name: string; imageUrl: string | null } }>(
+      apiKey,
+      `/items/${pluggyItemId}`,
+    );
+    institutionName = item.connector.name ?? null;
+    institutionImageUrl = item.connector.imageUrl ?? null;
+  } catch {
+    // Non-critical: proceed with null metadata, will be backfilled on next sync
+  }
+
+  const connection = await upsertConnection(userId, pluggyItemId, institutionName, institutionImageUrl);
+
+  return syncSingleItem(userId, connection);
 }
 
 /** Returns the current Pluggy connection status for a user. */
 export async function getConnectionStatus(userId: number): Promise<PluggyConnectionStatus> {
-  const connection = await findConnectionByUserId(userId);
+  const connections = await findConnectionsByUserId(userId);
 
-  if (!connection) {
-    return { connected: false, lastSyncAt: null, lastError: null, pluggyItemId: null };
+  if (!connections.length) {
+    return { connected: false, connectionCount: 0, lastSyncAt: null, lastError: null, connections: [] };
+  }
+
+  // Aggregate: most recent sync, any error
+  let latestSyncAt: string | null = null;
+  let anyError: string | null = null;
+
+  for (const c of connections) {
+    if (c.lastSyncAt) {
+      const iso = c.lastSyncAt.toISOString();
+      if (!latestSyncAt || iso > latestSyncAt) latestSyncAt = iso;
+    }
+    if (c.lastError && !anyError) anyError = c.lastError;
   }
 
   return {
     connected: true,
-    lastSyncAt: connection.lastSyncAt ? connection.lastSyncAt.toISOString() : null,
-    lastError: connection.lastError,
-    pluggyItemId: connection.pluggyItemId,
+    connectionCount: connections.length,
+    lastSyncAt: latestSyncAt,
+    lastError: anyError,
+    connections: connections.map((c) => ({
+      pluggyItemId: c.pluggyItemId,
+      institutionName: c.institutionName,
+      institutionImageUrl: c.institutionImageUrl,
+      lastSyncAt: c.lastSyncAt ? c.lastSyncAt.toISOString() : null,
+      lastError: c.lastError,
+    })),
   };
 }
 
-/** Syncs all accounts and transactions from Pluggy for a user. */
+/** Syncs all accounts and transactions from Pluggy for a user (all connected items). */
 export async function syncTransactions(userId: number): Promise<PluggySyncResult> {
-  const connection = await findConnectionByUserId(userId);
+  const connections = await findConnectionsByUserId(userId);
 
-  if (!connection) {
+  if (!connections.length) {
     throw new BadRequestError("no_pluggy_connection", "No Pluggy connection found.");
   }
 
   let imported = 0;
   let skipped = 0;
+  let totalAccounts = 0;
+
+  // Sync each connection independently; one failure doesn't abort the rest.
+  for (const connection of connections) {
+    try {
+      const result = await syncSingleItem(userId, connection);
+      imported += result.imported;
+      skipped += result.skipped;
+      totalAccounts += result.accounts;
+    } catch {
+      // Error already recorded in setConnectionSynced inside syncSingleItem
+    }
+  }
+
+  return { imported, skipped, accounts: totalAccounts };
+}
+
+/** Syncs a single Pluggy item (bank connection). */
+async function syncSingleItem(userId: number, connection: PluggyConnection): Promise<PluggySyncResult> {
+  let imported = 0;
+  let skipped = 0;
 
   try {
     const apiKey = await getApiKey();
+
+    // Backfill institution metadata if missing (e.g. existing connections before this migration)
+    if (!connection.institutionName) {
+      try {
+        const item = await pluggyGet<{ id: string; connector: { name: string; imageUrl: string | null } }>(
+          apiKey,
+          `/items/${connection.pluggyItemId}`,
+        );
+        if (item.connector.name) {
+          await updateConnectionInstitution(userId, connection.pluggyItemId, item.connector.name, item.connector.imageUrl ?? null);
+          connection = { ...connection, institutionName: item.connector.name, institutionImageUrl: item.connector.imageUrl ?? null };
+        }
+      } catch {
+        // Non-critical backfill failure
+      }
+    }
+
     const accounts = await pluggyGet<{ total: number; results: PluggyAccount[] }>(
       apiKey,
       `/accounts?itemId=${connection.pluggyItemId}`,
@@ -144,6 +223,9 @@ export async function syncTransactions(userId: number): Promise<PluggySyncResult
       getDefaultExpenseCategoryId(),
       getDefaultIncomeCategoryId(),
     ]);
+
+    const institutionName = connection.institutionName;
+    const institutionImageUrl = connection.institutionImageUrl;
 
     // Pass 1: upsert BANK accounts first so credit cards can reference them as parent
     let parentBankConnectionId: number | null = null;
@@ -157,13 +239,35 @@ export async function syncTransactions(userId: number): Promise<PluggySyncResult
         "bank_account",
         account.balance,
         "bg-blue-500",
+        null,
+        null,
+        institutionName,
+        institutionImageUrl,
       );
-      // Use the first bank account as parent for credit cards in this item
       if (parentBankConnectionId === null) parentBankConnectionId = id;
     }
 
-    // Pass 2: upsert CREDIT accounts linked to the parent bank account
+    // If the item has only CREDIT accounts (e.g. Nubank), auto-create a virtual
+    // bank account so cards are always linked to a parent in the UI.
     const creditAccounts = accounts.results.filter((a) => a.type === "CREDIT");
+    if (parentBankConnectionId === null && creditAccounts.length > 0) {
+      const virtualName = institutionName ?? "Banco";
+      parentBankConnectionId = await upsertBankConnectionForPluggy(
+        userId,
+        connection.id,
+        `__virtual__${connection.pluggyItemId}`,
+        virtualName,
+        "bank_account",
+        0,
+        "bg-blue-500",
+        null,
+        null,
+        institutionName,
+        institutionImageUrl,
+      );
+    }
+
+    // Pass 2: upsert CREDIT accounts linked to the parent bank account
     for (const account of creditAccounts) {
       await upsertBankConnectionForPluggy(
         userId,
@@ -175,6 +279,8 @@ export async function syncTransactions(userId: number): Promise<PluggySyncResult
         "bg-purple-500",
         account.creditData?.creditLimit ?? null,
         parentBankConnectionId,
+        institutionName,
+        institutionImageUrl,
       );
     }
 
@@ -182,7 +288,6 @@ export async function syncTransactions(userId: number): Promise<PluggySyncResult
     for (const account of accounts.results) {
       const accountType = account.type === "CREDIT" ? "credit_card" : "bank_account";
 
-      // Resolve the bankConnectionId already upserted above
       const bankConnectionId = await upsertBankConnectionForPluggy(
         userId,
         connection.id,
@@ -193,9 +298,10 @@ export async function syncTransactions(userId: number): Promise<PluggySyncResult
         accountType === "credit_card" ? "bg-purple-500" : "bg-blue-500",
         accountType === "credit_card" ? (account.creditData?.creditLimit ?? null) : null,
         accountType === "credit_card" ? parentBankConnectionId : null,
+        institutionName,
+        institutionImageUrl,
       );
 
-      // Fetch up to 500 most recent transactions (paginated)
       let page = 1;
       let totalPages = 1;
 
@@ -221,16 +327,16 @@ export async function syncTransactions(userId: number): Promise<PluggySyncResult
         }
 
         page++;
-        if (page > 5) break; // cap at 500 transactions per account on initial sync
+        if (page > 5) break;
       }
     }
 
-    await setConnectionSynced(userId, null);
+    await setConnectionSynced(userId, connection.pluggyItemId, null);
 
     return { imported, skipped, accounts: accounts.results.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await setConnectionSynced(userId, message);
+    await setConnectionSynced(userId, connection.pluggyItemId, message);
     throw error;
   }
 }

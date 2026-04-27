@@ -474,7 +474,9 @@ export async function listBanks(userId) {
           b.parent_bank_connection_id,
           parent.name AS parent_account_name,
           b.statement_close_day,
-        b.statement_due_day
+          b.statement_due_day,
+          b.institution_name,
+          b.institution_image_url
       FROM bank_connections b
       LEFT JOIN bank_connections parent ON parent.id = b.parent_bank_connection_id
       WHERE b.user_id = $1
@@ -492,16 +494,18 @@ export async function listBanks(userId) {
     slug: row.slug,
     name: row.name,
     accountType: row.account_type,
-      connected: row.connected,
-      color: row.color,
-      currentBalance: parseNumeric(row.current_balance),
-      formattedBalance: formatCurrency(row.current_balance),
-      creditLimit: row.credit_limit === null ? null : parseNumeric(row.credit_limit),
-      formattedCreditLimit: row.credit_limit === null ? null : formatCurrency(row.credit_limit),
-      parentBankConnectionId: row.parent_bank_connection_id,
-      parentAccountName: row.parent_account_name,
-      statementCloseDay: row.statement_close_day,
-      statementDueDay: row.statement_due_day,
+    connected: row.connected,
+    color: row.color,
+    currentBalance: parseNumeric(row.current_balance),
+    formattedBalance: formatCurrency(row.current_balance),
+    creditLimit: row.credit_limit === null ? null : parseNumeric(row.credit_limit),
+    formattedCreditLimit: row.credit_limit === null ? null : formatCurrency(row.credit_limit),
+    parentBankConnectionId: row.parent_bank_connection_id,
+    parentAccountName: row.parent_account_name,
+    statementCloseDay: row.statement_close_day,
+    statementDueDay: row.statement_due_day,
+    institutionName: row.institution_name ?? null,
+    institutionImageUrl: row.institution_image_url ?? null,
   }));
 }
 

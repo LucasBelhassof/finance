@@ -600,9 +600,16 @@ export interface ApiPluggyConnectTokenResponse {
 
 export interface ApiPluggyConnectionStatusResponse {
   connected?: boolean;
-  pluggyItemId?: string | null;
+  connectionCount?: number;
   lastSyncAt?: string | null;
   lastError?: string | null;
+  connections?: Array<{
+    pluggyItemId?: string;
+    institutionName?: string | null;
+    institutionImageUrl?: string | null;
+    lastSyncAt?: string | null;
+    lastError?: string | null;
+  }>;
 }
 
 export interface ApiPluggySyncResultResponse {
@@ -613,9 +620,16 @@ export interface ApiPluggySyncResultResponse {
 
 export interface PluggyConnectionStatus {
   connected: boolean;
-  pluggyItemId: string | null;
+  connectionCount: number;
   lastSyncAt: string | null;
   lastError: string | null;
+  connections: Array<{
+    pluggyItemId: string;
+    institutionName: string | null;
+    institutionImageUrl: string | null;
+    lastSyncAt: string | null;
+    lastError: string | null;
+  }>;
 }
 
 export interface PluggySyncResult {
@@ -871,6 +885,8 @@ export interface BankItem {
   formattedBalance: string;
   creditLimit: number | null;
   formattedCreditLimit: string | null;
+  institutionName: string | null;
+  institutionImageUrl: string | null;
 }
 
 export interface CreateBankConnectionInput {

@@ -2,10 +2,21 @@ export interface PluggyConnection {
   id: number;
   userId: number;
   pluggyItemId: string;
+  institutionName: string | null;
+  institutionImageUrl: string | null;
   lastSyncAt: Date | null;
   lastError: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** One entry per connected bank in the status response. */
+export interface PluggyConnectionItem {
+  pluggyItemId: string;
+  institutionName: string | null;
+  institutionImageUrl: string | null;
+  lastSyncAt: string | null;
+  lastError: string | null;
 }
 
 /** Shape returned by Pluggy's POST /auth */
@@ -86,9 +97,10 @@ export interface PluggyTransactionsPage {
 /** Public-facing connection status returned to frontend */
 export interface PluggyConnectionStatus {
   connected: boolean;
+  connectionCount: number;
   lastSyncAt: string | null;
   lastError: string | null;
-  pluggyItemId: string | null;
+  connections: PluggyConnectionItem[];
 }
 
 /** Sync result returned to frontend */

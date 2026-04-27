@@ -474,7 +474,7 @@ export default function TransactionsPage() {
           <TableRow>
             <TableHead>Transacao</TableHead>
             <TableHead>Categoria</TableHead>
-            <TableHead>Conta</TableHead>
+            <TableHead>Conta/Cartão</TableHead>
             <TableHead>Data</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="text-right">Valor</TableHead>

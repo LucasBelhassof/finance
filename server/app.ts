@@ -66,6 +66,7 @@ import {
 } from "./database.js";
 import { createAdminRouter } from "./modules/admin/routes.js";
 import { createAuthRouter, requireAccessToken } from "./modules/auth/routes.js";
+import { createBankSyncRouter } from "./modules/bank-sync/routes.js";
 import { createNotificationsRouter } from "./modules/notifications/routes.js";
 import { env } from "./shared/env.js";
 import { isHttpError, toHttpError } from "./shared/errors.js";
@@ -131,6 +132,7 @@ export function createApp() {
     next();
   });
   app.use("/api/admin", createAdminRouter());
+  app.use("/api/bank-sync", createBankSyncRouter());
   app.use("/api/notifications", createNotificationsRouter());
 
   app.get("/api/dashboard", async (request, response) => {

@@ -56,6 +56,9 @@ import type {
   ApiPlanProgress,
   ApiPlanResponse,
   ApiPlansResponse,
+  ApiPluggyConnectTokenResponse,
+  ApiPluggyConnectionStatusResponse,
+  ApiPluggySyncResultResponse,
   ApiSpendingItem,
   ApiSpendingResponse,
   ApiSummaryCard,
@@ -109,6 +112,8 @@ import type {
   PlanRecommendation,
   PlanProgress,
   PlanLinkSuggestion,
+  PluggyConnectionStatus,
+  PluggySyncResult,
   RevisePlanDraftInput,
   RevisePlanDraftSessionInput,
   UpdateCategoryInput,
@@ -2095,4 +2100,54 @@ export async function getImportAiSuggestions(previewToken: string, rowIndexes?: 
   });
 
   return mapImportAiSuggestionsResponse(response);
+}
+
+// ── Pluggy Open Finance ──────────────────────────────────────────────────────
+
+function mapPluggyStatus(response: ApiPluggyConnectionStatusResponse): PluggyConnectionStatus {
+  return {
+    connected: Boolean(response?.connected),
+    pluggyItemId: response?.pluggyItemId ?? null,
+    lastSyncAt: response?.lastSyncAt ?? null,
+    lastError: response?.lastError ?? null,
+  };
+}
+
+function mapPluggySyncResult(response: ApiPluggySyncResultResponse): PluggySyncResult {
+  return {
+    imported: safeNumber(response?.imported),
+    skipped: safeNumber(response?.skipped),
+    accounts: safeNumber(response?.accounts),
+  };
+}
+
+export async function postPluggyConnectToken(): Promise<string> {
+  const response = await request<ApiPluggyConnectTokenResponse>("/api/bank-sync/pluggy/connect-token", {
+    method: "POST",
+  });
+  return safeString(response?.connectToken);
+}
+
+export async function postPluggyConnect(itemId: string): Promise<PluggySyncResult> {
+  const response = await request<ApiPluggySyncResultResponse>("/api/bank-sync/pluggy/connect", {
+    method: "POST",
+    body: JSON.stringify({ itemId }),
+  });
+  return mapPluggySyncResult(response);
+}
+
+export async function getPluggyStatus(): Promise<PluggyConnectionStatus> {
+  const response = await request<ApiPluggyConnectionStatusResponse>("/api/bank-sync/pluggy/status");
+  return mapPluggyStatus(response);
+}
+
+export async function postPluggySync(): Promise<PluggySyncResult> {
+  const response = await request<ApiPluggySyncResultResponse>("/api/bank-sync/pluggy/sync", {
+    method: "POST",
+  });
+  return mapPluggySyncResult(response);
+}
+
+export async function deletePluggyConnection(): Promise<void> {
+  await request<null>("/api/bank-sync/pluggy", { method: "DELETE" });
 }

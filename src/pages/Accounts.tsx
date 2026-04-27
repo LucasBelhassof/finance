@@ -1,4 +1,4 @@
-import { CreditCard, Landmark, Pencil, Trash2, Wallet } from "lucide-react";
+import { CheckCircle, CreditCard, Landmark, Lock, Pencil, RefreshCw, Trash2, TriangleAlert, Unlink, Wallet, Wifi } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import AppShell from "@/components/AppShell";
@@ -33,8 +33,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useBanks, useCreateBankConnection, useDeleteBankConnection, useUpdateBankConnection } from "@/hooks/use-banks";
+import {
+  usePluggyConnect,
+  usePluggyConnectToken,
+  usePluggyDisconnect,
+  usePluggyStatus,
+  usePluggySync,
+  usePluggyWidget,
+} from "@/hooks/use-pluggy";
 import { ACCOUNT_COLOR_PRESETS, getSuggestedAccountColor } from "@/lib/account-colors";
 import { cn } from "@/lib/utils";
+import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 import type { BankItem, CreateBankConnectionInput, UpdateBankConnectionInput } from "@/types/api";
 
 type AccountType = "bank_account" | "credit_card" | "cash";
@@ -83,7 +92,7 @@ function parseCurrencyInput(value: string) {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
+function getErrorMessage(error: unknown, fallback = "Tente novamente em instantes.") {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
@@ -122,6 +131,230 @@ function AccountTypeIcon({ accountType }: { accountType: AccountType }) {
   return <Landmark size={16} />;
 }
 
+function LastSyncInfo({ lastSyncAt }: { lastSyncAt: string | null }) {
+  if (!lastSyncAt) return null;
+  const date = new Date(lastSyncAt);
+  const formatted = date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return <p className="text-xs text-muted-foreground">Última sincronização: {formatted}</p>;
+}
+
+function PluggyConnectSection({ isPremium }: { isPremium: boolean }) {
+  const { data: status, isLoading } = usePluggyStatus();
+  const { openWidget } = usePluggyWidget();
+  const connectTokenMutation = usePluggyConnectToken();
+  const connectMutation = usePluggyConnect();
+  const syncMutation = usePluggySync();
+  const disconnectMutation = usePluggyDisconnect();
+
+  const isConnected = Boolean(status?.connected);
+  const isBusy =
+    connectTokenMutation.isPending ||
+    connectMutation.isPending ||
+    syncMutation.isPending ||
+    disconnectMutation.isPending;
+
+  const handleConnect = async () => {
+    try {
+      const connectToken = await connectTokenMutation.mutateAsync();
+      openWidget(
+        connectToken,
+        async (itemId) => {
+          if (!itemId) {
+            toast.error("Nenhuma conta selecionada no widget.");
+            return;
+          }
+          try {
+            const result = await connectMutation.mutateAsync(itemId);
+            const msg =
+              result.imported > 0
+                ? `${result.imported} transações importadas.`
+                : "Nenhuma transação nova encontrada.";
+            toast.success(`Open Finance conectado! ${msg}`);
+          } catch (err) {
+            toast.error("Erro ao conectar conta.", { description: getErrorMessage(err) });
+          }
+        },
+        (err) => {
+          if (err) {
+            toast.error("Não foi possível abrir o widget Pluggy.", {
+              description: getErrorMessage(err),
+            });
+          }
+        },
+      );
+    } catch (err) {
+      toast.error("Erro ao iniciar conexão.", { description: getErrorMessage(err) });
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      const result = await syncMutation.mutateAsync();
+      const msg =
+        result.imported > 0
+          ? `${result.imported} novas transações importadas.`
+          : "Nenhuma transação nova encontrada.";
+      toast.success(`Sincronizado! ${msg}`);
+    } catch (err) {
+      toast.error("Erro ao sincronizar.", { description: getErrorMessage(err) });
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnectMutation.mutateAsync();
+      toast.success("Conexão com Open Finance removida.");
+    } catch (err) {
+      toast.error("Erro ao desconectar.", { description: getErrorMessage(err) });
+    }
+  };
+
+  if (!isPremium) {
+    return (
+      <div className="relative overflow-hidden rounded-xl border border-border/30 p-4">
+        <div className="pointer-events-none select-none blur-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Wifi size={16} className="text-primary" />
+            <span className="text-sm font-medium text-foreground">Open Finance</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Conecte sua conta bancária e importe transações automaticamente.
+          </p>
+          <Button variant="outline" className="mt-3 h-8 w-full text-xs" disabled>
+            Conectar banco
+          </Button>
+        </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-card/70 p-4 text-center backdrop-blur-[1px]">
+          <Lock size={18} className="text-muted-foreground" />
+          <p className="mt-2 text-sm font-medium text-foreground">Recurso Premium</p>
+          <p className="mt-1 text-xs text-muted-foreground">Importe transações automaticamente do seu banco</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-border/30 p-4">
+        <Skeleton className="mb-3 h-4 w-32" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="mt-3 h-8 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border/30 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Wifi size={16} className={isConnected ? "text-income" : "text-muted-foreground"} />
+        <span className="text-sm font-medium text-foreground">Open Finance</span>
+        {isConnected ? (
+          <span className="ml-auto rounded-full bg-income/15 px-2 py-0.5 text-xs text-income">Conectado</span>
+        ) : null}
+      </div>
+
+      {isConnected ? (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 rounded-lg bg-income/5 p-2.5">
+            <CheckCircle size={14} className="mt-0.5 shrink-0 text-income" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-foreground">Banco conectado via Pluggy</p>
+              <LastSyncInfo lastSyncAt={status?.lastSyncAt ?? null} />
+            </div>
+          </div>
+
+          {status?.lastError ? (
+            <div className="flex items-start gap-2 rounded-lg bg-destructive/5 p-2.5">
+              <TriangleAlert size={14} className="mt-0.5 shrink-0 text-destructive" />
+              <p className="text-xs text-destructive">Erro na última sincronização. Tente sincronizar novamente.</p>
+            </div>
+          ) : null}
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 flex-1 text-xs"
+              onClick={() => void handleSync()}
+              disabled={isBusy}
+            >
+              <RefreshCw size={12} className={syncMutation.isPending ? "animate-spin" : ""} />
+              {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => void handleDisconnect()}
+              disabled={isBusy}
+            >
+              <Unlink size={12} />
+              Desconectar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Conecte sua conta bancária via Open Finance e importe transações automaticamente com Pluggy.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-full text-xs"
+            onClick={() => void handleConnect()}
+            disabled={isBusy}
+          >
+            <Wifi size={12} />
+            {connectTokenMutation.isPending ? "Abrindo widget..." : "Conectar banco"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreditLimitBar({
+  currentBalance,
+  creditLimit,
+  formattedCreditLimit,
+}: {
+  currentBalance: number;
+  creditLimit: number;
+  formattedCreditLimit: string | null;
+}) {
+  // currentBalance for a credit card represents the amount owed (positive = debt)
+  const used = Math.max(0, currentBalance);
+  const pct = Math.min(100, (used / creditLimit) * 100);
+
+  const barColor =
+    pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-warning" : "bg-income";
+
+  const formattedUsed = used.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const formattedLimit = formattedCreditLimit ?? creditLimit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{formattedUsed} de {formattedLimit}</span>
+        <span>{pct.toFixed(0)}%</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-border/40">
+        <div
+          className={cn("h-full rounded-full transition-all", barColor)}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function AccountsSkeleton() {
   return (
     <div className="space-y-6">
@@ -148,6 +381,8 @@ function AccountsSkeleton() {
 }
 
 export default function AccountsPage() {
+  const { user } = useAuthSession();
+  const isPremiumUser = Boolean(user?.isPremium);
   const { data: banks = [], isLoading, isError } = useBanks();
   const createBankConnection = useCreateBankConnection();
   const deleteBankConnection = useDeleteBankConnection();
@@ -515,7 +750,13 @@ export default function AccountsPage() {
                               <p className="text-sm text-muted-foreground">
                                 Fecha dia {card.statementCloseDay ?? "--"} - vence dia {card.statementDueDay ?? "--"}
                               </p>
-                              {card.formattedCreditLimit ? (
+                              {card.creditLimit && card.creditLimit > 0 ? (
+                                <CreditLimitBar
+                                  currentBalance={card.currentBalance}
+                                  creditLimit={card.creditLimit}
+                                  formattedCreditLimit={card.formattedCreditLimit}
+                                />
+                              ) : card.formattedCreditLimit ? (
                                 <p className="text-sm text-muted-foreground">Limite total {card.formattedCreditLimit}</p>
                               ) : null}
                             </div>
@@ -566,9 +807,8 @@ export default function AccountsPage() {
         </div>
 
         <div data-tour-id="accounts-support" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
-          <h3 className="text-[1.3rem] font-semibold text-foreground"></h3>
-          <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-          </div>
+          <h3 className="mb-4 text-[1.3rem] font-semibold text-foreground">Open Finance</h3>
+          <PluggyConnectSection isPremium={isPremiumUser} />
         </div>
       </div>
     </AppShell>

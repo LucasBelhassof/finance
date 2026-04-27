@@ -594,6 +594,36 @@ export interface ApiErrorResponse {
   details?: unknown;
 }
 
+export interface ApiPluggyConnectTokenResponse {
+  connectToken?: string;
+}
+
+export interface ApiPluggyConnectionStatusResponse {
+  connected?: boolean;
+  pluggyItemId?: string | null;
+  lastSyncAt?: string | null;
+  lastError?: string | null;
+}
+
+export interface ApiPluggySyncResultResponse {
+  imported?: number;
+  skipped?: number;
+  accounts?: number;
+}
+
+export interface PluggyConnectionStatus {
+  connected: boolean;
+  pluggyItemId: string | null;
+  lastSyncAt: string | null;
+  lastError: string | null;
+}
+
+export interface PluggySyncResult {
+  imported: number;
+  skipped: number;
+  accounts: number;
+}
+
 export interface SummaryCard {
   label: string;
   value: number;

@@ -13,6 +13,11 @@ const rawEnvironment = z
     AUTH_REFRESH_COOKIE_NAME: z.string().trim().optional(),
     JWT_ACCESS_SECRET: z.string().trim().optional(),
     JWT_REFRESH_SECRET: z.string().trim().optional(),
+    // Pluggy Open Finance (premium feature)
+    PLUGGY_CLIENT_ID: z.string().trim().optional(),
+    PLUGGY_CLIENT_SECRET: z.string().trim().optional(),
+    PLUGGY_ENCRYPTION_KEY: z.string().trim().optional(),
+    API_BASE_URL: z.string().trim().optional(),
   })
   .parse(process.env);
 
@@ -47,5 +52,11 @@ export const env = {
     resetTokenTtlMs: 15 * 60 * 1000,
     refreshCookieName: rawEnvironment.AUTH_REFRESH_COOKIE_NAME || "finance_rt",
     passwordResetBaseUrl: rawEnvironment.PASSWORD_RESET_BASE_URL || `${appOrigin}/reset-password`,
+  },
+  pluggy: {
+    clientId: rawEnvironment.PLUGGY_CLIENT_ID || "",
+    clientSecret: rawEnvironment.PLUGGY_CLIENT_SECRET || "",
+    encryptionKey: rawEnvironment.PLUGGY_ENCRYPTION_KEY || "",
+    apiBaseUrl: rawEnvironment.API_BASE_URL || appOrigin,
   },
 } as const;

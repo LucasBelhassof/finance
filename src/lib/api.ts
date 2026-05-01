@@ -91,6 +91,7 @@ import type {
   ImportAiSuggestionItem,
   ImportPreviewData,
   ImportPreviewItem,
+  ImportSourceKind,
   InsightItem,
   InstallmentsOverview,
   InstallmentsOverviewFilters,
@@ -278,8 +279,24 @@ function normalizeChatRole(role?: string): ChatRole {
   return role === "user" ? "user" : "assistant";
 }
 
-function normalizeImportType(type?: string): "income" | "expense" {
-  return type === "income" ? "income" : "expense";
+function normalizeImportType(type?: string): "income" | "expense" | "unknown" {
+  if (type === "income" || type === "expense") {
+    return type;
+  }
+
+  return "unknown";
+}
+
+function normalizeImportSourceKind(value?: string): ImportSourceKind {
+  switch (value) {
+    case "credit_card_statement":
+    case "generic_transactions":
+    case "unknown":
+      return value;
+    case "bank_statement":
+    default:
+      return "bank_statement";
+  }
 }
 
 function normalizeHousingExpenseType(type?: string): HousingExpenseType {
@@ -1374,7 +1391,7 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
       item.suggestionSource === "ai"
         ? item.suggestionSource
         : null,
-    importSource: item.importSource === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
+    importSource: normalizeImportSourceKind(item.importSource ?? undefined),
     bankConnectionId: item.bankConnectionId ?? "",
     bankConnectionName: safeString(item.bankConnectionName, "Conta"),
     matchedRuleId: item.matchedRuleId ?? null,
@@ -1392,17 +1409,20 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     defaultExclude: Boolean(item.defaultExclude),
     warnings: Array.isArray(item.warnings) ? item.warnings.map((value) => safeString(value)).filter(Boolean) : [],
     errors: Array.isArray(item.errors) ? item.errors.map((value) => safeString(value)).filter(Boolean) : [],
-    sourceKind: item.sourceKind === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
+    sourceKind: normalizeImportSourceKind(item.sourceKind ?? item.importSource ?? undefined),
     issues: Array.isArray(item.issues)
       ? item.issues
           .map((issue) => ({
             level: issue?.level === "error" ? "error" : "warning",
+            code: issue?.code ? safeString(issue.code) : null,
             message: safeString(issue?.message),
           }))
           .filter((issue) => issue.message)
       : [],
     confidence: typeof item.confidence === "number" ? item.confidence : null,
     sourceRow: item.sourceRow,
+    externalId: item.externalId ? safeString(item.externalId) : null,
+    rawMetadata: item.rawMetadata ?? null,
   };
 }
 
@@ -1430,10 +1450,18 @@ export function mapImportPreviewResponse(response: ApiImportPreviewResponse): Im
   return {
     previewToken: safeString(response.previewToken),
     expiresAt: safeString(response.expiresAt),
-    importSource: response.importSource === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
+    importSource: normalizeImportSourceKind(response.importSource ?? undefined),
+    parserId: response.parserId ? safeString(response.parserId) : null,
+    parserLabel: response.parserLabel ? safeString(response.parserLabel) : null,
     detectedFileType: response.detectedFileType ? safeString(response.detectedFileType) : null,
-    detectedSourceKind: response.detectedSourceKind === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
+    detectedSourceKind: normalizeImportSourceKind(response.detectedSourceKind ?? response.importSource ?? undefined),
     sourceKindConfidence: typeof response.sourceKindConfidence === "number" ? response.sourceKindConfidence : null,
+    institutionName: response.institutionName
+      ? safeString(response.institutionName)
+      : response.fileMetadata?.issuerName
+        ? safeString(response.fileMetadata.issuerName)
+        : null,
+    accountHint: response.accountHint ? safeString(response.accountHint) : null,
     selectedBankConnectionId: response.selectedBankConnectionId ?? null,
     warnings: Array.isArray(response.warnings) ? response.warnings.map((value) => safeString(value)).filter(Boolean) : [],
     bankConnectionId: response.bankConnectionId ?? "",
@@ -1450,6 +1478,7 @@ export function mapImportPreviewResponse(response: ApiImportPreviewResponse): Im
       totalRows: safeNumber(response.fileSummary?.totalRows),
       importableRows: safeNumber(response.fileSummary?.importableRows),
       errorRows: safeNumber(response.fileSummary?.errorRows),
+      warningRows: safeNumber(response.fileSummary?.warningRows),
       duplicateRows: safeNumber(response.fileSummary?.duplicateRows),
       actionRequiredRows: safeNumber(response.fileSummary?.actionRequiredRows),
     },

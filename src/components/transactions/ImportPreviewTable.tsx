@@ -1,50 +1,163 @@
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { BankItem, CategoryItem, ImportCommitItem, ImportPreviewItem } from "@/types/api";
+import type { BankItem, CategoryItem, ImportPreviewItem, ImportReviewDraft } from "@/types/api";
 
 import ImportPreviewRow from "./ImportPreviewRow";
 
 export type ImportPreviewTableRow = {
-  draft: ImportCommitItem;
+  key: string;
+  draft: ImportReviewDraft;
   item: ImportPreviewItem;
-  previewToken: string;
+  frontendErrors: string[];
+  hasError: boolean;
+  hasWarning: boolean;
+  isDuplicate: boolean;
+  isIgnored: boolean;
+  needsReview: boolean;
 };
 
 type ImportPreviewTableProps = {
   banks: BankItem[];
   categories: CategoryItem[];
+  currentPage: number;
+  pageCount: number;
   rows: ImportPreviewTableRow[];
-  onChangeDraft: (previewToken: string, rowIndex: number, patch: Partial<ImportCommitItem>) => void;
+  allVisibleSelected: boolean;
+  onChangeDraft: (rowKey: string, patch: Partial<ImportReviewDraft>) => void;
+  onOpenCreateCategory: () => void;
+  onPageChange: (page: number) => void;
+  onToggleSelectAll: (checked: boolean) => void;
 };
 
-export default function ImportPreviewTable({ banks, categories, rows, onChangeDraft }: ImportPreviewTableProps) {
+function buildPageNumbers(currentPage: number, pageCount: number) {
+  if (pageCount <= 5) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, pageCount, currentPage - 1, currentPage, currentPage + 1]);
+  return Array.from(pages)
+    .filter((page) => page >= 1 && page <= pageCount)
+    .sort((left, right) => left - right);
+}
+
+export default function ImportPreviewTable({
+  banks,
+  categories,
+  currentPage,
+  pageCount,
+  rows,
+  allVisibleSelected,
+  onChangeDraft,
+  onOpenCreateCategory,
+  onPageChange,
+  onToggleSelectAll,
+}: ImportPreviewTableProps) {
+  const pageNumbers = buildPageNumbers(currentPage, pageCount);
+
   return (
-    <Table className="w-full table-fixed">
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[7%] whitespace-nowrap">Linha</TableHead>
-          <TableHead className="w-[22%]">Descricao</TableHead>
-          <TableHead className="w-[10%] whitespace-nowrap">Valor</TableHead>
-          <TableHead className="w-[11%] whitespace-nowrap">Data</TableHead>
-          <TableHead className="w-[10%] whitespace-nowrap">Tipo</TableHead>
-          <TableHead className="w-[12%] whitespace-nowrap">Categoria</TableHead>
-          <TableHead className="w-[12%] whitespace-nowrap">Conta</TableHead>
-          <TableHead className="w-[8%] whitespace-nowrap">Origem</TableHead>
-          <TableHead className="w-[8%] whitespace-nowrap">Acoes</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <ImportPreviewRow
-            key={`${row.previewToken}:${row.item.rowIndex}`}
-            banks={banks}
-            categories={categories}
-            draft={row.draft}
-            item={row.item}
-            onChange={onChangeDraft}
-            previewToken={row.previewToken}
-          />
-        ))}
-      </TableBody>
-    </Table>
+    <div className="flex min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-auto">
+        <Table className="w-full min-w-[1220px] table-fixed">
+          <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+            <TableRow>
+              <TableHead className="w-[4%] whitespace-nowrap">
+                <Checkbox
+                  checked={rows.length > 0 && allVisibleSelected}
+                  onCheckedChange={(checked) => onToggleSelectAll(checked === true)}
+                  aria-label="Selecionar linhas visíveis"
+                />
+              </TableHead>
+              <TableHead className="w-[5%] whitespace-nowrap">Importar</TableHead>
+              <TableHead className="w-[11%] whitespace-nowrap">Data</TableHead>
+              <TableHead className="w-[22%]">Descrição</TableHead>
+              <TableHead className="w-[10%] whitespace-nowrap">Valor</TableHead>
+              <TableHead className="w-[10%] whitespace-nowrap">Tipo</TableHead>
+              <TableHead className="w-[12%] whitespace-nowrap">Categoria</TableHead>
+              <TableHead className="w-[12%] whitespace-nowrap">Conta / cartão</TableHead>
+              <TableHead className="w-[8%] whitespace-nowrap">Status</TableHead>
+              <TableHead className="w-[6%] whitespace-nowrap">Dup.</TableHead>
+              <TableHead className="w-[10%] whitespace-nowrap">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <td colSpan={11} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  Nenhuma linha corresponde aos filtros atuais.
+                </td>
+              </TableRow>
+            ) : (
+              rows.map((row) => (
+                <ImportPreviewRow
+                  key={row.key}
+                  banks={banks}
+                  categories={categories}
+                  row={row}
+                  onChange={onChangeDraft}
+                  onOpenCreateCategory={onOpenCreateCategory}
+                />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {pageCount > 1 ? (
+        <div className="border-t border-border/70 px-4 py-3">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (currentPage > 1) {
+                      onPageChange(currentPage - 1);
+                    }
+                  }}
+                  aria-disabled={currentPage === 1}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+              {pageNumbers.map((page) => (
+                <PaginationItem key={`preview-page:${page}`}>
+                  <PaginationLink
+                    href="#"
+                    isActive={page === currentPage}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onPageChange(page);
+                    }}
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (currentPage < pageCount) {
+                      onPageChange(currentPage + 1);
+                    }
+                  }}
+                  aria-disabled={currentPage === pageCount}
+                  className={currentPage === pageCount ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      ) : null}
+    </div>
   );
 }

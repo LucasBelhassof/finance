@@ -521,11 +521,14 @@ export interface ApiImportPreviewItem {
   errors?: string[];
   sourceKind?: string | null;
   issues?: Array<{
+    code?: string | null;
     level?: string;
     message?: string;
   }>;
   confidence?: number | null;
-  sourceRow?: Record<string, string>;
+  sourceRow?: Record<string, unknown>;
+  externalId?: string | null;
+  rawMetadata?: Record<string, unknown> | null;
 }
 
 export interface ApiImportAiSuggestionItem {
@@ -556,9 +559,13 @@ export interface ApiImportPreviewResponse {
   previewToken?: string;
   expiresAt?: string;
   importSource?: string;
+  parserId?: string | null;
+  parserLabel?: string | null;
   detectedFileType?: string | null;
   detectedSourceKind?: string | null;
   sourceKindConfidence?: number | null;
+  institutionName?: string | null;
+  accountHint?: string | null;
   selectedBankConnectionId?: number | string | null;
   warnings?: string[];
   bankConnectionId?: number | string | null;
@@ -573,6 +580,7 @@ export interface ApiImportPreviewResponse {
     totalRows?: number;
     importableRows?: number;
     errorRows?: number;
+    warningRows?: number;
     duplicateRows?: number;
     actionRequiredRows?: number;
   };
@@ -693,6 +701,9 @@ export interface DeleteTransactionInput {
   occurredOn?: string;
 }
 
+export type ImportSourceKind = "bank_statement" | "credit_card_statement" | "generic_transactions" | "unknown";
+export type ImportRowType = "income" | "expense" | "unknown";
+
 export interface ImportPreviewItem {
   rowIndex: number;
   description: string;
@@ -708,11 +719,11 @@ export interface ImportPreviewItem {
   installmentIndex: number | null;
   installmentCount: number | null;
   generatedInstallmentCount: number | null;
-  type: "income" | "expense";
+  type: ImportRowType;
   suggestedCategoryId: number | string | null;
   suggestedCategoryLabel: string | null;
   suggestionSource: "rule" | "history" | "recurring_rule" | "ai" | null;
-  importSource: "bank_statement" | "credit_card_statement";
+  importSource: ImportSourceKind;
   bankConnectionId: number | string;
   bankConnectionName: string;
   matchedRuleId: string | null;
@@ -730,19 +741,23 @@ export interface ImportPreviewItem {
   defaultExclude: boolean;
   warnings: string[];
   errors: string[];
-  sourceKind: "bank_statement" | "credit_card_statement";
+  sourceKind: ImportSourceKind;
   issues: Array<{
     level: "warning" | "error";
+    code?: string | null;
     message: string;
   }>;
   confidence: number | null;
-  sourceRow?: Record<string, string>;
+  sourceRow?: Record<string, unknown>;
+  externalId: string | null;
+  rawMetadata: Record<string, unknown> | null;
 }
 
 export interface ImportPreviewSummary {
   totalRows: number;
   importableRows: number;
   errorRows: number;
+  warningRows: number;
   duplicateRows: number;
   actionRequiredRows: number;
 }
@@ -750,10 +765,14 @@ export interface ImportPreviewSummary {
 export interface ImportPreviewData {
   previewToken: string;
   expiresAt: string;
-  importSource: "bank_statement" | "credit_card_statement";
+  importSource: ImportSourceKind;
+  parserId: string | null;
+  parserLabel: string | null;
   detectedFileType: string | null;
-  detectedSourceKind: "bank_statement" | "credit_card_statement";
+  detectedSourceKind: ImportSourceKind;
   sourceKindConfidence: number | null;
+  institutionName: string | null;
+  accountHint: string | null;
   selectedBankConnectionId: number | string | null;
   warnings: string[];
   bankConnectionId: number | string;
@@ -766,6 +785,20 @@ export interface ImportPreviewData {
   };
   fileSummary: ImportPreviewSummary;
   items: ImportPreviewItem[];
+}
+
+export interface ImportReviewDraft {
+  rowIndex: number;
+  description: string;
+  amount: string;
+  occurredOn: string;
+  type: ImportRowType;
+  categoryId?: number | string;
+  bankConnectionId?: number | string;
+  sourceKind?: ImportSourceKind;
+  exclude: boolean;
+  ignoreDuplicate: boolean;
+  selected: boolean;
 }
 
 export interface ImportAiSuggestionItem {
@@ -800,7 +833,7 @@ export interface ImportCommitItem {
   type: "income" | "expense";
   categoryId?: number | string;
   bankConnectionId?: number | string;
-  sourceKind?: "bank_statement" | "credit_card_statement";
+  sourceKind?: ImportSourceKind;
   exclude: boolean;
   ignoreDuplicate: boolean;
 }

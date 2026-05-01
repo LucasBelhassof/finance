@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import ImportPreviewRow from "@/components/transactions/ImportPreviewRow";
 import { Table, TableBody } from "@/components/ui/table";
-import type { BankItem, CategoryItem, ImportCommitItem, ImportPreviewItem } from "@/types/api";
+import type { BankItem, CategoryItem, ImportPreviewItem, ImportReviewDraft } from "@/types/api";
 
 const banks: BankItem[] = [
   {
@@ -19,6 +19,24 @@ const banks: BankItem[] = [
     color: "bg-orange-500",
     currentBalance: 0,
     formattedBalance: "R$ 0,00",
+    creditLimit: null,
+    formattedCreditLimit: null,
+  },
+  {
+    id: 9,
+    slug: "nubank",
+    name: "Nubank",
+    accountType: "credit_card",
+    parentBankConnectionId: null,
+    parentAccountName: null,
+    statementCloseDay: 1,
+    statementDueDay: 7,
+    connected: true,
+    color: "bg-purple-500",
+    currentBalance: 0,
+    formattedBalance: "R$ 0,00",
+    creditLimit: 5000,
+    formattedCreditLimit: "R$ 5.000,00",
   },
 ];
 
@@ -37,7 +55,7 @@ const categories: CategoryItem[] = [
   },
 ];
 
-const draft: ImportCommitItem = {
+const draft: ImportReviewDraft = {
   rowIndex: 1,
   description: "Transferencia recebida",
   amount: "396.00",
@@ -48,6 +66,7 @@ const draft: ImportCommitItem = {
   sourceKind: "bank_statement",
   exclude: false,
   ignoreDuplicate: false,
+  selected: false,
 };
 
 const item: ImportPreviewItem = {
@@ -90,6 +109,8 @@ const item: ImportPreviewItem = {
   errors: [],
   issues: [{ level: "warning", message: "Revise esta linha." }],
   confidence: 0.4,
+  externalId: "txn-1",
+  rawMetadata: null,
 };
 
 describe("ImportPreviewRow", () => {
@@ -97,33 +118,63 @@ describe("ImportPreviewRow", () => {
     render(
       <Table>
         <TableBody>
-          <ImportPreviewRow banks={banks} draft={draft} item={item} categories={categories} onChange={vi.fn()} previewToken="preview-1" />
+          <ImportPreviewRow
+            banks={banks}
+            categories={categories}
+            row={{
+              key: "preview-1:1",
+              draft,
+              item,
+              frontendErrors: [],
+              hasError: false,
+              hasWarning: true,
+              isDuplicate: true,
+              isIgnored: false,
+              needsReview: true,
+            }}
+            onChange={vi.fn()}
+            onOpenCreateCategory={vi.fn()}
+          />
         </TableBody>
       </Table>,
     );
 
-    expect(screen.getByText(/ja existe uma transacao importada/i)).toBeInTheDocument();
-    expect(screen.getByText(/revise esta linha/i)).toBeInTheDocument();
+    expect(screen.getByText(/possível/i)).toBeInTheDocument();
+    expect(screen.getByText(/revisar/i)).toBeInTheDocument();
+    expect(screen.getByText(/id externo: txn-1/i)).toBeInTheDocument();
   });
 
-  it("emits source kind changes", async () => {
+  it("emits ignore actions", () => {
     const onChange = vi.fn();
 
     render(
       <Table>
         <TableBody>
-          <ImportPreviewRow banks={banks} draft={draft} item={item} categories={categories} onChange={onChange} previewToken="preview-1" />
+          <ImportPreviewRow
+            banks={banks}
+            categories={categories}
+            row={{
+              key: "preview-1:1",
+              draft,
+              item,
+              frontendErrors: [],
+              hasError: false,
+              hasWarning: true,
+              isDuplicate: true,
+              isIgnored: false,
+              needsReview: true,
+            }}
+            onChange={onChange}
+            onOpenCreateCategory={vi.fn()}
+          />
         </TableBody>
       </Table>,
     );
 
-    const selects = screen.getAllByRole("combobox");
-    fireEvent.mouseDown(selects[3]);
-    fireEvent.click(await screen.findByText("Fatura"));
+    fireEvent.click(screen.getByRole("button", { name: "Ignorar" }));
 
-    expect(onChange).toHaveBeenCalledWith("preview-1", 1, {
-      sourceKind: "credit_card_statement",
-      bankConnectionId: "",
+    expect(onChange).toHaveBeenCalledWith("preview-1:1", {
+      exclude: true,
     });
   });
-}
+});

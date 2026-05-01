@@ -114,7 +114,7 @@ const item: ImportPreviewItem = {
 };
 
 describe("ImportPreviewRow", () => {
-  it("shows duplicate and issue indicators", () => {
+  it("shows duplicate status and issue text", () => {
     render(
       <Table>
         <TableBody>
@@ -140,7 +140,7 @@ describe("ImportPreviewRow", () => {
     );
 
     expect(screen.getByText(/possível/i)).toBeInTheDocument();
-    expect(screen.getByText(/revisar/i)).toBeInTheDocument();
+    expect(screen.getByText(/revise esta linha/i)).toBeInTheDocument();
     expect(screen.getByText(/id externo: txn-1/i)).toBeInTheDocument();
   });
 

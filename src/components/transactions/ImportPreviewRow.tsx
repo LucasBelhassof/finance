@@ -1,4 +1,4 @@
-import { AlertTriangle, CopyCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, CopyCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,18 +33,46 @@ function buildBankOptions(banks: BankItem[], sourceKind: ImportSourceKind) {
   return banks;
 }
 
-function getSourceKindLabel(sourceKind: ImportSourceKind) {
-  switch (sourceKind) {
-    case "credit_card_statement":
-      return "Fatura";
-    case "generic_transactions":
-      return "Genérico";
-    case "unknown":
-      return "Indefinido";
-    case "bank_statement":
-    default:
-      return "Extrato";
+function RowStatusBadge({ row }: { row: ImportPreviewTableRow }) {
+  if (row.isIgnored) {
+    return (
+      <Badge variant="outline" className="whitespace-nowrap text-xs text-muted-foreground">
+        Ignorado
+      </Badge>
+    );
   }
+
+  if (row.hasError) {
+    return (
+      <Badge variant="destructive" className="gap-1 whitespace-nowrap text-xs">
+        <AlertTriangle className="h-3 w-3" />
+        Erro
+      </Badge>
+    );
+  }
+
+  if (row.isDuplicate) {
+    return (
+      <Badge variant="outline" className="gap-1 whitespace-nowrap text-xs">
+        <CopyCheck className="h-3 w-3" />
+        Possível dup.
+      </Badge>
+    );
+  }
+
+  if (row.needsReview) {
+    return (
+      <Badge variant="secondary" className="whitespace-nowrap text-xs">
+        Revisar
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="whitespace-nowrap text-xs text-green-600 dark:text-green-400">
+      Pronto
+    </Badge>
+  );
 }
 
 export default function ImportPreviewRow({ banks, categories, row, onChange, onOpenCreateCategory }: ImportPreviewRowProps) {
@@ -53,37 +81,39 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
   const filteredCategories = categories.filter((category) => draft.type !== "unknown" && category.transactionType === draft.type);
   const bankOptions = buildBankOptions(banks, sourceKind);
   const categoryValue = String(draft.categoryId ?? "");
-  const statusMessages = [
+  const allIssues = [
     ...row.frontendErrors.map((message) => ({ kind: "error" as const, message })),
     ...item.issues.map((issue) => ({
       kind: issue.level === "error" ? ("error" as const) : ("warning" as const),
       message: issue.message,
     })),
   ];
+  const firstIssue = allIssues[0];
 
   return (
     <TableRow
       className={cn(
-        draft.exclude && "opacity-55",
+        row.isIgnored && "opacity-55",
         row.hasError && "bg-destructive/5 hover:bg-destructive/10",
         !row.hasError && row.hasWarning && "bg-warning/5 hover:bg-warning/10",
       )}
     >
-      <TableCell className="px-3 py-4 align-top">
+      {/* Select */}
+      <TableCell className="px-3 py-3 align-top">
         <Checkbox
           checked={draft.selected}
           onCheckedChange={(checked) => onChange(row.key, { selected: checked === true })}
           aria-label={`Selecionar linha ${item.rowIndex}`}
         />
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
-        <Checkbox
-          checked={!draft.exclude}
-          onCheckedChange={(checked) => onChange(row.key, { exclude: checked !== true })}
-          aria-label={`Importar linha ${item.rowIndex}`}
-        />
+
+      {/* Status */}
+      <TableCell className="px-3 py-3 align-top">
+        <RowStatusBadge row={row} />
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
+
+      {/* Date */}
+      <TableCell className="px-3 py-3 align-top">
         <DatePickerInput
           value={draft.occurredOn}
           onChange={(value) => onChange(row.key, { occurredOn: value })}
@@ -91,23 +121,44 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
           placeholder="Data"
         />
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">#{item.rowIndex}</span>
-            {item.isInstallment ? <Badge variant="outline">Parcela {item.installmentIndex ?? "?"}/{item.installmentCount ?? "?"}</Badge> : null}
-            {row.needsReview ? <Badge variant="secondary">Revisar</Badge> : null}
-          </div>
+
+      {/* Description */}
+      <TableCell className="px-3 py-3 align-top">
+        <div className="space-y-1.5">
+          {item.isInstallment ? (
+            <p className="text-xs text-muted-foreground">
+              Parcela {item.installmentIndex ?? "?"}/{item.installmentCount ?? "?"}
+            </p>
+          ) : null}
           <Textarea
             value={draft.description}
             onChange={(event) => onChange(row.key, { description: event.target.value })}
-            rows={3}
-            className="min-h-[88px] resize-none rounded-xl border-border/50 bg-secondary/30 text-sm"
+            rows={2}
+            className="min-h-[64px] resize-none rounded-xl border-border/50 bg-secondary/30 text-sm"
           />
+          {firstIssue ? (
+            <p
+              className={cn("truncate text-xs", firstIssue.kind === "error" ? "text-destructive" : "text-muted-foreground")}
+              title={allIssues.map((i) => i.message).join(" • ")}
+            >
+              {firstIssue.message}
+            </p>
+          ) : null}
+          {row.isDuplicate ? (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Checkbox
+                checked={draft.ignoreDuplicate}
+                onCheckedChange={(checked) => onChange(row.key, { ignoreDuplicate: checked === true })}
+              />
+              Importar mesmo assim
+            </label>
+          ) : null}
           {item.externalId ? <p className="text-xs text-muted-foreground">ID externo: {item.externalId}</p> : null}
         </div>
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
+
+      {/* Amount */}
+      <TableCell className="px-3 py-3 align-top">
         <Input
           value={draft.amount}
           onChange={(event) => onChange(row.key, { amount: event.target.value })}
@@ -115,7 +166,9 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
           className="h-10 rounded-xl border-border/50 bg-secondary/30 text-right font-medium tabular-nums"
         />
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
+
+      {/* Type */}
+      <TableCell className="px-3 py-3 align-top">
         <Select
           value={draft.type}
           onValueChange={(value: "income" | "expense" | "unknown") =>
@@ -135,9 +188,14 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
-        <div className="space-y-2">
-          <Select value={categoryValue || undefined} onValueChange={(value) => onChange(row.key, { categoryId: value === "__uncategorized__" ? "" : value })}>
+
+      {/* Category */}
+      <TableCell className="px-3 py-3 align-top">
+        <div className="space-y-1.5">
+          <Select
+            value={categoryValue || undefined}
+            onValueChange={(value) => onChange(row.key, { categoryId: value === "__uncategorized__" ? "" : value })}
+          >
             <SelectTrigger className="h-10 rounded-xl border-border/50 bg-secondary/30">
               <SelectValue placeholder={draft.type === "income" ? "Categoria obrigatória" : "Categoria"} />
             </SelectTrigger>
@@ -150,13 +208,18 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
               ))}
             </SelectContent>
           </Select>
-          <Button type="button" variant="ghost" size="sm" className="h-8 px-0 text-xs" onClick={onOpenCreateCategory}>
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-0 text-xs" onClick={onOpenCreateCategory}>
             Nova categoria
           </Button>
         </div>
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
-        <Select value={String(draft.bankConnectionId ?? "")} onValueChange={(value) => onChange(row.key, { bankConnectionId: value })}>
+
+      {/* Account */}
+      <TableCell className="px-3 py-3 align-top">
+        <Select
+          value={String(draft.bankConnectionId ?? "")}
+          onValueChange={(value) => onChange(row.key, { bankConnectionId: value })}
+        >
           <SelectTrigger className="h-10 rounded-xl border-border/50 bg-secondary/30">
             <SelectValue placeholder="Selecionar conta" />
           </SelectTrigger>
@@ -169,57 +232,17 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell className="px-3 py-4 align-top">
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5">
-            {row.hasError ? (
-              <Badge variant="destructive" className="gap-1">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Erro
-              </Badge>
-            ) : null}
-            {!row.hasError && row.hasWarning ? (
-              <Badge variant="secondary" className="gap-1">
-                <Sparkles className="h-3.5 w-3.5" />
-                Atenção
-              </Badge>
-            ) : null}
-            <Badge variant="outline">{getSourceKindLabel(sourceKind)}</Badge>
-          </div>
-          <div className="space-y-1">
-            {statusMessages.slice(0, 3).map((issue, index) => (
-              <p key={`${row.key}:status:${index}`} className={cn("text-xs", issue.kind === "error" ? "text-destructive" : "text-muted-foreground")}>
-                {issue.message}
-              </p>
-            ))}
-            {statusMessages.length > 3 ? <p className="text-xs text-muted-foreground">+{statusMessages.length - 3} avisos</p> : null}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className="px-3 py-4 align-top">
-        <div className="space-y-2">
-          {item.possibleDuplicate ? (
-            <>
-              <Badge variant="outline" className="gap-1">
-                <CopyCheck className="h-3.5 w-3.5" />
-                Possível
-              </Badge>
-              <label className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
-                <Checkbox
-                  checked={draft.ignoreDuplicate}
-                  onCheckedChange={(checked) => onChange(row.key, { ignoreDuplicate: checked === true })}
-                />
-                Forçar mesmo assim
-              </label>
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">Sem indício</span>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="px-3 py-4 align-top">
-        <div className="space-y-2">
-          <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => onChange(row.key, { exclude: !draft.exclude })}>
+
+      {/* Actions */}
+      <TableCell className="px-3 py-3 align-top">
+        <div className="space-y-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full text-xs"
+            onClick={() => onChange(row.key, { exclude: !draft.exclude })}
+          >
             {draft.exclude ? "Restaurar" : "Ignorar"}
           </Button>
           <Select

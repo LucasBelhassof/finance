@@ -63,9 +63,9 @@ export default function ImportPreviewTable({
   const pageNumbers = buildPageNumbers(currentPage, pageCount);
 
   return (
-    <div className="flex min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-auto">
-        <Table className="w-full min-w-[1220px] table-fixed">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="scrollbar-thin min-h-0 flex-1 overflow-auto">
+        <Table className="w-full min-w-[960px] table-fixed">
           <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
             <TableRow>
               <TableHead className="w-[4%] whitespace-nowrap">
@@ -75,22 +75,20 @@ export default function ImportPreviewTable({
                   aria-label="Selecionar linhas visíveis"
                 />
               </TableHead>
-              <TableHead className="w-[5%] whitespace-nowrap">Importar</TableHead>
-              <TableHead className="w-[11%] whitespace-nowrap">Data</TableHead>
-              <TableHead className="w-[22%]">Descrição</TableHead>
-              <TableHead className="w-[10%] whitespace-nowrap">Valor</TableHead>
+              <TableHead className="w-[7%] whitespace-nowrap">Status</TableHead>
+              <TableHead className="w-[10%] whitespace-nowrap">Data</TableHead>
+              <TableHead className="w-[27%]">Descrição</TableHead>
+              <TableHead className="w-[9%] whitespace-nowrap text-right">Valor</TableHead>
               <TableHead className="w-[10%] whitespace-nowrap">Tipo</TableHead>
-              <TableHead className="w-[12%] whitespace-nowrap">Categoria</TableHead>
+              <TableHead className="w-[14%] whitespace-nowrap">Categoria</TableHead>
               <TableHead className="w-[12%] whitespace-nowrap">Conta / cartão</TableHead>
-              <TableHead className="w-[8%] whitespace-nowrap">Status</TableHead>
-              <TableHead className="w-[6%] whitespace-nowrap">Dup.</TableHead>
-              <TableHead className="w-[10%] whitespace-nowrap">Ações</TableHead>
+              <TableHead className="w-[7%] whitespace-nowrap">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <td colSpan={11} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-6 py-10 text-center text-sm text-muted-foreground">
                   Nenhuma linha corresponde aos filtros atuais.
                 </td>
               </TableRow>

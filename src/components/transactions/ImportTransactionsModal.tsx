@@ -1,4 +1,4 @@
-import { FileSpreadsheet, FolderUp, Search, Sparkles, Upload } from "lucide-react";
+import { FileSpreadsheet, FolderUp, Search, Upload } from "lucide-react";
 import { type ChangeEvent, type DragEvent, type KeyboardEvent, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import ImportPreviewTable, { type ImportPreviewTableRow } from "@/components/transactions/ImportPreviewTable";
@@ -75,6 +75,14 @@ const PROCESSING_LABELS = [
 const transactionTypeOptions: Array<{ label: string; value: "income" | "expense" }> = [
   { label: "Despesa", value: "expense" },
   { label: "Receita", value: "income" },
+];
+const filterOptions: Array<{ value: PreviewFilter; label: string }> = [
+  { value: "all", label: "Todas" },
+  { value: "valid", label: "Válidas" },
+  { value: "warnings", label: "Revisão" },
+  { value: "errors", label: "Erros" },
+  { value: "duplicates", label: "Duplicatas" },
+  { value: "ignored", label: "Ignoradas" },
 ];
 
 const initialState: ModalState = {
@@ -313,6 +321,30 @@ function matchesFilter(row: ImportPreviewTableRow, filter: PreviewFilter, search
   }
 }
 
+function PreviewCountChip({
+  label,
+  value,
+  variant,
+}: {
+  label: string;
+  value: number;
+  variant?: "warning" | "error";
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs",
+        variant === "error" && "border-destructive/30 bg-destructive/10 text-destructive",
+        variant === "warning" && "border-warning/30 bg-warning/10",
+        !variant && "border-border/70 bg-secondary/30",
+      )}
+    >
+      <span className="font-semibold">{value}</span>
+      <span className="text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
 export default function ImportTransactionsModal({ open, onOpenChange, categories, banks }: ImportTransactionsModalProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
@@ -401,21 +433,6 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   const showPasswordField = state.passwordRequired || isPdfFile(state.selectedFile);
 
   const summary = state.preview?.fileSummary;
-  const summaryCards =
-    state.preview && summary
-      ? [
-          { label: "Arquivo", value: state.preview.fileMetadata.originalFilename ?? state.selectedFile?.name ?? "Importação" },
-          { label: "Parser", value: state.preview.parserLabel ?? "Não informado" },
-          { label: "Origem", value: getSourceKindLabel(state.preview.detectedSourceKind) },
-          { label: "Confiança", value: formatConfidenceLabel(state.preview.sourceKindConfidence) },
-          { label: "Instituição", value: state.preview.institutionName ?? "Não detectada" },
-          { label: "Linhas", value: String(summary.totalRows) },
-          { label: "Importáveis", value: String(summary.importableRows) },
-          { label: "Avisos", value: String(summary.warningRows) },
-          { label: "Erros", value: String(summary.errorRows) },
-          { label: "Duplicatas", value: String(summary.duplicateRows) },
-        ]
-      : [];
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     dispatch({ type: "set-file", file: event.target.files?.[0] ?? null });
@@ -722,59 +739,107 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
             ) : null}
 
             {state.step === "preview" && state.preview ? (
-              <div className="flex h-full min-h-0 flex-col gap-4">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                  {summaryCards.map((card) => (
-                    <div key={`preview-summary:${card.label}`} className="rounded-2xl border border-border/70 bg-background/70 p-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{card.label}</p>
-                      <p className="mt-2 text-sm font-semibold text-foreground">{card.value}</p>
+              <div className="flex h-full min-h-0 flex-col gap-3">
+                {/* Compact summary header */}
+                <div className="rounded-[28px] border border-border/70 bg-background/70 px-4 py-3">
+                  <div className="flex flex-wrap items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-foreground">
+                          {state.preview.fileMetadata.originalFilename ?? state.selectedFile?.name ?? "Importação"}
+                        </span>
+                        <Badge variant="secondary">{getSourceKindLabel(state.preview.detectedSourceKind)}</Badge>
+                      </div>
                     </div>
-                  ))}
+                    {summary ? (
+                      <div className="flex flex-wrap gap-2">
+                        <PreviewCountChip label="Total" value={summary.totalRows} />
+                        <PreviewCountChip label="Prontas" value={summary.importableRows} />
+                        {summary.warningRows > 0 ? <PreviewCountChip label="Revisão" value={summary.warningRows} variant="warning" /> : null}
+                        {summary.errorRows > 0 ? <PreviewCountChip label="Erros" value={summary.errorRows} variant="error" /> : null}
+                        {summary.duplicateRows > 0 ? <PreviewCountChip label="Dup." value={summary.duplicateRows} /> : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {state.preview.warnings.length > 0 ? (
+                    <div className="mt-3 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-foreground">
+                      {state.preview.warnings.join(" ")}
+                    </div>
+                  ) : null}
+
+                  <details data-testid="import-technical-details" className="mt-3">
+                    <summary className="cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
+                      Detalhes de importação
+                    </summary>
+                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 xl:grid-cols-5">
+                      {state.preview.parserLabel ? (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Parser</p>
+                          <p className="text-xs font-medium">{state.preview.parserLabel}</p>
+                        </div>
+                      ) : null}
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Tipo de arquivo</p>
+                        <p className="text-xs font-medium">{state.preview.detectedFileType ?? "n/d"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Confiança</p>
+                        <p className="text-xs font-medium">{formatConfidenceLabel(state.preview.sourceKindConfidence)}</p>
+                      </div>
+                      {state.preview.institutionName ? (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Instituição</p>
+                          <p className="text-xs font-medium">{state.preview.institutionName}</p>
+                        </div>
+                      ) : null}
+                      {state.preview.accountHint ? (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Conta sugerida</p>
+                          <p className="text-xs font-medium">{state.preview.accountHint}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </details>
                 </div>
 
-                {state.preview.warnings.length > 0 ? (
-                  <div className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">
-                    {state.preview.warnings.join(" ")}
-                  </div>
-                ) : null}
-
-                <div className="rounded-[28px] border border-border/70 bg-background/70 p-4">
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">{visibleRows.length} linha(s) filtradas</Badge>
-                      <Badge variant="secondary">{selectedCount} selecionada(s)</Badge>
-                      {state.preview.accountHint ? <Badge variant="outline">Conta sugerida: {state.preview.accountHint}</Badge> : null}
+                {/* Filters + search + bulk actions */}
+                <div className="rounded-[28px] border border-border/70 bg-background/70 px-4 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap gap-1">
+                      {filterOptions.map((option) => (
+                        <Button
+                          key={option.value}
+                          type="button"
+                          size="sm"
+                          variant={state.filter === option.value ? "secondary" : "ghost"}
+                          className="h-8 rounded-lg px-3 text-xs"
+                          onClick={() => dispatch({ type: "set-filter", value: option.value })}
+                        >
+                          {option.label}
+                        </Button>
+                      ))}
                     </div>
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                      <div className="relative min-w-[260px] flex-1">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          className="h-11 rounded-xl pl-9"
-                          placeholder="Buscar por descrição"
-                          value={state.search}
-                          onChange={(event) => dispatch({ type: "set-search", value: event.target.value })}
-                        />
-                      </div>
-                      <Select value={state.filter} onValueChange={(value: PreviewFilter) => dispatch({ type: "set-filter", value })}>
-                        <SelectTrigger className="h-11 w-full rounded-xl lg:w-[210px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas</SelectItem>
-                          <SelectItem value="valid">Válidas</SelectItem>
-                          <SelectItem value="warnings">Avisos</SelectItem>
-                          <SelectItem value="errors">Erros</SelectItem>
-                          <SelectItem value="duplicates">Duplicatas</SelectItem>
-                          <SelectItem value="ignored">Ignoradas</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="relative min-w-0 flex-1 sm:max-w-[280px]">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        className="h-9 rounded-xl pl-9"
+                        placeholder="Buscar por descrição"
+                        value={state.search}
+                        onChange={(event) => dispatch({ type: "set-search", value: event.target.value })}
+                      />
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-center">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {selectedCount > 0 ? (
+                      <Badge variant="secondary" className="mr-1 text-xs">
+                        {selectedCount} selecionada(s)
+                      </Badge>
+                    ) : null}
                     <Select value={bulkAccountValue} onValueChange={handleBulkAccount} disabled={selectedCount === 0}>
-                      <SelectTrigger className="h-10 rounded-xl xl:w-[220px]">
-                        <SelectValue placeholder="Definir conta/cartão" />
+                      <SelectTrigger className="h-9 rounded-xl xl:w-[200px]">
+                        <SelectValue placeholder="Definir conta" />
                       </SelectTrigger>
                       <SelectContent>
                         {banks.map((bank) => (
@@ -785,7 +850,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       </SelectContent>
                     </Select>
                     <Select value={bulkTypeValue} onValueChange={handleBulkType} disabled={selectedCount === 0}>
-                      <SelectTrigger className="h-10 rounded-xl xl:w-[180px]">
+                      <SelectTrigger className="h-9 rounded-xl xl:w-[160px]">
                         <SelectValue placeholder="Definir tipo" />
                       </SelectTrigger>
                       <SelectContent>
@@ -795,7 +860,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       </SelectContent>
                     </Select>
                     <Select value={bulkCategoryValue} onValueChange={handleBulkCategory} disabled={selectedCount === 0}>
-                      <SelectTrigger className="h-10 rounded-xl xl:w-[220px]">
+                      <SelectTrigger className="h-9 rounded-xl xl:w-[200px]">
                         <SelectValue placeholder="Definir categoria" />
                       </SelectTrigger>
                       <SelectContent>
@@ -807,16 +872,31 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" className="rounded-xl" onClick={() => applyBulkPatch({ exclude: true })} disabled={selectedCount === 0}>
-                      Ignorar selecionadas
-                    </Button>
-                    <Button type="button" variant="outline" className="rounded-xl" onClick={() => applyBulkPatch({ exclude: false })} disabled={selectedCount === 0}>
-                      Restaurar selecionadas
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-xl"
+                      onClick={() => applyBulkPatch({ exclude: true })}
+                      disabled={selectedCount === 0}
+                    >
+                      Ignorar
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      className="rounded-xl"
+                      size="sm"
+                      className="h-9 rounded-xl"
+                      onClick={() => applyBulkPatch({ exclude: false })}
+                      disabled={selectedCount === 0}
+                    >
+                      Restaurar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-xl"
                       onClick={() => {
                         const duplicateRows = selectedRows.filter((row) => row.isDuplicate);
 
@@ -829,12 +909,18 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       }}
                       disabled={selectedCount === 0}
                     >
-                      Remover duplicatas
+                      Remover dup.
                     </Button>
-                    <Button type="button" variant="outline" className="rounded-xl" onClick={() => setCategoryDialogOpen(true)}>
+                    <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl" onClick={() => setCategoryDialogOpen(true)}>
                       Nova categoria
                     </Button>
-                    <Button type="button" className="rounded-xl xl:ml-auto" onClick={() => void handleCommit(true)} disabled={submitting || commitImport.isPending}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-9 rounded-xl xl:ml-auto"
+                      onClick={() => void handleCommit(true)}
+                      disabled={submitting || commitImport.isPending}
+                    >
                       Import valid rows only
                     </Button>
                   </div>
@@ -860,38 +946,48 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
             ) : null}
 
             {state.step === "result" && state.result ? (
-              <div className="flex h-full flex-col gap-5 rounded-[28px] border border-border/70 bg-background/70 p-6">
-                <div className="grid gap-3 md:grid-cols-3">
+              <div className="flex h-full flex-col gap-4 rounded-[28px] border border-border/70 bg-background/70 p-5">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-border/70 p-4">
-                    <p className="text-xs uppercase text-muted-foreground">Importadas</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Importadas</p>
                     <p className="mt-2 text-2xl font-semibold text-foreground">{state.result.importedCount}</p>
                   </div>
                   <div className="rounded-2xl border border-border/70 p-4">
-                    <p className="text-xs uppercase text-muted-foreground">Ignoradas</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Ignoradas</p>
                     <p className="mt-2 text-2xl font-semibold text-foreground">{state.result.skippedCount}</p>
                   </div>
                   <div className="rounded-2xl border border-border/70 p-4">
-                    <p className="text-xs uppercase text-muted-foreground">Falhas</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Falhas</p>
                     <p className="mt-2 text-2xl font-semibold text-foreground">{state.result.failedCount}</p>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border/70">
-                  <div className="grid grid-cols-[100px,120px,1fr] border-b border-border/70 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <span>Linha</span>
-                    <span>Status</span>
-                    <span>Mensagem</span>
-                  </div>
-                  <div className="max-h-[360px] overflow-auto">
-                    {state.result.results.map((item) => (
-                      <div key={`result:${item.rowIndex}`} className="grid grid-cols-[100px,120px,1fr] gap-3 border-b border-border/70 px-4 py-3 text-sm last:border-b-0">
-                        <span>#{item.rowIndex}</span>
-                        <span className="font-medium">{item.status}</span>
-                        <span>{item.message}</span>
+                {state.result.results.length > 0 ? (
+                  <details>
+                    <summary className="cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground">
+                      Ver detalhes por linha ({state.result.results.length})
+                    </summary>
+                    <div className="mt-3 rounded-2xl border border-border/70">
+                      <div className="grid grid-cols-[80px,100px,1fr] border-b border-border/70 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <span>Linha</span>
+                        <span>Status</span>
+                        <span>Mensagem</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="scrollbar-thin max-h-[300px] overflow-auto">
+                        {state.result.results.map((item) => (
+                          <div
+                            key={`result:${item.rowIndex}`}
+                            className="grid grid-cols-[80px,100px,1fr] gap-3 border-b border-border/70 px-4 py-2.5 text-sm last:border-b-0"
+                          >
+                            <span>#{item.rowIndex}</span>
+                            <span className="font-medium">{item.status}</span>
+                            <span>{item.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+                ) : null}
               </div>
             ) : null}
           </div>

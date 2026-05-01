@@ -293,6 +293,24 @@ describe("ImportTransactionsModal", () => {
     expect(screen.getByTestId("row-status:preview-1:15")).toHaveTextContent("included");
   });
 
+  it("renders technical import details collapsed by default", async () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /generate preview/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-technical-details")).toBeInTheDocument());
+
+    const details = screen.getByTestId("import-technical-details");
+    expect(details).not.toHaveAttribute("open");
+  });
+
   it("commits only reviewed valid rows when using import valid rows only", async () => {
     render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
 

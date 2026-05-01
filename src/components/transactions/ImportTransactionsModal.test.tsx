@@ -23,20 +23,16 @@ vi.mock("@/hooks/use-transactions", () => ({
   }),
 }));
 
-vi.mock("@/components/transactions/ImportPreviewTable", () => ({
-  default: ({ rows, onChangeDraft }: { rows: Array<{ key: string; draft: { exclude: boolean } }>; onChangeDraft: (rowKey: string, patch: { exclude?: boolean }) => void }) => (
-    <div data-testid="import-preview-table">
-      {rows.map((row) => (
-        <div key={row.key}>
-          <span data-testid={`row-status:${row.key}`}>{row.draft.exclude ? "ignored" : "included"}</span>
-          <button type="button" onClick={() => onChangeDraft(row.key, { exclude: true })}>
-            ignore-{row.key}
-          </button>
-          <button type="button" onClick={() => onChangeDraft(row.key, { exclude: false })}>
-            restore-{row.key}
-          </button>
-        </div>
-      ))}
+vi.mock("@/components/transactions/ImportTransactionCard", () => ({
+  default: ({ row, onChange }: { row: { key: string; draft: { exclude: boolean } }; onChange: (patch: { exclude?: boolean }) => void }) => (
+    <div data-testid={`import-card:${row.key}`}>
+      <span data-testid={`row-status:${row.key}`}>{row.draft.exclude ? "ignored" : "included"}</span>
+      <button type="button" onClick={() => onChange({ exclude: true })}>
+        ignore-{row.key}
+      </button>
+      <button type="button" onClick={() => onChange({ exclude: false })}>
+        restore-{row.key}
+      </button>
     </div>
   ),
 }));
@@ -203,20 +199,20 @@ describe("ImportTransactionsModal", () => {
   it("renders the upload state without requiring an importSource selector", () => {
     render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
 
-    expect(screen.getByText("Import transactions")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /generate preview/i })).toBeDisabled();
+    expect(screen.getByText("Importar transações")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /gerar preview/i })).toBeDisabled();
     expect(screen.getByTestId("import-file-dropzone")).toBeInTheDocument();
-    expect(screen.getByText("CSV")).toBeInTheDocument();
+    expect(screen.getByText(/csv/i)).toBeInTheDocument();
     expect(screen.queryByText(/fatura de cartão/i)).not.toBeInTheDocument();
   });
 
-  it("opens the native file picker when clicking Select file", () => {
+  it("opens the native file picker when clicking Selecionar arquivo", () => {
     render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
 
     const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
     const clickSpy = vi.spyOn(fileInput, "click").mockImplementation(() => {});
 
-    fireEvent.click(screen.getByRole("button", { name: /^select file$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /selecionar arquivo/i }));
 
     expect(clickSpy).toHaveBeenCalledTimes(1);
   });
@@ -242,9 +238,9 @@ describe("ImportTransactionsModal", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /generate preview/i }));
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
 
-    await waitFor(() => expect(screen.getByTestId("import-preview-table")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("import-preview-body")).toBeInTheDocument());
 
     expect(previewMutateAsync).toHaveBeenCalledWith({
       file: expect.any(File),
@@ -263,7 +259,7 @@ describe("ImportTransactionsModal", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /generate preview/i }));
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
 
     await waitFor(() => expect(screen.getByText("CSV/TSV parser")).toBeInTheDocument());
     expect(screen.getByText("Transações genéricas")).toBeInTheDocument();
@@ -282,9 +278,9 @@ describe("ImportTransactionsModal", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /generate preview/i }));
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
 
-    await waitFor(() => expect(screen.getByTestId("import-preview-table")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("import-preview-body")).toBeInTheDocument());
 
     expect(screen.getByTestId("row-status:preview-1:15")).toHaveTextContent("included");
     fireEvent.click(screen.getByRole("button", { name: "ignore-preview-1:15" }));
@@ -303,7 +299,7 @@ describe("ImportTransactionsModal", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /generate preview/i }));
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
 
     await waitFor(() => expect(screen.getByTestId("import-technical-details")).toBeInTheDocument());
 
@@ -311,7 +307,7 @@ describe("ImportTransactionsModal", () => {
     expect(details).not.toHaveAttribute("open");
   });
 
-  it("commits only reviewed valid rows when using import valid rows only", async () => {
+  it("commits only reviewed valid rows when using importar linhas válidas", async () => {
     render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
 
     const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
@@ -321,11 +317,11 @@ describe("ImportTransactionsModal", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /generate preview/i }));
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
 
-    await waitFor(() => expect(screen.getByTestId("import-preview-table")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("import-preview-body")).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: /import valid rows only/i }));
+    fireEvent.click(screen.getByRole("button", { name: /importar \d+ linha/i }));
 
     await waitFor(() =>
       expect(commitMutateAsync).toHaveBeenCalledWith({

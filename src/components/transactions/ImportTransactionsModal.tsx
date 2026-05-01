@@ -1,13 +1,16 @@
-import { FileSpreadsheet, FolderUp, Search, Upload } from "lucide-react";
+import { CheckCircle2, FileSpreadsheet, FolderUp, Info, Loader2, Search, Upload } from "lucide-react";
 import { type ChangeEvent, type DragEvent, type KeyboardEvent, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import ImportPreviewTable, { type ImportPreviewTableRow } from "@/components/transactions/ImportPreviewTable";
+import ImportTransactionCard, { type ImportTransactionCardRow } from "@/components/transactions/ImportTransactionCard";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ColorField } from "@/components/ui/color-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { useCommitTransactionImport, useCreateCategory, useUniversalImportPreview } from "@/hooks/use-transactions";
 import { DEFAULT_CATEGORY_COLOR } from "@/lib/category-colors";
@@ -45,7 +48,6 @@ type ModalState = {
   result: ImportCommitData | null;
   search: string;
   filter: PreviewFilter;
-  page: number;
   processingLabelIndex: number;
 };
 
@@ -61,10 +63,8 @@ type ModalAction =
   | { type: "set-result"; result: ImportCommitData }
   | { type: "set-search"; value: string }
   | { type: "set-filter"; value: PreviewFilter }
-  | { type: "set-page"; value: number }
   | { type: "advance-processing" };
 
-const PAGE_SIZE = 50;
 const PROCESSING_LABELS = [
   "Lendo arquivo",
   "Detectando formato",
@@ -96,7 +96,6 @@ const initialState: ModalState = {
   result: null,
   search: "",
   filter: "all",
-  page: 1,
   processingLabelIndex: 0,
 };
 
@@ -263,7 +262,6 @@ function reducer(state: ModalState, action: ModalAction): ModalState {
         drafts: action.drafts,
         step: "preview",
         result: null,
-        page: 1,
       };
     case "patch-draft":
       return {
@@ -279,11 +277,9 @@ function reducer(state: ModalState, action: ModalAction): ModalState {
     case "set-result":
       return { ...state, result: action.result, step: "result" };
     case "set-search":
-      return { ...state, search: action.value, page: 1 };
+      return { ...state, search: action.value };
     case "set-filter":
-      return { ...state, filter: action.value, page: 1 };
-    case "set-page":
-      return { ...state, page: action.value };
+      return { ...state, filter: action.value };
     case "advance-processing":
       return { ...state, processingLabelIndex: (state.processingLabelIndex + 1) % PROCESSING_LABELS.length };
     default:
@@ -291,7 +287,7 @@ function reducer(state: ModalState, action: ModalAction): ModalState {
   }
 }
 
-function matchesFilter(row: ImportPreviewTableRow, filter: PreviewFilter, search: string) {
+function matchesFilter(row: ImportTransactionCardRow, filter: PreviewFilter, search: string) {
   const normalizedSearch = search.trim().toLowerCase();
 
   if (
@@ -325,15 +321,22 @@ function PreviewCountChip({
   label,
   value,
   variant,
+  onClick,
 }: {
   label: string;
   value: number;
   variant?: "warning" | "error";
+  onClick?: () => void;
 }) {
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => (e.key === "Enter" || e.key === " ") && onClick() : undefined}
       className={cn(
         "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs",
+        onClick && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         variant === "error" && "border-destructive/30 bg-destructive/10 text-destructive",
         variant === "warning" && "border-warning/30 bg-warning/10",
         !variant && "border-border/70 bg-secondary/30",
@@ -391,7 +394,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     return () => window.clearInterval(interval);
   }, [state.step]);
 
-  const rows = useMemo<ImportPreviewTableRow[]>(() => {
+  const rows = useMemo<ImportTransactionCardRow[]>(() => {
     if (!state.preview) {
       return [];
     }
@@ -424,12 +427,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     [rows, state.filter, state.search],
   );
 
-  const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
-  const currentPage = Math.min(state.page, pageCount);
-  const paginatedRows = visibleRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const selectedRows = visibleRows.filter((row) => row.draft.selected);
   const selectedCount = selectedRows.length;
-  const allVisibleSelected = paginatedRows.length > 0 && paginatedRows.every((row) => row.draft.selected);
+  const allVisibleSelected = visibleRows.length > 0 && visibleRows.every((row) => row.draft.selected);
   const showPasswordField = state.passwordRequired || isPdfFile(state.selectedFile);
 
   const summary = state.preview?.fileSummary;
@@ -489,7 +489,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     }
   };
 
-  const patchRows = (targetRows: ImportPreviewTableRow[], patch: Partial<ImportReviewDraft>) => {
+  const patchRows = (targetRows: ImportTransactionCardRow[], patch: Partial<ImportReviewDraft>) => {
     targetRows.forEach((row) => dispatch({ type: "patch-draft", rowKey: row.key, patch }));
   };
 
@@ -531,6 +531,8 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
     return candidateRows;
   };
+
+  const validImportCount = buildCommitRows(true).length;
 
   const handleCommit = async (onlyValidRows: boolean) => {
     if (!state.preview) {
@@ -601,19 +603,20 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[92vh] max-w-[92vw] flex-col overflow-hidden p-0 sm:max-w-7xl">
-          <div className="border-b border-border/70 px-6 py-5">
+        <DialogContent className="flex h-[92vh] max-w-[92vw] flex-col overflow-hidden p-0 sm:max-w-6xl">
+          <div className="border-b border-border/70 px-5 py-3">
             <DialogHeader>
-              <DialogTitle>Import transactions</DialogTitle>
+              <DialogTitle>Importar transações</DialogTitle>
               <DialogDescription>
                 Envie CSV, Excel, OFX, QIF, PDF, TXT ou JSON. O sistema detecta o formato e você revisa tudo antes do commit.
               </DialogDescription>
             </DialogHeader>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-hidden px-4 py-3">
             {state.step === "upload" ? (
               <div className="grid h-full gap-5 lg:grid-cols-[1.5fr,0.9fr]">
+                {/* Dropzone */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -631,60 +634,119 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   onDragLeave={() => setDragActive(false)}
                   onDrop={handleFileDrop}
                 >
-                  <div className="rounded-full bg-primary/10 p-4 text-primary">
-                    <FileSpreadsheet className="h-10 w-10" />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xl font-semibold text-foreground">Arraste o arquivo aqui ou selecione manualmente</p>
-                    <p className="max-w-xl text-sm text-muted-foreground">
-                      O preview universal detecta o tipo do arquivo, normaliza as transações e destaca linhas que precisam de revisão.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="rounded-xl"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openFilePicker();
-                    }}
-                  >
-                    <FolderUp className="mr-2 h-4 w-4" />
-                    Select file
-                  </Button>
-                  <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-                    {["CSV", "Excel", "OFX", "QIF", "PDF", "TXT", "JSON"].map((format) => (
-                      <Badge key={`import-format:${format}`} variant="outline" className="rounded-full">
-                        {format}
-                      </Badge>
-                    ))}
-                  </div>
                   {state.selectedFile ? (
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-left">
-                      <p className="font-medium text-foreground">{state.selectedFile.name}</p>
-                      <p className="text-sm text-muted-foreground">{formatFileSize(state.selectedFile.size)}</p>
-                    </div>
-                  ) : null}
+                    <>
+                      <div className="rounded-full bg-primary/10 p-4 text-primary">
+                        <FileSpreadsheet className="h-12 w-12" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-base font-semibold text-foreground">{state.selectedFile.name}</p>
+                        <p className="text-sm text-muted-foreground">{formatFileSize(state.selectedFile.size)}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-xl text-xs text-muted-foreground hover:text-destructive"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          dispatch({ type: "set-file", file: null });
+                        }}
+                      >
+                        Remover arquivo
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="rounded-full bg-primary/10 p-4 text-primary">
+                        <FileSpreadsheet className="h-12 w-12" />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xl font-semibold text-foreground">Arraste o arquivo aqui ou selecione manualmente</p>
+                        <p className="max-w-xl text-sm text-muted-foreground">
+                          O preview universal detecta o tipo do arquivo, normaliza as transações e destaca linhas que precisam de revisão.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="rounded-xl"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openFilePicker();
+                        }}
+                      >
+                        <FolderUp className="mr-2 h-4 w-4" />
+                        Selecionar arquivo
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        {["CSV", "Excel", "OFX", "QIF", "PDF", "TXT", "JSON"].join(" · ")}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <Input ref={inputRef} data-testid="import-file-input" type="file" className="hidden" onChange={handleFileChange} />
 
+                {/* Config column */}
                 <div className="flex flex-col justify-between rounded-[28px] border border-border/70 bg-background/70 p-5">
                   <div className="space-y-5">
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">Configuração da importação</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Defina a conta padrão agora ou ajuste por linha no preview.</p>
+                    </div>
+
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-foreground">Conta ou cartão padrão</p>
-                      <p className="text-sm text-muted-foreground">
-                        Opcional. Você também pode definir conta/cartão por linha no preview.
-                      </p>
                       <Select value={state.globalBankConnectionId} onValueChange={(value) => dispatch({ type: "set-global-bank", value })}>
                         <SelectTrigger className="h-11 rounded-xl">
                           <SelectValue placeholder="Definir depois no preview" />
                         </SelectTrigger>
                         <SelectContent>
-                          {banks.map((bank) => (
-                            <SelectItem key={bank.id} value={String(bank.id)}>
-                              {bank.name}
-                            </SelectItem>
-                          ))}
+                          {(() => {
+                            const accounts = banks.filter((b) => b.accountType === "bank_account");
+                            const cards = banks.filter((b) => b.accountType === "credit_card");
+                            const cash = banks.filter((b) => b.accountType === "cash");
+                            return (
+                              <>
+                                {accounts.length > 0 && (
+                                  <SelectGroup>
+                                    <SelectLabel className="flex items-center gap-1.5">
+                                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">Conta bancária</span>
+                                    </SelectLabel>
+                                    {accounts.map((bank) => (
+                                      <SelectItem key={bank.id} value={String(bank.id)}>
+                                        {bank.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                )}
+                                {cards.length > 0 && (
+                                  <SelectGroup>
+                                    <SelectLabel className="flex items-center gap-1.5">
+                                      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">Cartão de crédito</span>
+                                    </SelectLabel>
+                                    {cards.map((bank) => (
+                                      <SelectItem key={bank.id} value={String(bank.id)}>
+                                        {bank.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                )}
+                                {cash.length > 0 && (
+                                  <SelectGroup>
+                                    <SelectLabel className="flex items-center gap-1.5">
+                                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-500">Caixa</span>
+                                    </SelectLabel>
+                                    {cash.map((bank) => (
+                                      <SelectItem key={bank.id} value={String(bank.id)}>
+                                        {bank.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                )}
+                              </>
+                            );
+                          })()}
                         </SelectContent>
                       </Select>
                     </div>
@@ -692,9 +754,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                     {showPasswordField ? (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-foreground">Senha do PDF</p>
-                        <p className="text-sm text-muted-foreground">
-                          Preencha apenas se o arquivo estiver protegido por senha.
-                        </p>
+                        <p className="text-sm text-muted-foreground">Preencha apenas se o arquivo estiver protegido por senha.</p>
                         <Input
                           ref={passwordInputRef}
                           value={state.filePassword}
@@ -705,15 +765,27 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       </div>
                     ) : null}
 
-                    <div className="rounded-2xl border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                      Linhas ambíguas ou com baixa confiança continuam no preview. Nada é importado silenciosamente.
-                    </div>
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription className="space-y-2 text-sm">
+                        <p>Linhas ambíguas ficam no preview. Nada é importado silenciosamente.</p>
+                        <ul className="mt-2 space-y-1 text-muted-foreground">
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            Detecta formato automaticamente
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            Normaliza datas, valores e descrições
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            Você revisa tudo antes de confirmar
+                          </li>
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
                   </div>
-
-                  <Button type="button" className="mt-5 h-11 rounded-xl" onClick={handlePreview} disabled={!state.selectedFile || previewImport.isPending}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Generate preview
-                  </Button>
                 </div>
               </div>
             ) : null}
@@ -739,40 +811,38 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
             ) : null}
 
             {state.step === "preview" && state.preview ? (
-              <div className="flex h-full min-h-0 flex-col gap-3">
-                {/* Compact summary header */}
-                <div className="rounded-[28px] border border-border/70 bg-background/70 px-4 py-3">
-                  <div className="flex flex-wrap items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-foreground">
-                          {state.preview.fileMetadata.originalFilename ?? state.selectedFile?.name ?? "Importação"}
-                        </span>
-                        <Badge variant="secondary">{getSourceKindLabel(state.preview.detectedSourceKind)}</Badge>
-                      </div>
-                    </div>
-                    {summary ? (
-                      <div className="flex flex-wrap gap-2">
-                        <PreviewCountChip label="Total" value={summary.totalRows} />
-                        <PreviewCountChip label="Prontas" value={summary.importableRows} />
-                        {summary.warningRows > 0 ? <PreviewCountChip label="Revisão" value={summary.warningRows} variant="warning" /> : null}
-                        {summary.errorRows > 0 ? <PreviewCountChip label="Erros" value={summary.errorRows} variant="error" /> : null}
-                        {summary.duplicateRows > 0 ? <PreviewCountChip label="Dup." value={summary.duplicateRows} /> : null}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {state.preview.warnings.length > 0 ? (
-                    <div className="mt-3 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-foreground">
-                      {state.preview.warnings.join(" ")}
+              <div className="flex h-full min-h-0 flex-col gap-1.5">
+                {/* Summary bar — compact, single line */}
+                <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/70 px-3 py-2">
+                  <span className="hidden min-w-0 truncate text-sm font-medium text-foreground sm:block sm:max-w-[200px]">
+                    {state.preview.fileMetadata.originalFilename ?? state.selectedFile?.name ?? "Importação"}
+                  </span>
+                  <Badge variant="secondary" className="shrink-0 text-xs">
+                    {getSourceKindLabel(state.preview.detectedSourceKind)}
+                  </Badge>
+                  {summary ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      <PreviewCountChip label="Total" value={summary.totalRows} onClick={() => dispatch({ type: "set-filter", value: "all" })} />
+                      <PreviewCountChip label="OK" value={summary.importableRows} onClick={() => dispatch({ type: "set-filter", value: "valid" })} />
+                      {summary.warningRows > 0 ? (
+                        <PreviewCountChip label="Rev." value={summary.warningRows} variant="warning" onClick={() => dispatch({ type: "set-filter", value: "warnings" })} />
+                      ) : null}
+                      {summary.errorRows > 0 ? (
+                        <PreviewCountChip label="Erros" value={summary.errorRows} variant="error" onClick={() => dispatch({ type: "set-filter", value: "errors" })} />
+                      ) : null}
+                      {summary.duplicateRows > 0 ? (
+                        <PreviewCountChip label="Dup." value={summary.duplicateRows} onClick={() => dispatch({ type: "set-filter", value: "duplicates" })} />
+                      ) : null}
                     </div>
                   ) : null}
-
-                  <details data-testid="import-technical-details" className="mt-3">
+                  {state.preview.warnings.length > 0 ? (
+                    <span className="ml-auto text-xs text-warning">⚠ {state.preview.warnings[0]}</span>
+                  ) : null}
+                  <details data-testid="import-technical-details" className="hidden sm:block">
                     <summary className="cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
-                      Detalhes de importação
+                      Detalhes
                     </summary>
-                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 xl:grid-cols-5">
+                    <div className="absolute z-10 mt-1 grid min-w-[280px] grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/70 bg-background p-3 shadow-lg sm:grid-cols-3">
                       {state.preview.parserLabel ? (
                         <div>
                           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Parser</p>
@@ -780,7 +850,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         </div>
                       ) : null}
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Tipo de arquivo</p>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Tipo</p>
                         <p className="text-xs font-medium">{state.preview.detectedFileType ?? "n/d"}</p>
                       </div>
                       <div>
@@ -793,154 +863,134 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                           <p className="text-xs font-medium">{state.preview.institutionName}</p>
                         </div>
                       ) : null}
-                      {state.preview.accountHint ? (
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Conta sugerida</p>
-                          <p className="text-xs font-medium">{state.preview.accountHint}</p>
-                        </div>
-                      ) : null}
                     </div>
                   </details>
                 </div>
 
-                {/* Filters + search + bulk actions */}
-                <div className="rounded-[28px] border border-border/70 bg-background/70 px-4 py-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap gap-1">
-                      {filterOptions.map((option) => (
-                        <Button
-                          key={option.value}
-                          type="button"
-                          size="sm"
-                          variant={state.filter === option.value ? "secondary" : "ghost"}
-                          className="h-8 rounded-lg px-3 text-xs"
-                          onClick={() => dispatch({ type: "set-filter", value: option.value })}
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
+                {/* Filter + search bar */}
+                <div className="shrink-0 rounded-2xl border border-border/70 bg-background/70 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="select-all-visible"
+                      checked={allVisibleSelected}
+                      onCheckedChange={(checked) => {
+                        visibleRows.forEach((row) => dispatch({ type: "patch-draft", rowKey: row.key, patch: { selected: !!checked } }));
+                      }}
+                      aria-label="Selecionar todos visíveis"
+                    />
+                    <div className="flex min-w-0 flex-1 overflow-x-auto">
+                      <div className="flex gap-1">
+                        {filterOptions.map((option) => (
+                          <Button
+                            key={option.value}
+                            type="button"
+                            size="sm"
+                            variant={state.filter === option.value ? "secondary" : "ghost"}
+                            className="h-7 shrink-0 rounded-lg px-2 text-xs"
+                            onClick={() => dispatch({ type: "set-filter", value: option.value })}
+                          >
+                            {option.label}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="relative min-w-0 flex-1 sm:max-w-[280px]">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <div className="relative shrink-0">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                       <Input
-                        className="h-9 rounded-xl pl-9"
-                        placeholder="Buscar por descrição"
+                        className="h-7 w-32 rounded-lg pl-7 text-xs sm:w-48"
+                        placeholder="Buscar…"
                         value={state.search}
                         onChange={(event) => dispatch({ type: "set-search", value: event.target.value })}
                       />
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {selectedCount > 0 ? (
-                      <Badge variant="secondary" className="mr-1 text-xs">
-                        {selectedCount} selecionada(s)
+                  {/* Contextual bulk actions */}
+                  {selectedCount > 0 ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {selectedCount} sel.
                       </Badge>
-                    ) : null}
-                    <Select value={bulkAccountValue} onValueChange={handleBulkAccount} disabled={selectedCount === 0}>
-                      <SelectTrigger className="h-9 rounded-xl xl:w-[200px]">
-                        <SelectValue placeholder="Definir conta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {banks.map((bank) => (
-                          <SelectItem key={`bulk-bank:${bank.id}`} value={String(bank.id)}>
-                            {bank.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={bulkTypeValue} onValueChange={handleBulkType} disabled={selectedCount === 0}>
-                      <SelectTrigger className="h-9 rounded-xl xl:w-[160px]">
-                        <SelectValue placeholder="Definir tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unknown">Definir depois</SelectItem>
-                        <SelectItem value="expense">Despesa</SelectItem>
-                        <SelectItem value="income">Receita</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={bulkCategoryValue} onValueChange={handleBulkCategory} disabled={selectedCount === 0}>
-                      <SelectTrigger className="h-9 rounded-xl xl:w-[200px]">
-                        <SelectValue placeholder="Definir categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__uncategorized__">Outros</SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={`bulk-category:${category.id}`} value={String(category.id)}>
-                            {category.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-xl"
-                      onClick={() => applyBulkPatch({ exclude: true })}
-                      disabled={selectedCount === 0}
-                    >
-                      Ignorar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-xl"
-                      onClick={() => applyBulkPatch({ exclude: false })}
-                      disabled={selectedCount === 0}
-                    >
-                      Restaurar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-xl"
-                      onClick={() => {
-                        const duplicateRows = selectedRows.filter((row) => row.isDuplicate);
-
-                        if (!duplicateRows.length) {
-                          toast.error("Selecione ao menos uma linha duplicada.");
-                          return;
-                        }
-
-                        patchRows(duplicateRows, { exclude: true });
-                      }}
-                      disabled={selectedCount === 0}
-                    >
-                      Remover dup.
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl" onClick={() => setCategoryDialogOpen(true)}>
-                      Nova categoria
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-9 rounded-xl xl:ml-auto"
-                      onClick={() => void handleCommit(true)}
-                      disabled={submitting || commitImport.isPending}
-                    >
-                      Import valid rows only
-                    </Button>
-                  </div>
+                      <Select value={bulkAccountValue} onValueChange={handleBulkAccount}>
+                        <SelectTrigger className="h-7 rounded-lg text-xs sm:w-[160px]">
+                          <SelectValue placeholder="Conta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {banks.map((bank) => (
+                            <SelectItem key={`bulk-bank:${bank.id}`} value={String(bank.id)}>
+                              {bank.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={bulkTypeValue} onValueChange={handleBulkType}>
+                        <SelectTrigger className="h-7 rounded-lg text-xs sm:w-[130px]">
+                          <SelectValue placeholder="Tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unknown">Definir depois</SelectItem>
+                          <SelectItem value="expense">Despesa</SelectItem>
+                          <SelectItem value="income">Receita</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={bulkCategoryValue} onValueChange={handleBulkCategory}>
+                        <SelectTrigger className="h-7 rounded-lg text-xs sm:w-[160px]">
+                          <SelectValue placeholder="Categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__uncategorized__">Outros</SelectItem>
+                          {categories.map((category) => (
+                            <SelectItem key={`bulk-category:${category.id}`} value={String(category.id)}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" variant="outline" size="sm" className="h-7 rounded-lg px-2 text-xs" onClick={() => applyBulkPatch({ exclude: true })}>
+                        Ignorar
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-7 rounded-lg px-2 text-xs" onClick={() => applyBulkPatch({ exclude: false })}>
+                        Restaurar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-lg px-2 text-xs"
+                        onClick={() => {
+                          const duplicateRows = selectedRows.filter((row) => row.isDuplicate);
+                          if (!duplicateRows.length) {
+                            toast.error("Selecione ao menos uma linha duplicada.");
+                            return;
+                          }
+                          patchRows(duplicateRows, { exclude: true });
+                        }}
+                      >
+                        Rem. dup.
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
 
-                <div data-testid="import-preview-body" className="min-h-0 flex-1 overflow-hidden rounded-[28px] border border-border/70 bg-background/70">
-                  <ImportPreviewTable
-                    banks={banks}
-                    categories={categories}
-                    currentPage={currentPage}
-                    pageCount={pageCount}
-                    rows={paginatedRows}
-                    allVisibleSelected={allVisibleSelected}
-                    onChangeDraft={(rowKey, patch) => dispatch({ type: "patch-draft", rowKey, patch })}
-                    onOpenCreateCategory={() => setCategoryDialogOpen(true)}
-                    onPageChange={(page) => dispatch({ type: "set-page", value: page })}
-                    onToggleSelectAll={(checked) => {
-                      paginatedRows.forEach((row) => dispatch({ type: "patch-draft", rowKey: row.key, patch: { selected: checked } }));
-                    }}
-                  />
+                {/* Card list — gets all remaining space */}
+                <div data-testid="import-preview-body" className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/70 bg-background/70">
+                  <ScrollArea className="h-full">
+                    <div className="flex flex-col gap-1.5 p-2">
+                      {visibleRows.map((row) => (
+                        <ImportTransactionCard
+                          key={row.key}
+                          row={row}
+                          banks={banks}
+                          categories={categories}
+                          onChange={(patch) => dispatch({ type: "patch-draft", rowKey: row.key, patch })}
+                          onOpenCreateCategory={() => setCategoryDialogOpen(true)}
+                        />
+                      ))}
+                      {visibleRows.length === 0 ? (
+                        <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma linha encontrada para o filtro selecionado.</p>
+                      ) : null}
+                    </div>
+                  </ScrollArea>
                 </div>
               </div>
             ) : null}
@@ -992,15 +1042,33 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
             ) : null}
           </div>
 
-          <div className="border-t border-border/70 px-6 py-4">
+          <div className="border-t border-border/70 px-4 py-3">
             <DialogFooter>
-              {state.step === "preview" ? (
+              {state.step === "upload" ? (
                 <>
-                  <Button type="button" variant="outline" onClick={() => dispatch({ type: "reset" })}>
+                  <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" onClick={handlePreview} disabled={!state.selectedFile || previewImport.isPending}>
+                    {previewImport.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="mr-2 h-4 w-4" />
+                    )}
+                    Gerar preview
+                  </Button>
+                </>
+              ) : state.step === "preview" ? (
+                <>
+                  <Button type="button" variant="ghost" onClick={() => dispatch({ type: "reset" })}>
                     Nova importação
                   </Button>
-                  <Button type="button" onClick={() => void handleCommit(false)} disabled={submitting || commitImport.isPending}>
-                    Confirmar importação
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" onClick={() => void handleCommit(true)} disabled={submitting || commitImport.isPending}>
+                    {(submitting || commitImport.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Importar {validImportCount} {validImportCount === 1 ? "linha válida" : "linhas válidas"}
                   </Button>
                 </>
               ) : state.step === "result" ? (

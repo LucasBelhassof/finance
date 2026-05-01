@@ -1392,6 +1392,16 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     defaultExclude: Boolean(item.defaultExclude),
     warnings: Array.isArray(item.warnings) ? item.warnings.map((value) => safeString(value)).filter(Boolean) : [],
     errors: Array.isArray(item.errors) ? item.errors.map((value) => safeString(value)).filter(Boolean) : [],
+    sourceKind: item.sourceKind === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
+    issues: Array.isArray(item.issues)
+      ? item.issues
+          .map((issue) => ({
+            level: issue?.level === "error" ? "error" : "warning",
+            message: safeString(issue?.message),
+          }))
+          .filter((issue) => issue.message)
+      : [],
+    confidence: typeof item.confidence === "number" ? item.confidence : null,
     sourceRow: item.sourceRow,
   };
 }
@@ -1421,6 +1431,11 @@ export function mapImportPreviewResponse(response: ApiImportPreviewResponse): Im
     previewToken: safeString(response.previewToken),
     expiresAt: safeString(response.expiresAt),
     importSource: response.importSource === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
+    detectedFileType: response.detectedFileType ? safeString(response.detectedFileType) : null,
+    detectedSourceKind: response.detectedSourceKind === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
+    sourceKindConfidence: typeof response.sourceKindConfidence === "number" ? response.sourceKindConfidence : null,
+    selectedBankConnectionId: response.selectedBankConnectionId ?? null,
+    warnings: Array.isArray(response.warnings) ? response.warnings.map((value) => safeString(value)).filter(Boolean) : [],
     bankConnectionId: response.bankConnectionId ?? "",
     bankConnectionName: safeString(response.bankConnectionName, "Conta"),
     fileMetadata: {
@@ -2188,11 +2203,47 @@ export async function previewTransactionImport(
   return mapImportPreviewResponse(response);
 }
 
-export async function commitTransactionImport(previewToken: string, items: ImportCommitItem[]) {
+export async function previewUniversalTransactionImport(
+  file: File,
+  options: {
+    bankConnectionId?: number | string;
+    importSource?: "bank_statement" | "credit_card_statement";
+    filePassword?: string;
+  } = {},
+) {
+  const body = new FormData();
+  body.set("file", file);
+
+  if (options.filePassword?.trim()) {
+    body.set("filePassword", options.filePassword.trim());
+  }
+
+  const response = await request<ApiImportPreviewResponse>(
+    buildPath("/api/transactions/import/universal-preview", {
+      importSource: options.importSource,
+      bankConnectionId: options.bankConnectionId,
+    }),
+    {
+      method: "POST",
+      body,
+    },
+  );
+
+  return mapImportPreviewResponse(response);
+}
+
+export async function commitTransactionImport(
+  previewToken: string,
+  items: ImportCommitItem[],
+  options: { bankConnectionId?: number | string } = {},
+) {
   const response = await request<ApiImportCommitResponse>("/api/transactions/import/commit", {
     method: "POST",
     body: JSON.stringify({
       previewToken,
+      ...(options.bankConnectionId !== undefined && options.bankConnectionId !== null && options.bankConnectionId !== ""
+        ? { bankConnectionId: options.bankConnectionId }
+        : {}),
       items,
     }),
   });

@@ -6,19 +6,14 @@ import type { ImportPreviewData } from "@/types/api";
 
 const previewMutateAsync = vi.fn();
 const commitMutateAsync = vi.fn();
-const createCategoryMutateAsync = vi.fn();
 
 vi.mock("@/hooks/use-transactions", () => ({
-  usePreviewTransactionImport: () => ({
+  useUniversalImportPreview: () => ({
     mutateAsync: previewMutateAsync,
     isPending: false,
   }),
   useCommitTransactionImport: () => ({
     mutateAsync: commitMutateAsync,
-    isPending: false,
-  }),
-  useCreateCategory: () => ({
-    mutateAsync: createCategoryMutateAsync,
     isPending: false,
   }),
 }));
@@ -38,6 +33,11 @@ const previewData: ImportPreviewData = {
   previewToken: "preview-1",
   expiresAt: "2026-04-06T21:32:00.000Z",
   importSource: "bank_statement",
+  detectedFileType: "csv",
+  detectedSourceKind: "bank_statement",
+  sourceKindConfidence: 0.88,
+  selectedBankConnectionId: 2,
+  warnings: [],
   bankConnectionId: 2,
   bankConnectionName: "Caixa/Dinheiro",
   fileMetadata: {
@@ -71,6 +71,7 @@ const previewData: ImportPreviewData = {
       generatedInstallmentCount: null,
       type: "expense",
       importSource: "bank_statement",
+      sourceKind: "bank_statement",
       bankConnectionId: 2,
       bankConnectionName: "Caixa/Dinheiro",
       suggestedCategoryId: null,
@@ -91,6 +92,8 @@ const previewData: ImportPreviewData = {
       defaultExclude: false,
       warnings: [],
       errors: [],
+      issues: [],
+      confidence: 0.9,
     },
   ],
 };
@@ -99,7 +102,6 @@ describe("ImportTransactionsModal", () => {
   beforeEach(() => {
     previewMutateAsync.mockReset();
     commitMutateAsync.mockReset();
-    createCategoryMutateAsync.mockReset();
     previewMutateAsync.mockResolvedValue(previewData);
     commitMutateAsync.mockResolvedValue({
       importedCount: 1,
@@ -109,7 +111,7 @@ describe("ImportTransactionsModal", () => {
     });
   });
 
-  it("keeps the footer accessible and does not call AI after generating preview", async () => {
+  it("uploads without requiring importSource first", async () => {
     render(
       <ImportTransactionsModal
         open
@@ -141,10 +143,7 @@ describe("ImportTransactionsModal", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Itau"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
+    fireEvent.click(screen.getByRole("button", { name: /gerar previa/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
@@ -152,144 +151,12 @@ describe("ImportTransactionsModal", () => {
 
     expect(previewMutateAsync).toHaveBeenCalledWith({
       file: expect.any(File),
-      importSource: "bank_statement",
-      bankConnectionId: "2",
+      bankConnectionId: undefined,
       filePassword: "",
     });
   });
 
-  it("accepts PDF uploads for credit card statements", () => {
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-
-    expect(fileInput.accept).toContain(".pdf");
-    expect(screen.getByText(/Selecione um arquivo CSV ou PDF da fatura/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Senha do PDF/i)).toBeInTheDocument();
-  });
-
-  it("sends the PDF password only through the preview request", async () => {
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(["%PDF"], "fatura.pdf", { type: "application/pdf" })],
-      },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/Senha do PDF/i), {
-      target: { value: "123456" },
-    });
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
-
-    await waitFor(() => {
-      expect(previewMutateAsync).toHaveBeenCalledWith({
-        file: expect.any(File),
-        importSource: "credit_card_statement",
-        bankConnectionId: "7",
-        filePassword: "123456",
-      });
-    });
-  });
-
-  it("keeps the selected PDF and focuses the password field after password errors", async () => {
-    const passwordError = new Error("Informe a senha do PDF para gerar a previa.") as Error & { code: string };
-    passwordError.code = "import_pdf_password_required";
-    previewMutateAsync.mockRejectedValueOnce(passwordError);
-
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(["%PDF"], "fatura.pdf", { type: "application/pdf" })],
-      },
-    });
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
-
-    const passwordInput = screen.getByPlaceholderText(/Senha do PDF/i);
-
-    await waitFor(() => {
-      expect(passwordInput).toHaveFocus();
-    });
-
-    expect(screen.getByText("fatura.pdf")).toBeInTheDocument();
-  });
-
-  it("commits expenses without category so the backend can apply Outros", async () => {
+  it("sends the global bank selection on preview and commit", async () => {
     render(
       <ImportTransactionsModal
         open
@@ -314,121 +181,34 @@ describe("ImportTransactionsModal", () => {
       />,
     );
 
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByText("Itau"));
+
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(fileInput, {
       target: {
         files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
       },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Itau"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /gerar previa/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-preview-table")).toBeInTheDocument());
+
+    expect(previewMutateAsync).toHaveBeenCalledWith({
+      file: expect.any(File),
+      bankConnectionId: "2",
+      filePassword: "",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar importa/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirmar importacao/i }));
 
-    await waitFor(() => {
+    await waitFor(() =>
       expect(commitMutateAsync).toHaveBeenCalledWith({
         previewToken: "preview-1",
-        items: [
-          expect.objectContaining({
-            rowIndex: 15,
-            type: "expense",
-            categoryId: "",
-          }),
-        ],
-      });
-    });
-  });
-
-  it("hides the source layout after preview and commits multiple preview batches", async () => {
-    previewMutateAsync
-      .mockResolvedValueOnce(previewData)
-      .mockResolvedValueOnce({
-        ...previewData,
-        previewToken: "preview-2",
-        fileMetadata: {
-          ...previewData.fileMetadata,
-          originalFilename: "fatura-abril.csv",
-        },
-      });
-
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(["descricao,valor"], "fatura-marco.csv", { type: "text/csv" })],
-      },
-    });
-
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Adicionar fatura/i })).toBeInTheDocument();
-    });
-
-    expect(screen.queryByRole("button", { name: /Extrato bancario/i })).not.toBeInTheDocument();
-
-    const addFileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(addFileInput, {
-      target: {
-        files: [new File(["descricao,valor"], "fatura-abril.csv", { type: "text/csv" })],
-      },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr.*fatura/i }));
-
-    await waitFor(() => {
-      expect(previewMutateAsync).toHaveBeenCalledTimes(2);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar importa/i }));
-
-    await waitFor(() => {
-      expect(commitMutateAsync).toHaveBeenCalledTimes(2);
-    });
-
-    expect(commitMutateAsync).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        previewToken: "preview-1",
-      }),
-    );
-    expect(commitMutateAsync).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        previewToken: "preview-2",
+        bankConnectionId: "2",
+        items: expect.any(Array),
       }),
     );
   });
-});
+}

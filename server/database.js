@@ -8,7 +8,6 @@ import {
   buildInstallmentTransactionSeedKey,
   buildImportedTransactionEntries,
   buildImportSeedKey,
-  createImportPreview,
   extractCategorizationMatchKey,
   enrichPreviewSessionWithAi,
   getPreviewSession,
@@ -17,6 +16,7 @@ import {
   validateCommitLine,
 } from "./transaction-import.js";
 import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.js";
+import { createUniversalImportPreview } from "./import/index.js";
 import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
 import { normalizeDashboardFilters, shiftDashboardDateKey } from "./dashboard-filters.js";
@@ -2610,24 +2610,27 @@ export async function deleteTransaction(userId, transactionId, input = {}) {
 
 export async function previewTransactionImport(userId, fileBuffer, importSource = "bank_statement", bankConnectionId, filename, contentType, filePassword) {
   const resolvedUserId = await requireUserId(userId);
-  const parsedBankConnectionId = Number(bankConnectionId);
+  const parsedBankConnectionId = bankConnectionId === undefined || bankConnectionId === null || bankConnectionId === "" ? null : Number(bankConnectionId);
+  let bankConnection = null;
 
-  if (!Number.isInteger(parsedBankConnectionId)) {
-    throw new Error("bankConnectionId is required");
-  }
+  if (parsedBankConnectionId !== null) {
+    if (!Number.isInteger(parsedBankConnectionId)) {
+      throw new Error("bankConnectionId is invalid");
+    }
 
-  const bankConnection = await getBankConnectionById(resolvedUserId, parsedBankConnectionId);
+    bankConnection = await getBankConnectionById(resolvedUserId, parsedBankConnectionId);
 
-  if (!bankConnection) {
-    throw new Error("bank connection not found");
-  }
+    if (!bankConnection) {
+      throw new Error("bank connection not found");
+    }
 
-  if (importSource === "credit_card_statement" && bankConnection.account_type !== "credit_card") {
-    throw new Error("A fatura do cartao precisa ser vinculada a uma conta do tipo cartao.");
-  }
+    if (importSource === "credit_card_statement" && bankConnection.account_type !== "credit_card") {
+      throw new Error("A fatura do cartao precisa ser vinculada a uma conta do tipo cartao.");
+    }
 
-  if (importSource === "bank_statement" && bankConnection.account_type !== "bank_account") {
-    throw new Error("O extrato bancario precisa ser vinculado a uma conta bancaria.");
+    if (importSource === "bank_statement" && bankConnection.account_type === "credit_card") {
+      throw new Error("O extrato bancario precisa ser vinculado a uma conta nao-cartao.");
+    }
   }
 
   const [categories, fingerprintRows, historicalRows, recurringRules] = await Promise.all([
@@ -2646,17 +2649,17 @@ export async function previewTransactionImport(userId, fileBuffer, importSource 
     ),
   );
 
-  return await createImportPreview({
+  return await createUniversalImportPreview({
     categories,
     existingFingerprints,
     bankConnectionId: parsedBankConnectionId,
-    bankConnectionName: bankConnection.name,
+    bankConnectionName: bankConnection?.name ?? null,
     contentType,
     fileBuffer,
     filePassword,
     filename,
     historicalRows,
-    importSource,
+    requestedImportSource: importSource,
     recurringRules,
     userId: resolvedUserId,
   });
@@ -2757,14 +2760,58 @@ export async function commitTransactionImport(userId, input) {
   let skippedCount = 0;
   let failedCount = 0;
   const allImportedTransactions = [];
+  const requestedGlobalBankConnectionId =
+    input.bankConnectionId === undefined || input.bankConnectionId === null || input.bankConnectionId === ""
+      ? null
+      : Number(input.bankConnectionId);
+  const bankConnectionCache = new Map();
 
   for (const item of input.items) {
     try {
       const normalized = validateCommitLine(item, categories);
       const previewItem = sessionItemsByRowIndex.get(item.rowIndex) ?? null;
+      const resolvedBankConnectionId =
+        item.bankConnectionId === undefined || item.bankConnectionId === null || item.bankConnectionId === ""
+          ? requestedGlobalBankConnectionId ?? (Number.isInteger(session.bankConnectionId) ? session.bankConnectionId : null)
+          : Number(item.bankConnectionId);
+      const resolvedSourceKind =
+        item.sourceKind === "credit_card_statement" || item.sourceKind === "bank_statement"
+          ? item.sourceKind
+          : previewItem?.importSource === "credit_card_statement"
+            ? "credit_card_statement"
+            : "bank_statement";
+
+      if (!Number.isInteger(resolvedBankConnectionId)) {
+        throw new Error("Selecione a conta ou cartao desta linha antes de confirmar a importacao.");
+      }
+
+      let bankConnection = bankConnectionCache.get(resolvedBankConnectionId);
+
+      if (bankConnection === undefined) {
+        bankConnection = await getBankConnectionById(resolvedUserId, resolvedBankConnectionId);
+        bankConnectionCache.set(resolvedBankConnectionId, bankConnection ?? null);
+      }
+
+      if (!bankConnection) {
+        throw new Error("Conta ou cartao nao encontrado para esta linha.");
+      }
+
+      if (resolvedSourceKind === "credit_card_statement" && bankConnection.account_type !== "credit_card") {
+        throw new Error("Linhas marcadas como fatura precisam usar um cartao.");
+      }
+
+      if (resolvedSourceKind === "bank_statement" && bankConnection.account_type === "credit_card") {
+        throw new Error("Linhas marcadas como extrato precisam usar uma conta nao-cartao.");
+      }
+
       const entriesToImport = buildImportedTransactionEntries({
         normalizedLine: normalized,
-        previewItem,
+        previewItem: previewItem
+          ? {
+              ...previewItem,
+              importSource: resolvedSourceKind,
+            }
+          : previewItem,
       });
       const entryLabelSingular = previewItem?.isInstallment ? "parcela" : "transacao";
       const entryLabelPlural = previewItem?.isInstallment ? "parcelas" : "transacoes";
@@ -2791,7 +2838,7 @@ export async function commitTransactionImport(userId, input) {
       const installmentPurchaseSeedKey = isInstallmentEntry
         ? buildInstallmentPurchaseSeedKey(
             resolvedUserId,
-            session.bankConnectionId,
+            resolvedBankConnectionId,
             previewItem.purchaseOccurredOn,
             previewItem.normalizedPurchaseDescriptionBase,
             Math.abs(normalized.signedAmount),
@@ -2811,7 +2858,7 @@ export async function commitTransactionImport(userId, input) {
           installmentPurchase = await getOrCreateInstallmentPurchase(
             {
               userId: resolvedUserId,
-              bankConnectionId: session.bankConnectionId,
+              bankConnectionId: resolvedBankConnectionId,
               categoryId: normalized.categoryId,
               seedKey: installmentPurchaseSeedKey,
               descriptionBase: previewItem.purchaseDescriptionBase,
@@ -2843,7 +2890,7 @@ export async function commitTransactionImport(userId, input) {
           const transaction = await createImportedTransaction(
             {
               userId: resolvedUserId,
-              bankConnectionId: session.bankConnectionId,
+              bankConnectionId: resolvedBankConnectionId,
               categoryId: entry.categoryId,
               description: entry.description,
               amount: entry.amount,

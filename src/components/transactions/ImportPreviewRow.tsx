@@ -1,22 +1,16 @@
-import { Info } from "lucide-react";
+import { AlertTriangle, CopyCheck } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { CategoryItem, ImportCommitItem, ImportPreviewItem } from "@/types/api";
+import type { BankItem, CategoryItem, ImportCommitItem, ImportPreviewItem } from "@/types/api";
 
 type ImportPreviewRowProps = {
+  banks: BankItem[];
   draft: ImportCommitItem;
   item: ImportPreviewItem;
   categories: CategoryItem[];
@@ -24,43 +18,28 @@ type ImportPreviewRowProps = {
   previewToken: string;
 };
 
-export default function ImportPreviewRow({
-  draft,
-  item,
-  categories,
-  onChange,
-  previewToken,
-}: ImportPreviewRowProps) {
+function buildBankOptions(banks: BankItem[], sourceKind: "bank_statement" | "credit_card_statement") {
+  return banks.filter((bank) => {
+    if (sourceKind === "credit_card_statement") {
+      return bank.accountType === "credit_card";
+    }
+
+    return bank.accountType !== "credit_card";
+  });
+}
+
+export default function ImportPreviewRow({ banks, draft, item, categories, onChange, previewToken }: ImportPreviewRowProps) {
   const filteredCategories = categories.filter((category) => category.transactionType === draft.type);
+  const bankOptions = buildBankOptions(banks, draft.sourceKind ?? item.sourceKind);
+  const categoryValue = String(draft.categoryId ?? "");
 
   return (
-    <TableRow
-      className={cn(
-        draft.exclude && "opacity-55",
-        item.possibleDuplicate && "bg-warning/5 hover:bg-warning/10",
-      )}
-    >
+    <TableRow className={cn(draft.exclude && "opacity-55", item.possibleDuplicate && "bg-warning/5 hover:bg-warning/10")}>
       <TableCell className="px-3 py-4 align-top text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-2">
           <span>#{item.rowIndex}</span>
-          {item.possibleDuplicate ? (
-            <TooltipProvider delayDuration={120}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-warning transition-colors hover:text-warning"
-                    aria-label={`Duplicata na linha ${item.rowIndex}`}
-                  >
-                    <Info size={12} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[280px] text-xs leading-relaxed">
-                  {item.duplicateReason || "Linha semelhante encontrada."}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : null}
+          {item.possibleDuplicate ? <CopyCheck className="h-4 w-4 text-warning" /> : null}
+          {item.issues.length > 0 ? <AlertTriangle className="h-4 w-4 text-destructive" /> : null}
         </div>
       </TableCell>
       <TableCell className="px-3 py-4 align-top">
@@ -69,57 +48,32 @@ export default function ImportPreviewRow({
             value={draft.description}
             onChange={(event) => onChange(previewToken, item.rowIndex, { description: event.target.value })}
             rows={3}
-            className="min-h-[84px] w-full resize-none whitespace-pre-wrap break-words rounded-xl border-border/50 bg-secondary/30 text-sm leading-relaxed"
+            className="min-h-[84px] resize-none rounded-xl border-border/50 bg-secondary/30 text-sm"
           />
-          {item.errors.length === 0 && item.isInstallment && item.generatedInstallmentCount ? (
-            <div className="flex items-center gap-1.5 text-xs text-info">
-              <span>Parcela detectada</span>
-              <TooltipProvider delayDuration={120}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors hover:text-foreground"
-                      aria-label={`Detalhes da parcela da linha ${item.rowIndex}`}
-                    >
-                      <Info size={12} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[260px] text-xs leading-relaxed">
-                    Esta linha será expandida em {item.generatedInstallmentCount} despesa
-                    {item.generatedInstallmentCount > 1 ? "s" : ""} mensa
-                    {item.generatedInstallmentCount > 1 ? "is" : "l"} ao confirmar a importação, incluindo parcelas anteriores.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          ) : null}
+          {item.issues.map((issue, index) => (
+            <p
+              key={`${item.rowIndex}:issue:${index}`}
+              className={cn("text-xs", issue.level === "error" ? "text-destructive" : "text-muted-foreground")}
+            >
+              {issue.message}
+            </p>
+          ))}
+          {item.possibleDuplicate ? <p className="text-xs text-warning">{item.duplicateReason}</p> : null}
         </div>
-        {item.errors.length === 0 &&
-        (item.suggestionSource === "history" || item.suggestionSource === "recurring_rule") &&
-        item.suggestedCategoryLabel ? (
-          <p className="mt-2 text-xs text-primary">
-            {item.suggestionSource === "history" ? "Histórico do usuário" : "Regra recorrente"}:{" "}
-            {item.type === "income" ? "Receita" : "Despesa"} - {item.suggestedCategoryLabel}
-          </p>
-        ) : null}
-        {item.errors.length === 0 && draft.type === "expense" && !draft.categoryId ? (
-          <p className="mt-2 text-xs text-muted-foreground">Sem categoria definida, será importada como Outros.</p>
-        ) : null}
       </TableCell>
       <TableCell className="px-3 py-4 align-top">
         <Input
           value={draft.amount}
           onChange={(event) => onChange(previewToken, item.rowIndex, { amount: event.target.value })}
           inputMode="decimal"
-          className="h-10 w-full rounded-xl border-border/50 bg-secondary/30 px-2.5 text-right font-medium tabular-nums"
+          className="h-10 rounded-xl border-border/50 bg-secondary/30 text-right font-medium tabular-nums"
         />
       </TableCell>
       <TableCell className="px-3 py-4 align-top">
         <DatePickerInput
           value={draft.occurredOn}
           onChange={(value) => onChange(previewToken, item.rowIndex, { occurredOn: value })}
-          className="h-10 w-full rounded-xl"
+          className="h-10 rounded-xl"
           placeholder="Data"
         />
       </TableCell>
@@ -133,44 +87,67 @@ export default function ImportPreviewRow({
             })
           }
         >
-          <SelectTrigger
-            className={cn(
-              "h-10 w-full rounded-xl border-border/50 font-medium",
-              draft.type === "expense"
-                ? "bg-expense/15 text-expense"
-                : "bg-income/15 text-income",
-            )}
-          >
+          <SelectTrigger className="h-10 rounded-xl border-border/50 bg-secondary/30">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="expense" className="text-expense focus:text-expense">
-              Despesa
-            </SelectItem>
-            <SelectItem value="income" className="text-income focus:text-income">
-              Receita
-            </SelectItem>
+            <SelectItem value="expense">Despesa</SelectItem>
+            <SelectItem value="income">Receita</SelectItem>
           </SelectContent>
         </Select>
       </TableCell>
       <TableCell className="px-3 py-4 align-top">
-        <div className="flex items-center gap-2">
-          <Select
-            value={String(draft.categoryId ?? "")}
-            onValueChange={(value) => onChange(previewToken, item.rowIndex, { categoryId: value })}
-          >
-            <SelectTrigger className="h-10 w-full rounded-xl border-border/50 bg-secondary/30">
-              <SelectValue placeholder={draft.type === "income" ? "Categoria" : "Categoria"} />
-            </SelectTrigger>
-            <SelectContent>
-              {filteredCategories.map((category) => (
-                <SelectItem key={category.id} value={String(category.id)}>
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select
+          value={categoryValue || undefined}
+          onValueChange={(value) =>
+            onChange(previewToken, item.rowIndex, { categoryId: value === "__uncategorized__" ? "" : value })
+          }
+        >
+          <SelectTrigger className="h-10 rounded-xl border-border/50 bg-secondary/30">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            {draft.type === "expense" ? <SelectItem value="__uncategorized__">Outros</SelectItem> : null}
+            {filteredCategories.map((category) => (
+              <SelectItem key={category.id} value={String(category.id)}>
+                {category.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="px-3 py-4 align-top">
+        <Select value={String(draft.bankConnectionId ?? "")} onValueChange={(value) => onChange(previewToken, item.rowIndex, { bankConnectionId: value })}>
+          <SelectTrigger className="h-10 rounded-xl border-border/50 bg-secondary/30">
+            <SelectValue placeholder="Conta" />
+          </SelectTrigger>
+          <SelectContent>
+            {bankOptions.map((bank) => (
+              <SelectItem key={bank.id} value={String(bank.id)}>
+                {bank.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="px-3 py-4 align-top">
+        <Select
+          value={draft.sourceKind ?? item.sourceKind}
+          onValueChange={(value: "bank_statement" | "credit_card_statement") =>
+            onChange(previewToken, item.rowIndex, {
+              sourceKind: value,
+              bankConnectionId: "",
+            })
+          }
+        >
+          <SelectTrigger className="h-10 rounded-xl border-border/50 bg-secondary/30 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bank_statement">Extrato</SelectItem>
+            <SelectItem value="credit_card_statement">Fatura</SelectItem>
+          </SelectContent>
+        </Select>
       </TableCell>
       <TableCell className="px-3 py-4 align-top">
         <div className="space-y-2">
@@ -179,7 +156,7 @@ export default function ImportPreviewRow({
               checked={draft.exclude}
               onCheckedChange={(checked) => onChange(previewToken, item.rowIndex, { exclude: checked === true })}
             />
-            Excluir da importação
+            Ignorar
           </label>
           <label className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
             <Checkbox
@@ -187,7 +164,7 @@ export default function ImportPreviewRow({
               disabled={!item.possibleDuplicate}
               onCheckedChange={(checked) => onChange(previewToken, item.rowIndex, { ignoreDuplicate: checked === true })}
             />
-            Importar mesmo com duplicata
+            Forcar
           </label>
         </div>
       </TableCell>

@@ -76,18 +76,22 @@ describe("useCommitTransactionImport", () => {
       });
     });
 
-    expect(mockCommitTransactionImport).toHaveBeenCalledWith("preview-1", [
-      {
-        rowIndex: 1,
-        description: "iFood",
-        amount: "67.90",
-        occurredOn: "2026-04-06",
-        type: "expense",
-        categoryId: 1,
-        exclude: false,
-        ignoreDuplicate: false,
-      },
-    ]);
+    expect(mockCommitTransactionImport).toHaveBeenCalledWith(
+      "preview-1",
+      [
+        {
+          rowIndex: 1,
+          description: "iFood",
+          amount: "67.90",
+          occurredOn: "2026-04-06",
+          type: "expense",
+          categoryId: 1,
+          exclude: false,
+          ignoreDuplicate: false,
+        },
+      ],
+      { bankConnectionId: undefined },
+    );
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: transactionsQueryKey() });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: dashboardQueryKey });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: spendingQueryKey });

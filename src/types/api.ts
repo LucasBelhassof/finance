@@ -519,6 +519,12 @@ export interface ApiImportPreviewItem {
   defaultExclude?: boolean;
   warnings?: string[];
   errors?: string[];
+  sourceKind?: string | null;
+  issues?: Array<{
+    level?: string;
+    message?: string;
+  }>;
+  confidence?: number | null;
   sourceRow?: Record<string, string>;
 }
 
@@ -550,6 +556,11 @@ export interface ApiImportPreviewResponse {
   previewToken?: string;
   expiresAt?: string;
   importSource?: string;
+  detectedFileType?: string | null;
+  detectedSourceKind?: string | null;
+  sourceKindConfidence?: number | null;
+  selectedBankConnectionId?: number | string | null;
+  warnings?: string[];
   bankConnectionId?: number | string | null;
   bankConnectionName?: string | null;
   fileMetadata?: {
@@ -719,6 +730,12 @@ export interface ImportPreviewItem {
   defaultExclude: boolean;
   warnings: string[];
   errors: string[];
+  sourceKind: "bank_statement" | "credit_card_statement";
+  issues: Array<{
+    level: "warning" | "error";
+    message: string;
+  }>;
+  confidence: number | null;
   sourceRow?: Record<string, string>;
 }
 
@@ -734,6 +751,11 @@ export interface ImportPreviewData {
   previewToken: string;
   expiresAt: string;
   importSource: "bank_statement" | "credit_card_statement";
+  detectedFileType: string | null;
+  detectedSourceKind: "bank_statement" | "credit_card_statement";
+  sourceKindConfidence: number | null;
+  selectedBankConnectionId: number | string | null;
+  warnings: string[];
   bankConnectionId: number | string;
   bankConnectionName: string;
   fileMetadata: {
@@ -777,6 +799,8 @@ export interface ImportCommitItem {
   occurredOn: string;
   type: "income" | "expense";
   categoryId?: number | string;
+  bankConnectionId?: number | string;
+  sourceKind?: "bank_statement" | "credit_card_statement";
   exclude: boolean;
   ignoreDuplicate: boolean;
 }

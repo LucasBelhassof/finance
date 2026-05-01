@@ -2000,7 +2000,18 @@ export function getPreviewSession(previewToken, userId) {
 }
 
 function ensureCommitItemShape(item) {
-  const allowedKeys = new Set(["rowIndex", "description", "amount", "occurredOn", "type", "categoryId", "exclude", "ignoreDuplicate"]);
+  const allowedKeys = new Set([
+    "rowIndex",
+    "description",
+    "amount",
+    "occurredOn",
+    "type",
+    "categoryId",
+    "exclude",
+    "ignoreDuplicate",
+    "bankConnectionId",
+    "sourceKind",
+  ]);
   const keys = Object.keys(item ?? {});
 
   if (!keys.every((key) => allowedKeys.has(key))) {

@@ -1,12 +1,10 @@
-import {
-  createImportPreview,
-  MAX_IMPORT_BYTES,
-} from "../transaction-import.js";
+import { createImportPreview, MAX_IMPORT_BYTES } from "../transaction-import.js";
 import { createImportUnsupportedFileError } from "./errors.js";
 import { detectFileType } from "./file-type-detector.js";
 import { parseCsvLikeBuffer } from "./parsers/csv-parser.js";
 import { parseJsonBuffer } from "./parsers/json-parser.js";
 import { parseOfxBuffer } from "./parsers/ofx-parser.js";
+import { parsePdfTextBuffer } from "./parsers/pdf-text-parser.js";
 import { parseQifBuffer } from "./parsers/qif-parser.js";
 import { parseSpreadsheetBuffer } from "./parsers/spreadsheet-parser.js";
 import { parseTextBuffer } from "./parsers/text-parser.js";
@@ -31,64 +29,125 @@ function serializeCanonicalRowsToCsv(rows) {
   return Buffer.from([header, ...lines].join("\n"), "utf8");
 }
 
-function resolveParserRows(fileType, fileBuffer) {
-  if (fileType === "csv" || fileType === "tsv") {
-    return parseCsvLikeBuffer(fileBuffer);
+const PARSERS = {
+  csv: {
+    parserId: "csv-delimited",
+    parserLabel: "CSV/TSV parser",
+    parse: (input) => parseCsvLikeBuffer(input.fileBuffer, { source: input.filename }),
+  },
+  tsv: {
+    parserId: "csv-delimited",
+    parserLabel: "CSV/TSV parser",
+    parse: (input) => parseCsvLikeBuffer(input.fileBuffer, { source: input.filename }),
+  },
+  xlsx: {
+    parserId: "spreadsheet-workbook",
+    parserLabel: "Spreadsheet parser",
+    parse: (input) => parseSpreadsheetBuffer(input.fileBuffer, { filename: input.filename }),
+  },
+  xls: {
+    parserId: "spreadsheet-workbook",
+    parserLabel: "Spreadsheet parser",
+    parse: (input) => parseSpreadsheetBuffer(input.fileBuffer, { filename: input.filename }),
+  },
+  ofx: {
+    parserId: "ofx-basic",
+    parserLabel: "OFX parser",
+    parse: (input) => parseOfxBuffer(input.fileBuffer, { filename: input.filename }),
+  },
+  qif: {
+    parserId: "qif-basic",
+    parserLabel: "QIF parser",
+    parse: (input) => parseQifBuffer(input.fileBuffer, { filename: input.filename }),
+  },
+  txt: {
+    parserId: "text-structured",
+    parserLabel: "Structured text parser",
+    parse: (input) => parseTextBuffer(input.fileBuffer, { filename: input.filename }),
+  },
+  json: {
+    parserId: "json-transactions",
+    parserLabel: "JSON parser",
+    parse: (input) => parseJsonBuffer(input.fileBuffer, { filename: input.filename }),
+  },
+  pdf: {
+    parserId: "pdf-text",
+    parserLabel: "PDF text parser",
+    parse: async (input) => {
+      const parsed = await parsePdfTextBuffer(input.fileBuffer, {
+        filename: input.filename,
+        filePassword: input.filePassword,
+      });
+
+      return {
+        ...parsed,
+        parserId: "pdf-text",
+        parserLabel: "PDF text parser",
+      };
+    },
+  },
+};
+
+function resolveParsedFile(fileType, input) {
+  const parser = PARSERS[fileType];
+
+  if (!parser) {
+    throw createImportUnsupportedFileError(input.filename);
   }
 
-  if (fileType === "json") {
-    return parseJsonBuffer(fileBuffer);
-  }
-
-  if (fileType === "txt") {
-    return parseTextBuffer(fileBuffer);
-  }
-
-  if (fileType === "ofx") {
-    return parseOfxBuffer(fileBuffer);
-  }
-
-  if (fileType === "qif") {
-    return parseQifBuffer(fileBuffer);
-  }
-
-  if (fileType === "xlsx" || fileType === "xls") {
-    return parseSpreadsheetBuffer(fileBuffer);
-  }
-
-  throw createImportUnsupportedFileError(fileType);
+  return parser.parse(input);
 }
 
-function enrichPreviewResponse(preview, metadata) {
-  const items = preview.items.map((item) => ({
-    ...item,
-    sourceKind: item.importSource,
-    issues: [
-      ...item.errors.map((message) => ({ level: "error", message })),
-      ...item.warnings.map((message) => ({ level: "warning", message })),
-    ],
-    confidence: item.possibleDuplicate ? 0.55 : 0.85,
-  }));
+function enrichPreviewResponse(preview, metadata, canonicalRows) {
+  const items = preview.items.map((item, index) => {
+    const canonicalRow = canonicalRows[index];
+    const parserWarnings = (canonicalRow?.issues ?? []).filter((issue) => issue.severity !== "error").map((issue) => issue.message);
+    const parserErrors = (canonicalRow?.issues ?? []).filter((issue) => issue.severity === "error").map((issue) => issue.message);
 
-  for (const item of items) {
-    if (!item.bankConnectionId && metadata.selectedBankConnectionId) {
-      item.bankConnectionId = metadata.selectedBankConnectionId;
-    }
-  }
+    return {
+      ...item,
+      sourceKind: metadata.detectedSourceKind,
+      sourceRow: canonicalRow?.sourceRow ?? item.sourceRow,
+      warnings: [...item.warnings, ...parserWarnings],
+      errors: [...item.errors, ...parserErrors],
+      issues: [
+        ...item.errors.map((message) => ({ level: "error", message })),
+        ...item.warnings.map((message) => ({ level: "warning", message })),
+        ...parserErrors.map((message) => ({ level: "error", message })),
+        ...parserWarnings.map((message) => ({ level: "warning", message })),
+      ],
+      confidence: typeof canonicalRow?.confidence === "number" ? canonicalRow.confidence : item.possibleDuplicate ? 0.55 : 0.85,
+      externalId: canonicalRow?.externalId ?? null,
+    };
+  });
 
   setUniversalPreviewMetadata(preview.previewToken, metadata);
+
+  const warningRows = items.filter((item) => item.issues.some((issue) => issue.level === "warning")).length;
+  const errorRows = items.filter((item) => item.issues.some((issue) => issue.level === "error")).length;
 
   return {
     ...preview,
     items,
+    parserId: metadata.parserId,
+    parserLabel: metadata.parserLabel,
     detectedFileType: metadata.detectedFileType,
     detectedSourceKind: metadata.detectedSourceKind,
     sourceKindConfidence: metadata.sourceKindConfidence,
     selectedBankConnectionId: metadata.selectedBankConnectionId,
+    institutionName: metadata.institutionName,
+    accountHint: metadata.accountHint,
     warnings: metadata.warnings,
+    fileMetadata: {
+      ...preview.fileMetadata,
+      statementReferenceMonth: metadata.statementReferenceMonth ?? preview.fileMetadata.statementReferenceMonth,
+      statementDueDate: metadata.statementDueDate ?? preview.fileMetadata.statementDueDate,
+    },
     fileSummary: {
       ...preview.fileSummary,
-      fileName: metadata.filename,
+      errorRows,
+      warningRows,
+      actionRequiredRows: items.filter((item) => item.issues.length > 0 || item.requiresUserAction).length,
     },
   };
 }
@@ -117,39 +176,27 @@ export async function createUniversalImportPreview({
 
   const detectedFileType = detectFileType({ contentType, filename, fileBuffer });
 
-  if (detectedFileType === "pdf") {
-    const source = inferSourceKind([], { filename, requestedImportSource }).sourceKind;
-    const preview = await createImportPreview({
-      categories,
-      existingFingerprints,
-      bankConnectionId,
-      bankConnectionName: bankConnectionName ?? "Conta a definir",
-      contentType,
-      fileBuffer,
-      filePassword,
-      filename,
-      historicalRows,
-      importSource: source,
-      recurringRules,
-      userId,
-    });
-
-    return enrichPreviewResponse(preview, {
-      detectedFileType,
-      detectedSourceKind: preview.importSource,
-      sourceKindConfidence: 0.9,
-      selectedBankConnectionId: bankConnectionId,
-      filename,
-      warnings: [],
-    });
-  }
-
   if (detectedFileType === "unknown") {
     throw createImportUnsupportedFileError(filename);
   }
 
-  const canonicalRows = resolveParserRows(detectedFileType, fileBuffer);
-  const sourceDetection = inferSourceKind(canonicalRows, { filename, requestedImportSource });
+  const parsedResult = await resolveParsedFile(detectedFileType, {
+    fileBuffer,
+    filePassword,
+    filename,
+    contentType,
+  });
+  const canonicalRows = Array.isArray(parsedResult?.rows) ? parsedResult.rows : Array.isArray(parsedResult) ? parsedResult : [];
+
+  if (canonicalRows.length === 0) {
+    throw new Error("Nao foi possivel localizar transacoes validas no arquivo.");
+  }
+
+  const sourceDetection = inferSourceKind(canonicalRows, {
+    filename,
+    requestedImportSource,
+    issuerName: parsedResult?.metadata?.issuerName ?? null,
+  });
   const csvBuffer = serializeCanonicalRowsToCsv(canonicalRows);
   const preview = await createImportPreview({
     categories,
@@ -161,25 +208,43 @@ export async function createUniversalImportPreview({
     filePassword: undefined,
     filename: String(filename ?? "importacao.csv").replace(/\.[^.]+$/, ".csv"),
     historicalRows,
-    importSource: sourceDetection.sourceKind,
+    importSource:
+      sourceDetection.sourceKind === "credit_card_statement"
+        ? "credit_card_statement"
+        : "bank_statement",
     recurringRules,
     userId,
   });
 
-  preview.items.forEach((item, index) => {
-    item.sourceRow = canonicalRows[index]?.sourceRow ?? item.sourceRow;
+  preview.items.forEach((item) => {
     if (!bankConnectionId) {
       item.bankConnectionId = "";
       item.bankConnectionName = "Conta a definir";
     }
   });
 
-  return enrichPreviewResponse(preview, {
-    detectedFileType,
-    detectedSourceKind: sourceDetection.sourceKind,
-    sourceKindConfidence: sourceDetection.confidence,
-    selectedBankConnectionId: bankConnectionId,
-    filename,
-    warnings: sourceDetection.warnings,
-  });
+  return enrichPreviewResponse(
+    preview,
+    {
+      parserId: parsedResult?.parserId ?? PARSERS[detectedFileType].parserId,
+      parserLabel: parsedResult?.parserLabel ?? PARSERS[detectedFileType].parserLabel,
+      detectedFileType,
+      detectedSourceKind: sourceDetection.sourceKind,
+      sourceKindConfidence: parsedResult?.sourceKindConfidence ?? sourceDetection.confidence,
+      selectedBankConnectionId: bankConnectionId,
+      filename,
+      institutionName: parsedResult?.metadata?.issuerName ?? null,
+      accountHint:
+        parsedResult?.accountHint ??
+        parsedResult?.rows?.find((row) => row.bankAccountHint)?.bankAccountHint?.accountId ??
+        null,
+      statementReferenceMonth: parsedResult?.metadata?.statementReferenceMonth ?? null,
+      statementDueDate: parsedResult?.metadata?.statementDueDate ?? null,
+      warnings: [
+        ...(parsedResult?.warnings ?? []),
+        ...sourceDetection.warnings,
+      ],
+    },
+    canonicalRows,
+  );
 }

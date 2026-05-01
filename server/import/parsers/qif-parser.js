@@ -14,7 +14,7 @@ export function parseQifBuffer(fileBuffer) {
 
     if (line === "^") {
       const occurredOn = normalizeDateInput(current.date);
-      const description = String(current.description ?? "").trim();
+      const description = String(current.payee ?? current.description ?? current.memo ?? "").trim();
       const amount = normalizeAmountInput(current.amount);
 
       if (occurredOn && description && amount !== null) {
@@ -22,7 +22,19 @@ export function parseQifBuffer(fileBuffer) {
           occurredOn,
           description,
           amount,
-          sourceRow: current,
+          category: current.category ?? null,
+          memo: current.memo ?? null,
+          confidence: 0.9,
+          issues: [],
+          sourceRow: {
+            category: current.category ?? null,
+            memo: current.memo ?? null,
+            source: "QIF",
+          },
+          raw: {
+            source: "QIF",
+            text: current.raw ?? null,
+          },
         });
       }
 
@@ -32,15 +44,18 @@ export function parseQifBuffer(fileBuffer) {
 
     const prefix = line.charAt(0);
     const value = line.slice(1).trim();
+    current.raw = `${current.raw ?? ""}${line}\n`;
 
     if (prefix === "D") {
       current.date = value;
     } else if (prefix === "T") {
       current.amount = value;
     } else if (prefix === "P") {
-      current.description = value;
-    } else if (prefix === "M" && !current.description) {
-      current.description = value;
+      current.payee = value;
+    } else if (prefix === "M") {
+      current.memo = value;
+    } else if (prefix === "L") {
+      current.category = value;
     }
   }
 

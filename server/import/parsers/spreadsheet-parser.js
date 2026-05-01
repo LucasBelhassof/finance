@@ -1,6 +1,15 @@
 import * as XLSX from "xlsx";
 
-import { normalizeAmountInput, normalizeDateInput } from "./tabular-utils.js";
+import { normalizeTabularGrid } from "./csv-parser.js";
+
+function scoreSheet(rows) {
+  if (!rows.length) {
+    return 0;
+  }
+
+  const parsedRows = normalizeTabularGrid(rows, { source: "sheet-preview" });
+  return parsedRows.length * 4 + parsedRows.filter((row) => row.issues.length === 0).length * 2;
+}
 
 export function parseSpreadsheetBuffer(fileBuffer) {
   const workbook = XLSX.read(fileBuffer, {
@@ -8,7 +17,8 @@ export function parseSpreadsheetBuffer(fileBuffer) {
     cellDates: false,
     dense: true,
   });
-  const rows = [];
+  let bestRows = [];
+  let bestScore = -1;
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
@@ -17,30 +27,42 @@ export function parseSpreadsheetBuffer(fileBuffer) {
       continue;
     }
 
-    const jsonRows = XLSX.utils.sheet_to_json(sheet, {
+    const grid = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
       defval: "",
       raw: false,
+      blankrows: false,
     });
 
-    for (const entry of jsonRows) {
-      const occurredOn = normalizeDateInput(entry.Data ?? entry.data ?? entry.Date ?? entry.date ?? entry.occurredOn);
-      const description = String(entry.Descricao ?? entry.descricao ?? entry.Description ?? entry.description ?? entry.Historico ?? "").trim();
-      const amount = normalizeAmountInput(
-        entry.Valor ?? entry.valor ?? entry.Amount ?? entry.amount ?? entry.Debito ?? entry.Credito ?? entry.debito ?? entry.credito,
-      );
+    if (!Array.isArray(grid) || grid.length === 0) {
+      continue;
+    }
 
-      if (!occurredOn || !description || amount === null) {
-        continue;
-      }
+    const score = scoreSheet(grid);
 
-      rows.push({
-        occurredOn,
-        description,
-        amount,
-        sourceRow: { ...entry, sheetName },
-      });
+    if (score <= bestScore) {
+      continue;
+    }
+
+    const rows = normalizeTabularGrid(grid, {
+      source: sheetName,
+    }).map((row) => ({
+      ...row,
+      raw: {
+        ...row.raw,
+        source: sheetName,
+      },
+      sourceRow: {
+        ...(row.sourceRow ?? {}),
+        source: sheetName,
+      },
+    }));
+
+    if (rows.length > 0) {
+      bestRows = rows;
+      bestScore = score;
     }
   }
 
-  return rows;
+  return bestRows;
 }

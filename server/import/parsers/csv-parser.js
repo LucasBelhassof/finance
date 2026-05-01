@@ -1,25 +1,44 @@
-import { decodeTextBuffer, detectDelimiter, normalizeAmountInput, normalizeDateInput, normalizeHeaderKey, splitDelimitedLine } from "./tabular-utils.js";
+import {
+  buildIssue,
+  decodeTextBuffer,
+  detectDelimiter,
+  findHeaderRowIndex,
+  isLikelyNoiseRow,
+  normalizeAmountInput,
+  normalizeDateInput,
+  resolveHeaderIndexes,
+  splitDelimitedLine,
+} from "./tabular-utils.js";
 
-const HEADER_ALIASES = {
-  date: ["data", "date", "dt lancamento", "dt", "ocorrido em"],
-  description: ["descricao", "description", "historico", "detalhes", "titulo", "title", "memo", "narrative"],
-  amount: ["valor", "amount", "valor r$", "valor rs"],
-  debit: ["debito", "saida", "withdrawal"],
-  credit: ["credito", "entrada", "deposit"],
-  type: ["tipo", "type"],
-};
+function buildRawRow(headers, cells, rowNumber, source) {
+  if (headers.length > 0) {
+    return Object.fromEntries(headers.map((header, index) => [header || `column_${index + 1}`, cells[index] ?? ""]));
+  }
 
-function resolveColumnIndexes(headers) {
-  const normalizedHeaders = headers.map(normalizeHeaderKey);
-  const findIndex = (aliases) => normalizedHeaders.findIndex((header) => aliases.includes(header));
+  return Object.fromEntries(cells.map((cell, index) => [`column_${index + 1}`, cell ?? ""]));
+}
+
+function inferColumnIndexes(cells) {
+  const values = cells.map((cell) => String(cell ?? "").trim());
+  const dateIndex = values.findIndex((value) => normalizeDateInput(value) !== null);
+  const amountCandidates = values
+    .map((value, index) => [index, normalizeAmountInput(value)])
+    .filter(([, amount]) => amount !== null);
+  const amountIndex = amountCandidates.length > 0 ? amountCandidates[amountCandidates.length - 1][0] : -1;
+  const descriptionIndex = values.findIndex(
+    (value, index) => index !== dateIndex && index !== amountIndex && value && normalizeDateInput(value) === null && normalizeAmountInput(value) === null,
+  );
 
   return {
-    date: findIndex(HEADER_ALIASES.date),
-    description: findIndex(HEADER_ALIASES.description),
-    amount: findIndex(HEADER_ALIASES.amount),
-    debit: findIndex(HEADER_ALIASES.debit),
-    credit: findIndex(HEADER_ALIASES.credit),
-    type: findIndex(HEADER_ALIASES.type),
+    date: dateIndex,
+    description: descriptionIndex,
+    amount: amountIndex,
+    debit: -1,
+    credit: -1,
+    balance: -1,
+    type: -1,
+    currency: -1,
+    externalId: -1,
   };
 }
 
@@ -31,67 +50,123 @@ function resolveSignedAmount(cells, indexes) {
   const debit = indexes.debit >= 0 ? normalizeAmountInput(cells[indexes.debit]) : null;
   const credit = indexes.credit >= 0 ? normalizeAmountInput(cells[indexes.credit]) : null;
 
-  if (credit !== null && credit !== 0) {
+  if (credit !== null && Math.abs(credit) > 0) {
     return Math.abs(credit);
   }
 
-  if (debit !== null && debit !== 0) {
+  if (debit !== null && Math.abs(debit) > 0) {
     return -Math.abs(debit);
   }
 
   return null;
 }
 
-export function parseCsvLikeBuffer(fileBuffer) {
-  const text = decodeTextBuffer(fileBuffer);
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+function normalizeTabularRows(rows, source, options = {}) {
+  const headerRowIndex = findHeaderRowIndex(rows);
+  const headerRow = headerRowIndex >= 0 ? rows[headerRowIndex] : [];
+  const headers = headerRowIndex >= 0 ? headerRow.map((value) => String(value ?? "").trim()) : [];
+  const headerIndexes = headerRowIndex >= 0 ? resolveHeaderIndexes(headerRow) : null;
+  const dataRows = rows.slice(headerRowIndex >= 0 ? headerRowIndex + 1 : 0);
+  const output = [];
+  let previousOccurredOn = null;
 
-  if (!lines.length) {
+  dataRows.forEach((cells, index) => {
+    if (!Array.isArray(cells) || cells.every((cell) => !String(cell ?? "").trim())) {
+      return;
+    }
+
+    const columnIndexes = headerIndexes ?? inferColumnIndexes(cells);
+    const occurredOn = columnIndexes.date >= 0 ? normalizeDateInput(cells[columnIndexes.date], options) : null;
+    const description = columnIndexes.description >= 0 ? String(cells[columnIndexes.description] ?? "").trim() : "";
+    const signedAmount = resolveSignedAmount(cells, columnIndexes);
+    const issues = [];
+
+    if (signedAmount === null && isLikelyNoiseRow(cells)) {
+      return;
+    }
+
+    let finalOccurredOn = occurredOn;
+
+    if (!finalOccurredOn && previousOccurredOn && signedAmount !== null) {
+      finalOccurredOn = previousOccurredOn;
+      issues.push(buildIssue("import_inferred_date", "A data desta linha foi inferida a partir da linha anterior.", "warning"));
+    }
+
+    if (!finalOccurredOn && signedAmount === null && isLikelyNoiseRow(cells)) {
+      return;
+    }
+
+    if (!description && !finalOccurredOn && signedAmount === null) {
+      return;
+    }
+
+    if (!finalOccurredOn) {
+      finalOccurredOn = options.fallbackOccurredOn ?? new Date().toISOString().slice(0, 10);
+      issues.push(buildIssue("import_missing_date", "Nao foi possivel identificar a data original desta linha.", "warning"));
+    }
+
+    if (!description) {
+      issues.push(buildIssue("import_missing_description", "Nao foi possivel identificar a descricao original desta linha.", "warning"));
+    }
+
+    if (signedAmount === null) {
+      issues.push(buildIssue("import_missing_amount", "Nao foi possivel identificar o valor original desta linha.", "error"));
+    }
+
+    previousOccurredOn = finalOccurredOn ?? previousOccurredOn;
+
+    output.push({
+      occurredOn: finalOccurredOn,
+      description: description || `Linha ${index + 1}`,
+      amount: signedAmount ?? 0,
+      externalId: columnIndexes.externalId >= 0 ? String(cells[columnIndexes.externalId] ?? "").trim() || null : null,
+      currency: columnIndexes.currency >= 0 ? String(cells[columnIndexes.currency] ?? "").trim() || null : null,
+      balanceAfter: columnIndexes.balance >= 0 ? normalizeAmountInput(cells[columnIndexes.balance]) : null,
+      confidence: issues.length > 0 ? 0.45 : headerIndexes ? 0.92 : 0.65,
+      issues,
+      sourceRow: buildRawRow(headers, cells, index + 1, source),
+      raw: {
+        source,
+        cells,
+      },
+    });
+  });
+
+  return output;
+}
+
+export function parseCsvLikeText(text, source = "csv") {
+  const normalizedText = decodeTextBuffer(Buffer.isBuffer(text) ? text : Buffer.from(String(text ?? ""), "utf8"));
+  const lines = normalizedText.split(/\r?\n/).map((line) => line.replace(/\r/g, ""));
+
+  if (!lines.some((line) => line.trim())) {
     return [];
   }
 
-  const delimiter = detectDelimiter(lines);
-  const headers = splitDelimitedLine(lines[0], delimiter);
-  const indexes = resolveColumnIndexes(headers);
-  const hasHeader = indexes.date >= 0 || indexes.description >= 0 || indexes.amount >= 0 || indexes.debit >= 0 || indexes.credit >= 0;
-  const rows = [];
-  const startIndex = hasHeader ? 1 : 0;
+  const delimiter = detectDelimiter(lines.filter((line) => line.trim()));
+  const rows = lines
+    .map((line) => splitDelimitedLine(line, delimiter))
+    .filter((cells) => cells.some((cell) => String(cell ?? "").trim()));
 
-  for (let lineIndex = startIndex; lineIndex < lines.length; lineIndex += 1) {
-    const cells = splitDelimitedLine(lines[lineIndex], delimiter);
-    const fallbackDate = normalizeDateInput(cells[0]);
-    const fallbackDescription = String(cells[1] ?? "").trim();
-    const fallbackAmount = normalizeAmountInput(cells[2]);
-    const occurredOn = indexes.date >= 0 ? normalizeDateInput(cells[indexes.date]) : fallbackDate;
-    const description = indexes.description >= 0 ? String(cells[indexes.description] ?? "").trim() : fallbackDescription;
-    let amount = resolveSignedAmount(cells, indexes);
+  return normalizeTabularRows(rows, source);
+}
 
-    if (amount === null) {
-      amount = fallbackAmount;
-    }
+export function parseCsvLikeBuffer(fileBuffer, options = {}) {
+  const text = decodeTextBuffer(fileBuffer);
+  const lines = text.split(/\r?\n/).map((line) => line.replace(/\r/g, ""));
 
-    if (!occurredOn || !description || amount === null) {
-      continue;
-    }
-
-    const explicitType = indexes.type >= 0 ? normalizeHeaderKey(cells[indexes.type]) : "";
-    const signedAmount =
-      explicitType === "despesa" || explicitType === "expense"
-        ? -Math.abs(amount)
-        : explicitType === "receita" || explicitType === "income"
-          ? Math.abs(amount)
-          : amount;
-
-    rows.push({
-      occurredOn,
-      description,
-      amount: signedAmount,
-      sourceRow: Object.fromEntries(headers.map((header, index) => [header || `column_${index + 1}`, cells[index] ?? ""])),
-    });
+  if (!lines.some((line) => line.trim())) {
+    return [];
   }
 
-  return rows;
+  const delimiter = detectDelimiter(lines.filter((line) => line.trim()));
+  const rows = lines
+    .map((line) => splitDelimitedLine(line, delimiter))
+    .filter((cells) => cells.some((cell) => String(cell ?? "").trim()));
+
+  return normalizeTabularRows(rows, options.source ?? "csv", options);
+}
+
+export function normalizeTabularGrid(rows, options = {}) {
+  return normalizeTabularRows(rows, options.source ?? "sheet", options);
 }

@@ -18,29 +18,47 @@ export function inferSourceKind(rows = [], metadata = {}) {
     };
   }
 
-  const creditHints = ["fatura", "cartao", "credito", "mastercard", "visa"];
-  const bankHints = ["extrato", "corrente", "conta", "checking"];
   const serializedRows = rows
-    .slice(0, 60)
+    .slice(0, 80)
     .map((row) => normalizeText(`${row.description ?? ""} ${row.memo ?? ""}`))
     .join(" ");
+  const positiveRows = rows.filter((row) => Number(row.amount) > 0).length;
+  const negativeRows = rows.filter((row) => Number(row.amount) < 0).length;
+  const hasBalance = rows.some((row) => row.balanceAfter !== null && row.balanceAfter !== undefined);
   const hasInstallment = /\b\d{1,2}\/\d{1,2}\b/.test(serializedRows) || /parcela/.test(serializedRows);
-  const creditScore =
-    Number(hasInstallment) * 3 +
-    Number(creditHints.some((hint) => filename.includes(hint) || issuerName.includes(hint))) * 2;
-  const bankScore = Number(bankHints.some((hint) => filename.includes(hint) || issuerName.includes(hint))) * 2;
+  const hasBankTerms = /(pix|ted|doc|saque|transferencia|deposito|boleto)/.test(serializedRows);
+  const hasCardTerms = /(fatura|cartao|credito|compra|anuidade|limite)/.test(`${serializedRows} ${filename} ${issuerName}`);
 
-  if (creditScore > bankScore) {
+  const creditScore = Number(hasInstallment) * 3 + Number(hasCardTerms) * 2 + Number(negativeRows > 0 && positiveRows === 0);
+  const bankScore = Number(hasBankTerms) * 2 + Number(hasBalance) * 2 + Number(positiveRows > 0 && negativeRows > 0);
+
+  if (creditScore >= bankScore + 2) {
     return {
       sourceKind: "credit_card_statement",
-      confidence: Math.min(0.95, 0.55 + creditScore * 0.1),
+      confidence: Math.min(0.96, 0.56 + creditScore * 0.1),
       warnings: [],
     };
   }
 
+  if (bankScore >= creditScore + 2) {
+    return {
+      sourceKind: "bank_statement",
+      confidence: Math.min(0.94, 0.56 + bankScore * 0.08),
+      warnings: [],
+    };
+  }
+
+  if (rows.length > 0) {
+    return {
+      sourceKind: "generic_transactions",
+      confidence: 0.5,
+      warnings: ["Nao foi possivel diferenciar com seguranca entre extrato e fatura. Revise o tipo detectado no preview."],
+    };
+  }
+
   return {
-    sourceKind: "bank_statement",
-    confidence: bankScore > 0 ? 0.85 : 0.6,
-    warnings: bankScore > 0 ? [] : ["Tipo do arquivo inferido como extrato bancario. Revise antes de confirmar."],
+    sourceKind: "unknown",
+    confidence: 0.2,
+    warnings: ["Nao foi possivel inferir a origem do arquivo."],
   };
 }

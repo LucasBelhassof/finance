@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import pg from "pg";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { runMigrations } from "./migrations.js";
 import {
@@ -16,7 +16,7 @@ import {
   validateCommitLine,
 } from "./transaction-import.js";
 import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.js";
-import { createUniversalImportPreview } from "./import/index.js";
+import { createUniversalImportPreview, getUniversalPreviewSession, hasUniversalPreviewSession } from "./import/index.js";
 import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
 import { normalizeDashboardFilters, shiftDashboardDateKey } from "./dashboard-filters.js";
@@ -2665,9 +2665,102 @@ export async function previewTransactionImport(userId, fileBuffer, importSource 
   });
 }
 
+function isUniversalImportSourceKind(value) {
+  return (
+    value === "bank_statement" ||
+    value === "credit_card_statement" ||
+    value === "generic_transactions" ||
+    value === "unknown"
+  );
+}
+
+function normalizeUniversalImportSourceKind(value, fallback = "unknown") {
+  return isUniversalImportSourceKind(value) ? value : fallback;
+}
+
+function buildUniversalImportFingerprint(parts) {
+  return createHash("sha256").update(parts.filter((part) => part !== null && part !== undefined).map(String).join("|")).digest("hex");
+}
+
+function buildUniversalExternalIdSeedKey({ userId, bankConnectionId, externalId, parserId, sourceKind }) {
+  if (!externalId) {
+    return null;
+  }
+
+  return buildUniversalImportFingerprint([
+    "universal_external_id_v1",
+    userId,
+    bankConnectionId,
+    parserId ?? "unknown_parser",
+    sourceKind ?? "unknown",
+    externalId,
+  ]);
+}
+
+function buildUniversalRawFallbackSeedKey({ userId, bankConnectionId, parserId, sourceKind, rawFallbackHash }) {
+  if (!rawFallbackHash) {
+    return null;
+  }
+
+  return buildUniversalImportFingerprint([
+    "universal_raw_fallback_v1",
+    userId,
+    bankConnectionId,
+    parserId ?? "unknown_parser",
+    sourceKind ?? "unknown",
+    rawFallbackHash,
+  ]);
+}
+
+function buildUniversalDuplicateCandidates({ userId, bankConnectionId, normalizedLine, previewItem, sourceKind }) {
+  return [
+    buildUniversalExternalIdSeedKey({
+      userId,
+      bankConnectionId,
+      externalId: previewItem?.externalId ?? null,
+      parserId: previewItem?.parserId ?? null,
+      sourceKind,
+    }),
+    buildImportSeedKey(userId, normalizedLine.normalizedOccurredOn, normalizedLine.signedAmount, normalizedLine.normalizedFinalDescription),
+    buildUniversalRawFallbackSeedKey({
+      userId,
+      bankConnectionId,
+      parserId: previewItem?.parserId ?? null,
+      sourceKind,
+      rawFallbackHash: previewItem?.rawFallbackHash ?? null,
+    }),
+  ].filter(Boolean);
+}
+
+function validateUniversalCommitLine(input, categories) {
+  const normalized = validateCommitLine(input, categories);
+
+  return {
+    ...normalized,
+    sourceKind: normalizeUniversalImportSourceKind(input?.sourceKind, "unknown"),
+  };
+}
+
+function resolveUniversalCommitBankConnectionId(itemBankConnectionId, fallbackBankConnectionId) {
+  if (itemBankConnectionId === undefined || itemBankConnectionId === null || itemBankConnectionId === "") {
+    return fallbackBankConnectionId;
+  }
+
+  const bankConnectionId = Number(itemBankConnectionId);
+  return Number.isInteger(bankConnectionId) ? bankConnectionId : null;
+}
+
+function resolveUniversalCommitSession(previewToken, userId) {
+  if (!hasUniversalPreviewSession(previewToken)) {
+    return null;
+  }
+
+  return getUniversalPreviewSession(previewToken, userId);
+}
+
 export async function getTransactionImportAiSuggestions(userId, input) {
   const resolvedUserId = await requireUserId(userId);
-  const session = getPreviewSession(input.previewToken, resolvedUserId);
+  const session = resolveUniversalCommitSession(input.previewToken, resolvedUserId) ?? getPreviewSession(input.previewToken, resolvedUserId);
   const categories = await listCategories();
   const config = getImportAiConfig();
 
@@ -2739,8 +2832,7 @@ export async function getTransactionImportAiSuggestions(userId, input) {
   };
 }
 
-export async function commitTransactionImport(userId, input) {
-  const resolvedUserId = await requireUserId(userId);
+async function commitLegacyTransactionImport(resolvedUserId, input) {
   const session = getPreviewSession(input.previewToken, resolvedUserId);
   validateCommitItemsShape(input.items, session);
   const sessionItemsByRowIndex = new Map(session.items.map((item) => [item.rowIndex, item.original]));
@@ -2983,6 +3075,279 @@ export async function commitTransactionImport(userId, input) {
     failedCount,
     results,
   };
+}
+
+async function commitUniversalTransactionImport(resolvedUserId, input) {
+  const session = getUniversalPreviewSession(input.previewToken, resolvedUserId);
+  validateCommitItemsShape(input.items, session);
+  const sessionItemsByRowIndex = new Map(
+    session.items.map((item) => [item.rowIndex, { ...(item.original ?? {}), ...(item.commitData ?? {}) }]),
+  );
+  const [categories, fingerprintRows] = await Promise.all([listCategories(), listTransactionFingerprintRows(resolvedUserId)]);
+  const existingFingerprints = new Set(
+    fingerprintRows.map((row) =>
+      String(
+        row.seed_key ??
+          buildImportSeedKey(resolvedUserId, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+      ),
+    ),
+  );
+  const commitFingerprints = new Set(existingFingerprints);
+  const bankConnectionCache = new Map();
+  const results = [];
+  const allImportedTransactions = [];
+  let importedCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+  const requestedGlobalBankConnectionId = resolveUniversalCommitBankConnectionId(
+    input.bankConnectionId,
+    parseOptionalInteger(session.selectedBankConnectionId),
+  );
+
+  for (const item of input.items) {
+    try {
+      const previewItem = sessionItemsByRowIndex.get(item.rowIndex) ?? null;
+      const normalized = validateUniversalCommitLine(
+        {
+          ...item,
+          sourceKind: normalizeUniversalImportSourceKind(
+            item?.sourceKind,
+            normalizeUniversalImportSourceKind(previewItem?.sourceKind, normalizeUniversalImportSourceKind(session.detectedSourceKind, "unknown")),
+          ),
+        },
+        categories,
+      );
+      const resolvedBankConnectionId = resolveUniversalCommitBankConnectionId(
+        item.bankConnectionId,
+        resolveUniversalCommitBankConnectionId(previewItem?.selectedBankConnectionId, requestedGlobalBankConnectionId),
+      );
+
+      if (!Number.isInteger(resolvedBankConnectionId)) {
+        throw new Error("Selecione a conta ou cartao desta linha antes de confirmar a importacao.");
+      }
+
+      let bankConnection = bankConnectionCache.get(resolvedBankConnectionId);
+
+      if (bankConnection === undefined) {
+        bankConnection = await getBankConnectionById(resolvedUserId, resolvedBankConnectionId);
+        bankConnectionCache.set(resolvedBankConnectionId, bankConnection ?? null);
+      }
+
+      if (!bankConnection) {
+        throw new Error("Conta ou cartao nao encontrado para esta linha.");
+      }
+
+      if (normalized.sourceKind === "credit_card_statement" && bankConnection.account_type !== "credit_card") {
+        throw new Error("Linhas marcadas como fatura precisam usar um cartao.");
+      }
+
+      if (normalized.sourceKind === "bank_statement" && bankConnection.account_type === "credit_card") {
+        throw new Error("Linhas marcadas como extrato precisam usar uma conta nao-cartao.");
+      }
+
+      const entriesToImport = buildImportedTransactionEntries({
+        normalizedLine: normalized,
+        previewItem: previewItem
+          ? {
+              ...previewItem,
+              importSource:
+                previewItem?.isInstallment && Number.isInteger(previewItem?.installmentCount)
+                  ? "credit_card_statement"
+                  : normalized.sourceKind === "credit_card_statement" || normalized.sourceKind === "bank_statement"
+                  ? normalized.sourceKind
+                  : previewItem?.importSource ?? "generic_transactions",
+            }
+          : previewItem,
+      });
+      const entryLabelSingular = previewItem?.isInstallment ? "parcela" : "transacao";
+      const entryLabelPlural = previewItem?.isInstallment ? "parcelas" : "transacoes";
+
+      if (normalized.exclude) {
+        skippedCount += entriesToImport.length;
+        results.push({
+          rowIndex: item.rowIndex,
+          status: "skipped",
+          reason: "excluded",
+          message: `${formatImportEntryCount(entriesToImport.length, entryLabelSingular, entryLabelPlural)} removida${
+            entriesToImport.length === 1 ? "" : "s"
+          } pelo usuario.`,
+        });
+        continue;
+      }
+
+      const isInstallmentEntry =
+        Boolean(previewItem?.isInstallment) &&
+        Boolean(previewItem?.purchaseOccurredOn) &&
+        Boolean(previewItem?.normalizedPurchaseDescriptionBase) &&
+        Number.isInteger(previewItem?.installmentCount);
+      const installmentPurchaseSeedKey = isInstallmentEntry
+        ? buildInstallmentPurchaseSeedKey(
+            resolvedUserId,
+            resolvedBankConnectionId,
+            previewItem.purchaseOccurredOn,
+            previewItem.normalizedPurchaseDescriptionBase,
+            Math.abs(normalized.signedAmount),
+            Number(previewItem.installmentCount),
+          )
+        : null;
+      const importedTransactions = [];
+      let duplicateEntries = 0;
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        let installmentPurchase = null;
+
+        if (installmentPurchaseSeedKey) {
+          installmentPurchase = await getOrCreateInstallmentPurchase(
+            {
+              userId: resolvedUserId,
+              bankConnectionId: resolvedBankConnectionId,
+              categoryId: normalized.categoryId,
+              seedKey: installmentPurchaseSeedKey,
+              descriptionBase: previewItem.purchaseDescriptionBase,
+              normalizedDescriptionBase: previewItem.normalizedPurchaseDescriptionBase,
+              purchaseOccurredOn: previewItem.purchaseOccurredOn,
+              installmentCount: Number(previewItem.installmentCount),
+              amountPerInstallment: Math.abs(normalized.signedAmount),
+            },
+            client,
+          );
+        }
+
+        for (const entry of entriesToImport) {
+          const duplicateCandidates =
+            installmentPurchaseSeedKey && Number.isInteger(entry.installmentNumber)
+              ? [buildInstallmentTransactionSeedKey(resolvedUserId, installmentPurchaseSeedKey, entry.installmentNumber)]
+              : buildUniversalDuplicateCandidates({
+                  userId: resolvedUserId,
+                  bankConnectionId: resolvedBankConnectionId,
+                  normalizedLine: {
+                    ...normalized,
+                    normalizedOccurredOn: entry.occurredOn,
+                    signedAmount: entry.amount,
+                  },
+                  previewItem,
+                  sourceKind: normalized.sourceKind,
+                });
+          const seedKey = duplicateCandidates[0];
+
+          if (!normalized.ignoreDuplicate && duplicateCandidates.some((candidate) => commitFingerprints.has(candidate))) {
+            duplicateEntries += 1;
+            continue;
+          }
+
+          const transaction = await createImportedTransaction(
+            {
+              userId: resolvedUserId,
+              bankConnectionId: resolvedBankConnectionId,
+              categoryId: entry.categoryId,
+              description: entry.description,
+              amount: entry.amount,
+              occurredOn: entry.occurredOn,
+              seedKey,
+              installmentPurchaseId: installmentPurchase?.id ?? null,
+              installmentNumber: entry.installmentNumber,
+            },
+            client,
+          );
+
+          duplicateCandidates.forEach((candidate) => commitFingerprints.add(candidate));
+
+          if (!transaction) {
+            duplicateEntries += 1;
+            continue;
+          }
+
+          importedTransactions.push(transaction);
+        }
+
+        if (importedTransactions.length > 0) {
+          await upsertTransactionCategorizationRule({
+            userId: resolvedUserId,
+            matchKey: extractCategorizationMatchKey(normalized.description),
+            type: normalized.type,
+            categoryId: normalized.categoryId,
+          }, client);
+        }
+
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      if (!importedTransactions.length) {
+        skippedCount += duplicateEntries;
+        results.push({
+          rowIndex: item.rowIndex,
+          status: "skipped",
+          reason: "duplicate",
+          message:
+            duplicateEntries > 0
+              ? `${formatImportEntryCount(duplicateEntries, entryLabelSingular, entryLabelPlural)} pulada${
+                  duplicateEntries === 1 ? "" : "s"
+                } por duplicata provavel.`
+              : "Linha ja importada anteriormente.",
+        });
+        continue;
+      }
+
+      importedCount += importedTransactions.length;
+      skippedCount += duplicateEntries;
+      allImportedTransactions.push(...importedTransactions);
+      results.push({
+        rowIndex: item.rowIndex,
+        status: "imported",
+        reason: duplicateEntries > 0 ? "partial_success" : "success",
+        message:
+          duplicateEntries > 0
+            ? `${formatImportEntryCount(importedTransactions.length, entryLabelSingular, entryLabelPlural)} importada${
+                importedTransactions.length === 1 ? "" : "s"
+              } e ${formatImportEntryCount(duplicateEntries, entryLabelSingular, entryLabelPlural)} ignorada${
+                duplicateEntries === 1 ? "" : "s"
+              } por duplicata.`
+            : `${formatImportEntryCount(importedTransactions.length, entryLabelSingular, entryLabelPlural)} importada${
+                importedTransactions.length === 1 ? "" : "s"
+              } com sucesso.`,
+        transaction: importedTransactions[0],
+      });
+    } catch (error) {
+      failedCount += 1;
+      results.push({
+        rowIndex: item.rowIndex,
+        status: "failed",
+        reason: "invalid",
+        message: error instanceof Error ? error.message : "Linha invalida.",
+      });
+    }
+  }
+
+  if (results.length === 0) {
+    throw new Error("Nenhuma linha valida foi enviada para importacao.");
+  }
+
+  await reevaluateAffectedPlansForTransactions(resolvedUserId, allImportedTransactions, "transaction_imported");
+
+  return {
+    importedCount,
+    skippedCount,
+    failedCount,
+    results,
+  };
+}
+
+export async function commitTransactionImport(userId, input) {
+  const resolvedUserId = await requireUserId(userId);
+
+  if (hasUniversalPreviewSession(input?.previewToken)) {
+    return commitUniversalTransactionImport(resolvedUserId, input);
+  }
+
+  return commitLegacyTransactionImport(resolvedUserId, input);
 }
 
 export async function listSpendingByCategory(userId, filters = {}) {

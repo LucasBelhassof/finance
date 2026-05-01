@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 import { createImportPreview, MAX_IMPORT_BYTES } from "../transaction-import.js";
 import { createImportUnsupportedFileError } from "./errors.js";
 import { detectFileType } from "./file-type-detector.js";
@@ -8,7 +10,7 @@ import { parsePdfTextBuffer } from "./parsers/pdf-text-parser.js";
 import { parseQifBuffer } from "./parsers/qif-parser.js";
 import { parseSpreadsheetBuffer } from "./parsers/spreadsheet-parser.js";
 import { parseTextBuffer } from "./parsers/text-parser.js";
-import { setUniversalPreviewMetadata } from "./preview-session-store.js";
+import { setUniversalPreviewMetadata, setUniversalPreviewSession } from "./preview-session-store.js";
 import { inferSourceKind } from "./source-kind-detector.js";
 
 function formatAmount(amount) {
@@ -98,6 +100,155 @@ function resolveParsedFile(fileType, input) {
   return parser.parse(input);
 }
 
+function normalizeIssue(issue) {
+  const severity = issue?.severity === "error" ? "error" : "warning";
+  const level = issue?.level === "error" ? "error" : issue?.level === "warning" ? "warning" : severity;
+  const message = String(issue?.message ?? "").trim();
+
+  if (!message) {
+    return null;
+  }
+
+  return {
+    code: issue?.code ? String(issue.code).trim().slice(0, 80) : null,
+    level,
+    severity,
+    message: message.slice(0, 240),
+  };
+}
+
+function pickBoundedString(value, maxLength = 120) {
+  const normalized = String(value ?? "").trim();
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function buildSafeRawMetadata(canonicalRow) {
+  const raw = canonicalRow?.raw ?? {};
+  const sourceRow = canonicalRow?.sourceRow ?? {};
+  const keys = [
+    "source",
+    "sheetName",
+    "sheet",
+    "page",
+    "pageNumber",
+    "line",
+    "lineNumber",
+    "row",
+    "rowNumber",
+    "fitid",
+    "externalId",
+    "currency",
+    "accountId",
+    "bankId",
+  ];
+  const metadata = {};
+
+  for (const key of keys) {
+    const value = raw[key] ?? sourceRow[key];
+    const safeValue = pickBoundedString(value);
+
+    if (safeValue) {
+      metadata[key] = safeValue;
+    }
+  }
+
+  if (Array.isArray(raw?.cells)) {
+    metadata.columnCount = raw.cells.length;
+  }
+
+  const headerKeys = Object.keys(sourceRow)
+    .filter((key) => !["memo", "text", "raw"].includes(key))
+    .slice(0, 12);
+
+  if (headerKeys.length > 0) {
+    metadata.headerKeys = headerKeys;
+  }
+
+  return metadata;
+}
+
+function buildSafeRawFallbackHash(canonicalRow) {
+  const payload = {
+    metadata: buildSafeRawMetadata(canonicalRow),
+    rawTextHash: pickBoundedString(canonicalRow?.raw?.text)
+      ? crypto.createHash("sha256").update(String(canonicalRow.raw.text)).digest("hex")
+      : null,
+    sourceRowHash:
+      canonicalRow?.sourceRow && typeof canonicalRow.sourceRow === "object"
+        ? crypto.createHash("sha256").update(JSON.stringify(canonicalRow.sourceRow)).digest("hex")
+        : null,
+    cellsHash: Array.isArray(canonicalRow?.raw?.cells)
+      ? crypto.createHash("sha256").update(JSON.stringify(canonicalRow.raw.cells)).digest("hex")
+      : null,
+  };
+
+  return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
+function buildUniversalSession({ preview, metadata, items, canonicalRows, selectedBankConnectionId, detectedSourceKind, userId }) {
+  const expiresAtMs = Date.parse(preview.expiresAt);
+
+  return {
+    kind: "universal",
+    previewToken: preview.previewToken,
+    userId: String(userId),
+    createdAtMs: Date.now(),
+    expiresAtMs: Number.isFinite(expiresAtMs) ? expiresAtMs : Date.now() + 15 * 60 * 1000,
+    parserId: metadata.parserId,
+    parserLabel: metadata.parserLabel,
+    detectedFileType: metadata.detectedFileType,
+    detectedSourceKind,
+    selectedBankConnectionId,
+    filename: metadata.filename ?? null,
+    institutionName: metadata.institutionName ?? null,
+    accountHint: metadata.accountHint ?? null,
+    fileMetadata: preview.fileMetadata ?? {},
+    warnings: Array.isArray(metadata.warnings) ? metadata.warnings : [],
+    items: items.map((item, index) => {
+      const canonicalRow = canonicalRows[index] ?? null;
+      const normalizedIssues = (item.issues ?? []).map(normalizeIssue).filter(Boolean);
+
+      return {
+        rowIndex: item.rowIndex,
+        original: { ...item },
+        aiSuggestion: null,
+        commitData: {
+          rowIndex: item.rowIndex,
+          occurredOn: item.occurredOn ?? canonicalRow?.occurredOn ?? null,
+          description: item.description ?? canonicalRow?.description ?? null,
+          amount: item.amount ?? canonicalRow?.amount ?? null,
+          signedAmount: item.signedAmount ?? canonicalRow?.amount ?? null,
+          type: item.type ?? (Number(canonicalRow?.amount) < 0 ? "expense" : "income"),
+          sourceKind: item.sourceKind ?? detectedSourceKind ?? "unknown",
+          suggestedCategoryId: item.suggestedCategoryId ?? null,
+          selectedBankConnectionId:
+            item.bankConnectionId === "" || item.bankConnectionId === undefined || item.bankConnectionId === null
+              ? selectedBankConnectionId ?? null
+              : Number(item.bankConnectionId),
+          defaultExclude: Boolean(item.defaultExclude),
+          possibleDuplicate: Boolean(item.possibleDuplicate),
+          duplicateReason: item.possibleDuplicate ? "preview_duplicate" : null,
+          externalId: canonicalRow?.externalId ? String(canonicalRow.externalId) : null,
+          confidence: typeof item.confidence === "number" ? item.confidence : null,
+          issues: normalizedIssues,
+          rawMetadata: buildSafeRawMetadata(canonicalRow),
+          rawFallbackHash: buildSafeRawFallbackHash(canonicalRow),
+          isInstallment: Boolean(item.isInstallment),
+          purchaseOccurredOn: item.purchaseOccurredOn ?? null,
+          purchaseDescriptionBase: item.purchaseDescriptionBase ?? null,
+          normalizedPurchaseDescriptionBase: item.normalizedPurchaseDescriptionBase ?? null,
+          installmentIndex: Number.isInteger(Number(item.installmentIndex)) ? Number(item.installmentIndex) : null,
+          installmentCount: Number.isInteger(Number(item.installmentCount)) ? Number(item.installmentCount) : null,
+          generatedInstallmentCount:
+            Number.isInteger(Number(item.generatedInstallmentCount)) ? Number(item.generatedInstallmentCount) : null,
+          parserId: metadata.parserId,
+          parserLabel: metadata.parserLabel,
+        },
+      };
+    }),
+  };
+}
+
 function enrichPreviewResponse(preview, metadata, canonicalRows) {
   const items = preview.items.map((item, index) => {
     const canonicalRow = canonicalRows[index];
@@ -118,6 +269,7 @@ function enrichPreviewResponse(preview, metadata, canonicalRows) {
       ],
       confidence: typeof canonicalRow?.confidence === "number" ? canonicalRow.confidence : item.possibleDuplicate ? 0.55 : 0.85,
       externalId: canonicalRow?.externalId ?? null,
+      rawMetadata: buildSafeRawMetadata(canonicalRow),
     };
   });
 
@@ -126,7 +278,7 @@ function enrichPreviewResponse(preview, metadata, canonicalRows) {
   const warningRows = items.filter((item) => item.issues.some((issue) => issue.level === "warning")).length;
   const errorRows = items.filter((item) => item.issues.some((issue) => issue.level === "error")).length;
 
-  return {
+  const response = {
     ...preview,
     items,
     parserId: metadata.parserId,
@@ -150,6 +302,21 @@ function enrichPreviewResponse(preview, metadata, canonicalRows) {
       actionRequiredRows: items.filter((item) => item.issues.length > 0 || item.requiresUserAction).length,
     },
   };
+
+  setUniversalPreviewSession(
+    preview.previewToken,
+    buildUniversalSession({
+      preview: response,
+      metadata,
+      items,
+      canonicalRows,
+      selectedBankConnectionId: metadata.selectedBankConnectionId ?? null,
+      detectedSourceKind: metadata.detectedSourceKind,
+      userId: metadata.userId,
+    }),
+  );
+
+  return response;
 }
 
 export async function createUniversalImportPreview({
@@ -244,6 +411,7 @@ export async function createUniversalImportPreview({
         ...(parsedResult?.warnings ?? []),
         ...sourceDetection.warnings,
       ],
+      userId,
     },
     canonicalRows,
   );

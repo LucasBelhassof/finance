@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { BankItem, CategoryItem, ImportPreviewItem, ImportReviewDraft, ImportSourceKind } from "@/types/api";
+import type { BankItem, CategoryItem, ImportPreviewItem, ImportReviewDraft } from "@/types/api";
 
 export type ImportTransactionCardRow = {
   key: string;
@@ -32,17 +32,6 @@ type ImportTransactionCardProps = {
   onOpenCreateCategory: () => void;
 };
 
-function buildBankOptions(banks: BankItem[], sourceKind: ImportSourceKind) {
-  if (sourceKind === "credit_card_statement") {
-    return banks.filter((bank) => bank.accountType === "credit_card");
-  }
-
-  if (sourceKind === "bank_statement") {
-    return banks.filter((bank) => bank.accountType !== "credit_card");
-  }
-
-  return banks;
-}
 
 function StatusDot({ row, compact }: { row: ImportTransactionCardRow; compact?: boolean }) {
   const configs = {
@@ -78,11 +67,9 @@ export default function ImportTransactionCard({
 }: ImportTransactionCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { draft, item } = row;
-  const sourceKind = draft.sourceKind ?? item.sourceKind;
   const filteredCategories = categories.filter(
     (category) => draft.type !== "unknown" && category.transactionType === draft.type,
   );
-  const bankOptions = buildBankOptions(banks, sourceKind);
   const categoryValue = String(draft.categoryId ?? "");
   const allIssues = [
     ...row.frontendErrors.map((message) => ({ kind: "error" as const, message })),
@@ -218,26 +205,6 @@ export default function ImportTransactionCard({
               </div>
 
               <div className="space-y-1">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Fonte</p>
-                <Select
-                  value={sourceKind}
-                  onValueChange={(value: ImportSourceKind) =>
-                    onChange({ sourceKind: value, bankConnectionId: "" })
-                  }
-                >
-                  <SelectTrigger className="h-9 rounded-xl border-border/50 bg-secondary/30">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bank_statement">Extrato bancário</SelectItem>
-                    <SelectItem value="credit_card_statement">Fatura de cartão</SelectItem>
-                    <SelectItem value="generic_transactions">Transações genéricas</SelectItem>
-                    <SelectItem value="unknown">Indefinido</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Categoria</p>
                 <Select
                   value={categoryValue || undefined}
@@ -262,25 +229,6 @@ export default function ImportTransactionCard({
                 <Button type="button" variant="ghost" size="sm" className="h-6 px-0 text-xs" onClick={onOpenCreateCategory}>
                   + Nova categoria
                 </Button>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Conta / cartão</p>
-                <Select
-                  value={String(draft.bankConnectionId ?? "")}
-                  onValueChange={(value) => onChange({ bankConnectionId: value })}
-                >
-                  <SelectTrigger className="h-9 rounded-xl border-border/50 bg-secondary/30">
-                    <SelectValue placeholder="Selecionar conta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankOptions.map((bank) => (
-                      <SelectItem key={bank.id} value={String(bank.id)}>
-                        {bank.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="space-y-1 sm:col-span-2">

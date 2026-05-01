@@ -1,8 +1,7 @@
-import { CheckCircle2, FileSpreadsheet, FolderUp, Info, Loader2, Search, Upload } from "lucide-react";
+import { CheckCircle2, FileSpreadsheet, Info, Loader2, Search, Upload } from "lucide-react";
 import { type ChangeEvent, type DragEvent, type KeyboardEvent, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import ImportTransactionCard, { type ImportTransactionCardRow } from "@/components/transactions/ImportTransactionCard";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ColorField } from "@/components/ui/color-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -464,6 +463,11 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       return;
     }
 
+    if (!state.globalBankConnectionId) {
+      toast.error("Selecione uma conta ou cartão antes de gerar o preview.");
+      return;
+    }
+
     dispatch({ type: "set-step", value: "processing" });
 
     try {
@@ -603,7 +607,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[92vh] max-w-[92vw] flex-col overflow-hidden p-0 sm:max-w-6xl">
+        <DialogContent className={cn(
+          "flex max-h-[90vh] flex-col overflow-hidden p-0",
+          state.step === "upload" || state.step === "processing" ? "sm:max-w-2xl" : "h-[92vh] max-w-[92vw] sm:max-w-6xl",
+        )}>
           <div className="border-b border-border/70 px-5 py-3">
             <DialogHeader>
               <DialogTitle>Importar transações</DialogTitle>
@@ -615,70 +622,50 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
           <div className="min-h-0 flex-1 overflow-hidden px-4 py-3">
             {state.step === "upload" ? (
-              <div className="grid h-full gap-5 lg:grid-cols-[1.5fr,0.9fr]">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {/* Dropzone */}
                 <div
                   role="button"
                   tabIndex={0}
                   data-testid="import-file-dropzone"
                   className={cn(
-                    "flex min-h-[320px] cursor-pointer flex-col items-center justify-center gap-4 rounded-[28px] border border-dashed px-8 text-center transition-colors",
-                    dragActive ? "border-primary bg-primary/5" : "border-border/70 bg-secondary/15",
+                    "flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border border-dashed px-6 py-8 text-center transition-colors",
+                    dragActive ? "border-primary bg-primary/5" : "border-border/60 bg-secondary/10",
                   )}
                   onClick={openFilePicker}
                   onKeyDown={handleDropzoneKeyDown}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setDragActive(true);
-                  }}
+                  onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
                   onDragLeave={() => setDragActive(false)}
                   onDrop={handleFileDrop}
                 >
+                  <div className="rounded-full bg-primary/10 p-4 text-primary">
+                    <FileSpreadsheet className="h-10 w-10" />
+                  </div>
+
                   {state.selectedFile ? (
                     <>
-                      <div className="rounded-full bg-primary/10 p-4 text-primary">
-                        <FileSpreadsheet className="h-12 w-12" />
+                      <div className="flex w-full items-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2.5">
+                        <div className="min-w-0 flex-1 text-left">
+                          <p className="truncate text-sm font-medium text-foreground">{state.selectedFile.name}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(state.selectedFile.size)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                          onClick={(event) => { event.stopPropagation(); dispatch({ type: "set-file", file: null }); }}
+                          aria-label="Remover arquivo"
+                        >
+                          ✕
+                        </button>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-base font-semibold text-foreground">{state.selectedFile.name}</p>
-                        <p className="text-sm text-muted-foreground">{formatFileSize(state.selectedFile.size)}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-xl text-xs text-muted-foreground hover:text-destructive"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          dispatch({ type: "set-file", file: null });
-                        }}
-                      >
-                        Remover arquivo
-                      </Button>
+                      <p className="text-xs text-muted-foreground underline-offset-2 hover:underline">Trocar arquivo</p>
                     </>
                   ) : (
                     <>
-                      <div className="rounded-full bg-primary/10 p-4 text-primary">
-                        <FileSpreadsheet className="h-12 w-12" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">Arraste o arquivo aqui</p>
+                        <p className="text-xs text-muted-foreground">ou clique para selecionar</p>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-xl font-semibold text-foreground">Arraste o arquivo aqui ou selecione manualmente</p>
-                        <p className="max-w-xl text-sm text-muted-foreground">
-                          O preview universal detecta o tipo do arquivo, normaliza as transações e destaca linhas que precisam de revisão.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="rounded-xl"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openFilePicker();
-                        }}
-                      >
-                        <FolderUp className="mr-2 h-4 w-4" />
-                        Selecionar arquivo
-                      </Button>
                       <p className="text-xs text-muted-foreground">
                         {["CSV", "Excel", "OFX", "QIF", "PDF", "TXT", "JSON"].join(" · ")}
                       </p>
@@ -688,103 +675,100 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                 <Input ref={inputRef} data-testid="import-file-input" type="file" className="hidden" onChange={handleFileChange} />
 
                 {/* Config column */}
-                <div className="flex flex-col justify-between rounded-[28px] border border-border/70 bg-background/70 p-5">
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-lg font-semibold text-foreground">Configuração da importação</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Defina a conta padrão agora ou ajuste por linha no preview.</p>
+                <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-background/70 p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Configuração da importação</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Selecione a conta ou cartão de destino.</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Conta ou cartão padrão <span className="text-destructive">*</span>
+                    </p>
+                    <Select value={state.globalBankConnectionId} onValueChange={(value) => dispatch({ type: "set-global-bank", value })}>
+                      <SelectTrigger className={cn("h-9 rounded-xl text-sm", !state.globalBankConnectionId && "border-destructive/50")}>
+                        <SelectValue placeholder="Selecione uma conta ou cartão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(() => {
+                          const accounts = banks.filter((b) => b.accountType === "bank_account");
+                          const cards = banks.filter((b) => b.accountType === "credit_card");
+                          const cash = banks.filter((b) => b.accountType === "cash");
+                          return (
+                            <>
+                              {accounts.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel className="flex items-center gap-1.5">
+                                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">Conta bancária</span>
+                                  </SelectLabel>
+                                  {accounts.map((bank) => (
+                                    <SelectItem key={bank.id} value={String(bank.id)}>{bank.name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
+                              {cards.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel className="flex items-center gap-1.5">
+                                    <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">Cartão de crédito</span>
+                                  </SelectLabel>
+                                  {cards.map((bank) => (
+                                    <SelectItem key={bank.id} value={String(bank.id)}>{bank.name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
+                              {cash.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel className="flex items-center gap-1.5">
+                                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-500">Caixa</span>
+                                  </SelectLabel>
+                                  {cash.map((bank) => (
+                                    <SelectItem key={bank.id} value={String(bank.id)}>{bank.name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {showPasswordField ? (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Senha do PDF</p>
+                      <Input
+                        ref={passwordInputRef}
+                        value={state.filePassword}
+                        onChange={(event) => dispatch({ type: "set-password", value: event.target.value })}
+                        placeholder="Senha do arquivo"
+                        className="h-9 rounded-xl text-sm"
+                      />
                     </div>
+                  ) : null}
 
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-foreground">Conta ou cartão padrão</p>
-                      <Select value={state.globalBankConnectionId} onValueChange={(value) => dispatch({ type: "set-global-bank", value })}>
-                        <SelectTrigger className="h-11 rounded-xl">
-                          <SelectValue placeholder="Definir depois no preview" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(() => {
-                            const accounts = banks.filter((b) => b.accountType === "bank_account");
-                            const cards = banks.filter((b) => b.accountType === "credit_card");
-                            const cash = banks.filter((b) => b.accountType === "cash");
-                            return (
-                              <>
-                                {accounts.length > 0 && (
-                                  <SelectGroup>
-                                    <SelectLabel className="flex items-center gap-1.5">
-                                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">Conta bancária</span>
-                                    </SelectLabel>
-                                    {accounts.map((bank) => (
-                                      <SelectItem key={bank.id} value={String(bank.id)}>
-                                        {bank.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                )}
-                                {cards.length > 0 && (
-                                  <SelectGroup>
-                                    <SelectLabel className="flex items-center gap-1.5">
-                                      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">Cartão de crédito</span>
-                                    </SelectLabel>
-                                    {cards.map((bank) => (
-                                      <SelectItem key={bank.id} value={String(bank.id)}>
-                                        {bank.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                )}
-                                {cash.length > 0 && (
-                                  <SelectGroup>
-                                    <SelectLabel className="flex items-center gap-1.5">
-                                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-500">Caixa</span>
-                                    </SelectLabel>
-                                    {cash.map((bank) => (
-                                      <SelectItem key={bank.id} value={String(bank.id)}>
-                                        {bank.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </SelectContent>
-                      </Select>
+                  <div className="rounded-xl border border-border/50 bg-secondary/20 px-3 py-2.5">
+                    <div className="flex items-start gap-2">
+                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">
+                        Linhas ambíguas ou com baixa confiança permanecem no preview. Nada é importado silenciosamente.
+                      </p>
                     </div>
+                  </div>
 
-                    {showPasswordField ? (
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-foreground">Senha do PDF</p>
-                        <p className="text-sm text-muted-foreground">Preencha apenas se o arquivo estiver protegido por senha.</p>
-                        <Input
-                          ref={passwordInputRef}
-                          value={state.filePassword}
-                          onChange={(event) => dispatch({ type: "set-password", value: event.target.value })}
-                          placeholder="Digite a senha do PDF"
-                          className="h-11 rounded-xl"
-                        />
-                      </div>
-                    ) : null}
-
-                    <Alert>
-                      <Info className="h-4 w-4" />
-                      <AlertDescription className="space-y-2 text-sm">
-                        <p>Linhas ambíguas ficam no preview. Nada é importado silenciosamente.</p>
-                        <ul className="mt-2 space-y-1 text-muted-foreground">
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                            Detecta formato automaticamente
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                            Normaliza datas, valores e descrições
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                            Você revisa tudo antes de confirmar
-                          </li>
-                        </ul>
-                      </AlertDescription>
-                    </Alert>
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Como funciona</p>
+                    <ul className="space-y-1">
+                      {[
+                        "Detecta o formato do arquivo",
+                        "Normaliza datas, valores e descrições",
+                        "Você revisa antes de confirmar",
+                      ].map((label) => (
+                        <li key={label} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          {label}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>

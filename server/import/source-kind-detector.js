@@ -52,13 +52,13 @@ export function inferSourceKind(rows = [], metadata = {}) {
     return {
       sourceKind: "generic_transactions",
       confidence: 0.5,
-      warnings: ["Nao foi possivel diferenciar com seguranca entre extrato e fatura. Revise o tipo detectado no preview."],
+      warnings: [],
     };
   }
 
   return {
     sourceKind: "unknown",
     confidence: 0.2,
-    warnings: ["Nao foi possivel inferir a origem do arquivo."],
+    warnings: [],
   };
 }

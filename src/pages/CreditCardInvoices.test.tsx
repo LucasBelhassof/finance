@@ -9,8 +9,8 @@ import type { InvoicesData, InvoiceFilters } from "@/types/api";
 
 const mockUseInvoices = vi.fn();
 const mockUpdateSettings = vi.fn();
-const mockUpdateTransaction = vi.fn();
-const mockDeleteTransaction = vi.fn();
+const mockMarkInvoicePaid = vi.fn();
+const mockUnmarkInvoicePaid = vi.fn();
 
 vi.mock("@/hooks/use-invoices", () => ({
   useInvoices: (...args: unknown[]) => mockUseInvoices(...args),
@@ -18,30 +18,19 @@ vi.mock("@/hooks/use-invoices", () => ({
     mutateAsync: mockUpdateSettings,
     isPending: false,
   }),
+  useMarkInvoicePaid: () => ({
+    mutateAsync: mockMarkInvoicePaid,
+    isPending: false,
+  }),
+  useUnmarkInvoicePaid: () => ({
+    mutateAsync: mockUnmarkInvoicePaid,
+    isPending: false,
+  }),
 }));
 
 vi.mock("@/hooks/use-transactions", () => ({
   useCategories: () => ({
-    data: [
-      {
-        id: 7,
-        label: "Mercado",
-        transactionType: "expense",
-      },
-      {
-        id: 8,
-        label: "Saude",
-        transactionType: "expense",
-      },
-    ],
-  }),
-  useUpdateTransaction: () => ({
-    mutateAsync: mockUpdateTransaction,
-    isPending: false,
-  }),
-  useDeleteTransaction: () => ({
-    mutateAsync: mockDeleteTransaction,
-    isPending: false,
+    data: [],
   }),
 }));
 
@@ -150,6 +139,7 @@ function createInvoicesData(overrides: Partial<InvoicesData> = {}): InvoicesData
         closingDate: "2026-04-10",
         dueDate: "2026-04-20",
         status: "closed",
+        isPaid: false,
         totalAmount: 120,
         formattedTotalAmount: "R$ 120,00",
         transactionCount: 1,
@@ -212,8 +202,8 @@ describe("CreditCardInvoicesPage", () => {
   afterEach(() => {
     mockUseInvoices.mockReset();
     mockUpdateSettings.mockReset();
-    mockUpdateTransaction.mockReset();
-    mockDeleteTransaction.mockReset();
+    mockMarkInvoicePaid.mockReset();
+    mockUnmarkInvoicePaid.mockReset();
   });
 
   it("renders empty state with the current month applied by default", () => {
@@ -294,34 +284,20 @@ describe("CreditCardInvoicesPage", () => {
     });
   });
 
-  it("expands invoice cards and updates transaction category", async () => {
+  it("expands invoice cards and shows transaction details", async () => {
     mockUseInvoices.mockReturnValue({
       data: createInvoicesData(),
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
     });
-    mockUpdateTransaction.mockResolvedValue({});
 
     renderPage();
 
     expect(screen.getByText("Abril de 2026")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Expandir fatura Nubank/ }));
     expect(screen.getAllByText("Mercado").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Configurar cartão" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getAllByRole("combobox").at(-1)!);
-    fireEvent.click(await screen.findByRole("option", { name: "Saude" }));
-
-    await waitFor(() => {
-      expect(mockUpdateTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 101,
-          categoryId: "8",
-          bankConnectionId: 2,
-        }),
-      );
-    });
+    expect(screen.getByRole("button", { name: "Configurar" })).toBeInTheDocument();
   });
 
   it("sends settings modal payload", async () => {
@@ -336,7 +312,7 @@ describe("CreditCardInvoicesPage", () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /Expandir fatura Nubank/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Configurar cartão" }));
+    fireEvent.click(screen.getByRole("button", { name: "Configurar" }));
     fireEvent.click(screen.getByRole("button", { name: "Salvar ajustes" }));
 
     await waitFor(() => {
@@ -351,26 +327,23 @@ describe("CreditCardInvoicesPage", () => {
     });
   });
 
-  it("deletes transaction rows through the existing mutation", async () => {
+  it("shows mark as paid button for closed invoices", async () => {
     mockUseInvoices.mockReturnValue({
       data: createInvoicesData(),
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
     });
-    mockDeleteTransaction.mockResolvedValue({});
+    mockMarkInvoicePaid.mockResolvedValue({});
 
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /Expandir fatura Nubank/ }));
-    fireEvent.click(screen.getByLabelText("Excluir despesa"));
-    fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
+    expect(screen.getByRole("button", { name: "Marcar fatura como paga" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Marcar fatura como paga" }));
 
     await waitFor(() => {
-      expect(mockDeleteTransaction).toHaveBeenCalledWith({
-        id: 101,
-        occurredOn: "2026-04-09",
-      });
+      expect(mockMarkInvoicePaid).toHaveBeenCalledWith({ cardId: 2, periodEnd: "2026-04-10" });
     });
   });
 });

@@ -12,6 +12,7 @@ import {
   postCategory,
   postTransaction,
   previewTransactionImport,
+  previewUniversalTransactionImport,
 } from "@/lib/api";
 import { insightsQueryKey, spendingQueryKey } from "@/hooks/use-insights";
 import { plansQueryKey } from "@/hooks/use-plans";
@@ -222,12 +223,35 @@ export function usePreviewTransactionImport() {
   });
 }
 
+export function useUniversalImportPreview() {
+  return useMutation({
+    mutationFn: ({
+      file,
+      bankConnectionId,
+      importSource,
+      filePassword,
+    }: {
+      file: File;
+      bankConnectionId?: number | string;
+      importSource?: "bank_statement" | "credit_card_statement";
+      filePassword?: string;
+    }) => previewUniversalTransactionImport(file, { bankConnectionId, importSource, filePassword }),
+  });
+}
+
 export function useCommitTransactionImport() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ previewToken, items }: { previewToken: string; items: ImportCommitItem[] }) =>
-      commitTransactionImport(previewToken, items),
+    mutationFn: ({
+      previewToken,
+      items,
+      bankConnectionId,
+    }: {
+      previewToken: string;
+      items: ImportCommitItem[];
+      bankConnectionId?: number | string;
+    }) => commitTransactionImport(previewToken, items, { bankConnectionId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey() });
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });

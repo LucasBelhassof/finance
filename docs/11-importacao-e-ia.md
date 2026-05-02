@@ -1,147 +1,79 @@
-# 11. Importação e IA
+# 11. Importacao e IA
 
-## Visão geral
+## Visao geral
 
-O fluxo de importação foi desenhado para reduzir erro manual sem comprometer segurança do dado. Ele é dividido em três etapas:
+O importador trabalha em tres etapas:
 
 1. preview
-2. sugestão de IA opcional
+2. sugestao de IA opcional
 3. commit
+
+O rebuild universal preserva o fluxo antigo de preview/commit, mas agora aceita multiplos formatos e nao exige escolha previa de `importSource` antes do upload.
 
 ## Endpoints
 
+- `POST /api/transactions/import/universal-preview`
 - `POST /api/transactions/import/preview`
 - `POST /api/transactions/import/ai-suggestions`
 - `POST /api/transactions/import/commit`
 
-## Fontes suportadas
+## Formatos suportados
 
-- `bank_statement`
-- `credit_card_statement`
+- CSV / TSV
+- PDF com texto selecionavel
+- XLSX / XLS
+- OFX
+- QIF
+- JSON
+- TXT estruturado
 
-## Preview
+## Regras de preview
 
-### Validações iniciais
+- a conta global passou a ser opcional
+- quando uma conta e informada, ela precisa pertencer ao usuario autenticado
+- o backend infere `bank_statement` ou `credit_card_statement` e devolve a confianca dessa inferencia
+- o endpoint legado `/api/transactions/import/preview` continua funcionando e delega ao pipeline universal
 
-- conta precisa existir e pertencer ao usuário
-- extrato de cartão exige `account_type = credit_card`
-- extrato bancário exige `account_type = bank_account`
+## Sessao de preview
 
-### Sessão de preview
-
-O preview é mantido em memória por `previewSessions` com TTL de 15 minutos.
+- o preview principal continua em memoria com TTL de 15 minutos
+- o fluxo universal adiciona metadados leves por token, como `detectedFileType`, `detectedSourceKind` e `selectedBankConnectionId`
+- o arquivo bruto nao e persistido na sessao
 
 ## Parsing
 
-### CSV
+- CSV/TSV continuam usando normalizacao tabular com aliases de cabecalho
+- XLSX/XLS, OFX, QIF, JSON e TXT sao normalizados para o mesmo contrato interno do preview
+- PDFs continuam usando `pdf-parse`
+- OCR continua fora de escopo; PDF sem texto selecionavel deve falhar com erro explicito
 
-O parser tenta:
+## Parcelamentos e dedupe
 
-- UTF-8
-- fallback para Latin-1
+- a deteccao de parcelamento e mantida
+- o commit continua criando `installment_purchases` e `transactions` derivadas quando aplicavel
+- a deduplicidade continua baseada em `buildImportSeedKey`, `buildInstallmentPurchaseSeedKey` e `buildInstallmentTransactionSeedKey`
 
-Também normaliza aliases de cabeçalho para:
+## IA
 
-- data
-- descrição
-- valor
-- débito
-- crédito
-
-### PDF
-
-Há suporte a parsing de PDF por `pdf-parse`, incluindo detecção de emissor e referência temporal da fatura.
-
-## Detecção de parcelamento
-
-`extractInstallmentMetadata` reconhece padrões como:
-
-- `Parcela 3/10`
-- `10/12`
-
-Quando detectado:
-
-- o preview pode expandir parcelas futuras
-- o commit cria `installment_purchases` e `transactions` derivadas
-
-## Deduplicidade
-
-O sistema usa fingerprints estáveis:
-
-- `buildImportSeedKey`
-- `buildInstallmentPurchaseSeedKey`
-- `buildInstallmentTransactionSeedKey`
-
-No commit:
-
-- fingerprints já existentes são carregados do banco
-- o lote atual mantém um conjunto local de fingerprints
-- itens duplicados podem ser pulados automaticamente
-
-## Classificação local
-
-Antes da IA externa, o sistema tenta:
-
-1. regras recorrentes aprendidas
-2. histórico do usuário
-3. regras locais por texto
-4. sugestão de IA
-
-## Sugestões de IA
-
-O módulo `import-ai-service.js` suporta:
-
-- modo `direct`
-- modo `webhook`
-
-No modo `direct`, o provider pode ser:
-
-- OpenAI
-- Gemini
-
-## Contrato exigido da IA
-
-A IA não devolve categoria livre. Ela devolve:
-
-- `rowIndex`
-- `suggestedType`
-- `categoryKey`
-- `confidence`
-- `reason`
-- `status`
-
-E sempre precisa respeitar a whitelist enviada pela aplicação.
+- a IA continua rodando somente depois da extracao e do preview
+- o backend envia apenas contexto normalizado das linhas, nunca o arquivo bruto
+- a IA continua restrita a sugerir tipo/categoria dentro da whitelist da aplicacao
 
 ## Commit
 
-`commitTransactionImport`:
+`commitTransactionImport` agora:
 
-1. recupera sessão de preview
-2. valida shape do payload
-3. carrega categorias e fingerprints atuais
-4. importa linha por linha
-5. aprende regra de categorização quando apropriado
+1. recupera a sessao de preview
+2. valida o shape do payload
+3. resolve conta global opcional e override por linha
+4. respeita `sourceKind` por linha quando o usuario corrige extrato vs fatura
+5. preserva dedupe, parcelamentos e aprendizagem de categoria
 
-## Resultado
+## Integracao com frontend
 
-O retorno informa:
+Hooks principais:
 
-- `importedCount`
-- `skippedCount`
-- `failedCount`
-- `results[]` por linha
-
-## Integração com frontend
-
-Hooks:
-
-- `usePreviewTransactionImport`
+- `useUniversalImportPreview`
+- `usePreviewTransactionImport` (wrapper legado)
 - `useImportAiSuggestions`
 - `useCommitTransactionImport`
-
-Após commit, o frontend invalida:
-
-- transações
-- dashboard
-- spending
-- insights

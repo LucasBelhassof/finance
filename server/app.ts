@@ -70,7 +70,8 @@ import { createBankSyncRouter } from "./modules/bank-sync/routes.js";
 import { createNotificationsRouter } from "./modules/notifications/routes.js";
 import { env } from "./shared/env.js";
 import { isHttpError, toHttpError } from "./shared/errors.js";
-import { MAX_IMPORT_BYTES, parseMultipartCsvUpload } from "./transaction-import.js";
+import { MAX_IMPORT_BYTES } from "./transaction-import.js";
+import { parseMultipartUpload } from "./import/index.js";
 
 function getAuthenticatedUserId(request: Request) {
   if (!request.auth) {
@@ -250,13 +251,38 @@ export function createApp() {
     "/api/transactions/import/preview",
     express.raw({ type: "multipart/form-data", limit: `${MAX_IMPORT_BYTES}b` }),
     async (request, response) => {
-      const upload = parseMultipartCsvUpload(request.headers["content-type"], request.body);
+      const upload = parseMultipartUpload(request.headers["content-type"], request.body);
       const importSource =
         request.query.importSource === "credit_card_statement" ? "credit_card_statement" : "bank_statement";
       const preview = await previewTransactionImport(
         getAuthenticatedUserId(request),
         upload.buffer,
         importSource,
+        request.query.bankConnectionId as string | undefined,
+        upload.filename,
+        upload.contentType,
+        upload.filePassword,
+      );
+
+      response.status(201).json(preview);
+    },
+  );
+
+  app.post(
+    "/api/transactions/import/universal-preview",
+    express.raw({ type: "multipart/form-data", limit: `${MAX_IMPORT_BYTES}b` }),
+    async (request, response) => {
+      const upload = parseMultipartUpload(request.headers["content-type"], request.body);
+      const requestedImportSource =
+        request.query.importSource === "credit_card_statement"
+          ? "credit_card_statement"
+          : request.query.importSource === "bank_statement"
+            ? "bank_statement"
+            : undefined;
+      const preview = await previewTransactionImport(
+        getAuthenticatedUserId(request),
+        upload.buffer,
+        requestedImportSource,
         request.query.bankConnectionId as string | undefined,
         upload.filename,
         upload.contentType,

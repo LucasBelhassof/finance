@@ -1,23 +1,46 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import ImportPreviewRow from "@/components/transactions/ImportPreviewRow";
 import { Table, TableBody } from "@/components/ui/table";
-import type { CategoryItem, ImportCommitItem, ImportPreviewItem } from "@/types/api";
+import type { BankItem, CategoryItem, ImportPreviewItem, ImportReviewDraft } from "@/types/api";
 
-const categories: CategoryItem[] = [
+const banks: BankItem[] = [
   {
     id: 1,
-    slug: "salario",
-    label: "Salario",
-    transactionType: "income",
-    iconName: "Wallet",
-    icon: (() => null) as never,
-    color: "text-income",
-    groupSlug: "receitas",
-    groupLabel: "Receitas",
-    groupColor: "bg-income",
+    slug: "itau",
+    name: "Itau",
+    accountType: "bank_account",
+    parentBankConnectionId: null,
+    parentAccountName: null,
+    statementCloseDay: null,
+    statementDueDay: null,
+    connected: true,
+    color: "bg-orange-500",
+    currentBalance: 0,
+    formattedBalance: "R$ 0,00",
+    creditLimit: null,
+    formattedCreditLimit: null,
   },
+  {
+    id: 9,
+    slug: "nubank",
+    name: "Nubank",
+    accountType: "credit_card",
+    parentBankConnectionId: null,
+    parentAccountName: null,
+    statementCloseDay: 1,
+    statementDueDay: 7,
+    connected: true,
+    color: "bg-purple-500",
+    currentBalance: 0,
+    formattedBalance: "R$ 0,00",
+    creditLimit: 5000,
+    formattedCreditLimit: "R$ 5.000,00",
+  },
+];
+
+const categories: CategoryItem[] = [
   {
     id: 2,
     slug: "outros-despesas",
@@ -32,18 +55,21 @@ const categories: CategoryItem[] = [
   },
 ];
 
-const incomeDraft: ImportCommitItem = {
+const draft: ImportReviewDraft = {
   rowIndex: 1,
   description: "Transferencia recebida",
   amount: "396.00",
   occurredOn: "2026-03-28",
-  type: "income",
+  type: "expense",
   categoryId: "",
+  bankConnectionId: "",
+  sourceKind: "bank_statement",
   exclude: false,
   ignoreDuplicate: false,
+  selected: false,
 };
 
-const baseItem: ImportPreviewItem = {
+const item: ImportPreviewItem = {
   rowIndex: 1,
   description: "Transferencia recebida",
   normalizedDescription: "transferencia recebida",
@@ -58,13 +84,14 @@ const baseItem: ImportPreviewItem = {
   installmentIndex: null,
   installmentCount: null,
   generatedInstallmentCount: null,
-  type: "income",
+  type: "expense",
   suggestedCategoryId: null,
   suggestedCategoryLabel: null,
   suggestionSource: null,
   importSource: "bank_statement",
-  bankConnectionId: 1,
-  bankConnectionName: "Itau",
+  sourceKind: "bank_statement",
+  bankConnectionId: "",
+  bankConnectionName: "Conta a definir",
   matchedRuleId: null,
   aiSuggestedType: null,
   aiSuggestedCategoryId: null,
@@ -75,115 +102,79 @@ const baseItem: ImportPreviewItem = {
   possibleDuplicate: true,
   duplicateReason: "Ja existe uma transacao importada com os mesmos dados.",
   canImport: false,
-  requiresCategorySelection: true,
+  requiresCategorySelection: false,
   requiresUserAction: true,
   defaultExclude: false,
-  warnings: ["Duplicata provavel encontrada."],
+  warnings: [],
   errors: [],
+  issues: [{ level: "warning", message: "Revise esta linha." }],
+  confidence: 0.4,
+  externalId: "txn-1",
+  rawMetadata: null,
 };
 
 describe("ImportPreviewRow", () => {
-  it("keeps category mandatory for income rows", () => {
+  it("shows duplicate status and issue text", () => {
     render(
       <Table>
         <TableBody>
           <ImportPreviewRow
-            draft={incomeDraft}
-            item={baseItem}
+            banks={banks}
             categories={categories}
+            row={{
+              key: "preview-1:1",
+              draft,
+              item,
+              frontendErrors: [],
+              hasError: false,
+              hasWarning: true,
+              isDuplicate: true,
+              isIgnored: false,
+              needsReview: true,
+            }}
             onChange={vi.fn()}
-            previewToken="preview-1"
+            onOpenCreateCategory={vi.fn()}
           />
         </TableBody>
       </Table>,
     );
 
-    expect(screen.getByRole("button", { name: /Duplicata na linha 1/i })).toBeInTheDocument();
+    expect(screen.getByText(/possível/i)).toBeInTheDocument();
+    expect(screen.getByText(/revise esta linha/i)).toBeInTheDocument();
+    expect(screen.getByText(/id externo: txn-1/i)).toBeInTheDocument();
   });
 
-  it("shows fallback guidance for expenses without category", () => {
+  it("emits ignore actions", () => {
+    const onChange = vi.fn();
+
     render(
       <Table>
         <TableBody>
           <ImportPreviewRow
-            draft={{ ...incomeDraft, type: "expense", categoryId: "" }}
-            item={{ ...baseItem, type: "expense", requiresCategorySelection: false, canImport: true, requiresUserAction: false }}
+            banks={banks}
             categories={categories}
-            onChange={vi.fn()}
-            previewToken="preview-1"
+            row={{
+              key: "preview-1:1",
+              draft,
+              item,
+              frontendErrors: [],
+              hasError: false,
+              hasWarning: true,
+              isDuplicate: true,
+              isIgnored: false,
+              needsReview: true,
+            }}
+            onChange={onChange}
+            onOpenCreateCategory={vi.fn()}
           />
         </TableBody>
       </Table>,
     );
 
-    expect(screen.queryByText("Categoria obrigatoria")).not.toBeInTheDocument();
-    expect(screen.getByText(/será importada como Outros/i)).toBeInTheDocument();
-  });
+    fireEvent.click(screen.getByRole("button", { name: "Ignorar" }));
 
-  it("shows history and recurring source badges from the preview", () => {
-    render(
-      <Table>
-        <TableBody>
-          <ImportPreviewRow
-            draft={{ ...incomeDraft, categoryId: 1 }}
-            item={{
-              ...baseItem,
-              suggestionSource: "history",
-              suggestedCategoryLabel: "Salario",
-            }}
-            categories={categories}
-            onChange={vi.fn()}
-            previewToken="preview-1"
-          />
-          <ImportPreviewRow
-            draft={{ ...incomeDraft, rowIndex: 2, categoryId: 1 }}
-            item={{
-              ...baseItem,
-              rowIndex: 2,
-              suggestionSource: "recurring_rule",
-              suggestedCategoryLabel: "Salario",
-            }}
-            categories={categories}
-            onChange={vi.fn()}
-            previewToken="preview-2"
-          />
-        </TableBody>
-      </Table>,
-    );
-
-    expect(screen.getByRole("button", { name: /Duplicata na linha 1/i })).toBeInTheDocument();
-    expect(screen.getByText(/Histórico do usuário: Receita - Salario/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Duplicata na linha 2/i })).toBeInTheDocument();
-    expect(screen.getByText(/Regra recorrente: Receita - Salario/i)).toBeInTheDocument();
-  });
-
-  it("shows installment expansion details when the row is parcelled", () => {
-    render(
-      <Table>
-        <TableBody>
-          <ImportPreviewRow
-            draft={{ ...incomeDraft, type: "expense", categoryId: 2 }}
-            item={{
-              ...baseItem,
-              type: "expense",
-              isInstallment: true,
-              installmentIndex: 3,
-              installmentCount: 10,
-              generatedInstallmentCount: 10,
-              canImport: true,
-              requiresCategorySelection: false,
-              requiresUserAction: false,
-            }}
-            categories={categories}
-            onChange={vi.fn()}
-            previewToken="preview-1"
-          />
-        </TableBody>
-      </Table>,
-    );
-
-    expect(screen.getByRole("button", { name: /Duplicata na linha 1/i })).toBeInTheDocument();
-    expect(screen.getByText(/Parcela detectada/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Detalhes da parcela da linha 1/i })).toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith("preview-1:1", {
+      exclude: true,
+    });
   });
 });

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
@@ -9,7 +10,7 @@ const commitMutateAsync = vi.fn();
 const createCategoryMutateAsync = vi.fn();
 
 vi.mock("@/hooks/use-transactions", () => ({
-  usePreviewTransactionImport: () => ({
+  useUniversalImportPreview: () => ({
     mutateAsync: previewMutateAsync,
     isPending: false,
   }),
@@ -23,8 +24,18 @@ vi.mock("@/hooks/use-transactions", () => ({
   }),
 }));
 
-vi.mock("@/components/transactions/ImportPreviewTable", () => ({
-  default: () => <div data-testid="import-preview-table">preview table</div>,
+vi.mock("@/components/transactions/ImportTransactionCard", () => ({
+  default: ({ row, onChange }: { row: { key: string; draft: { exclude: boolean } }; onChange: (patch: { exclude?: boolean }) => void }) => (
+    <div data-testid={`import-card:${row.key}`}>
+      <span data-testid={`row-status:${row.key}`}>{row.draft.exclude ? "ignored" : "included"}</span>
+      <button type="button" onClick={() => onChange({ exclude: true })}>
+        ignore-{row.key}
+      </button>
+      <button type="button" onClick={() => onChange({ exclude: false })}>
+        restore-{row.key}
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/ui/sonner", () => ({
@@ -34,24 +45,67 @@ vi.mock("@/components/ui/sonner", () => ({
   },
 }));
 
+vi.mock("@/components/ui/select", () => ({
+  Select: ({ value, onValueChange, children }: { value?: string; onValueChange: (v: string) => void; children: React.ReactNode }) => (
+    <select data-testid="bank-select" value={value ?? ""} onChange={(e) => onValueChange(e.target.value)}>
+      {children}
+    </select>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectLabel: () => null,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => <option value={value}>{children}</option>,
+}));
+
+const banks = [
+  {
+    id: 2,
+    slug: "itau",
+    name: "Itau",
+    accountType: "bank_account" as const,
+    parentBankConnectionId: null,
+    parentAccountName: null,
+    statementCloseDay: null,
+    statementDueDay: null,
+    connected: true,
+    color: "bg-orange-500",
+    currentBalance: 0,
+    formattedBalance: "R$ 0,00",
+    creditLimit: null,
+    formattedCreditLimit: null,
+  },
+];
+
 const previewData: ImportPreviewData = {
   previewToken: "preview-1",
   expiresAt: "2026-04-06T21:32:00.000Z",
-  importSource: "bank_statement",
+  importSource: "generic_transactions",
+  parserId: "csv-delimited",
+  parserLabel: "CSV/TSV parser",
+  detectedFileType: "csv",
+  detectedSourceKind: "generic_transactions",
+  sourceKindConfidence: 0.88,
+  institutionName: "Nubank",
+  accountHint: null,
+  selectedBankConnectionId: 2,
+  warnings: ["Revise as linhas com baixa confiança."],
   bankConnectionId: 2,
   bankConnectionName: "Caixa/Dinheiro",
   fileMetadata: {
     originalFilename: "extrato.csv",
-    issuerName: null,
+    issuerName: "Nubank",
     statementDueDate: null,
     statementReferenceMonth: null,
   },
   fileSummary: {
-    totalRows: 1,
-    importableRows: 1,
+    totalRows: 2,
+    importableRows: 2,
     errorRows: 0,
+    warningRows: 1,
     duplicateRows: 0,
-    actionRequiredRows: 0,
+    actionRequiredRows: 1,
   },
   items: [
     {
@@ -70,7 +124,8 @@ const previewData: ImportPreviewData = {
       installmentCount: null,
       generatedInstallmentCount: null,
       type: "expense",
-      importSource: "bank_statement",
+      importSource: "generic_transactions",
+      sourceKind: "generic_transactions",
       bankConnectionId: 2,
       bankConnectionName: "Caixa/Dinheiro",
       suggestedCategoryId: null,
@@ -91,6 +146,53 @@ const previewData: ImportPreviewData = {
       defaultExclude: false,
       warnings: [],
       errors: [],
+      issues: [],
+      confidence: 0.9,
+      externalId: null,
+      rawMetadata: null,
+    },
+    {
+      rowIndex: 16,
+      description: "Linha ambígua",
+      normalizedDescription: "linha ambigua",
+      purchaseDescriptionBase: null,
+      normalizedPurchaseDescriptionBase: null,
+      amount: "120.00",
+      normalizedAmount: "120.00",
+      occurredOn: "2026-03-29",
+      normalizedOccurredOn: "2026-03-29",
+      purchaseOccurredOn: null,
+      isInstallment: false,
+      installmentIndex: null,
+      installmentCount: null,
+      generatedInstallmentCount: null,
+      type: "unknown",
+      importSource: "unknown",
+      sourceKind: "unknown",
+      bankConnectionId: "",
+      bankConnectionName: "Conta a definir",
+      suggestedCategoryId: null,
+      suggestedCategoryLabel: null,
+      suggestionSource: null,
+      matchedRuleId: null,
+      aiSuggestedType: null,
+      aiSuggestedCategoryId: null,
+      aiSuggestedCategoryLabel: null,
+      aiConfidence: null,
+      aiReason: null,
+      aiStatus: "idle",
+      possibleDuplicate: false,
+      duplicateReason: "",
+      canImport: true,
+      requiresCategorySelection: false,
+      requiresUserAction: true,
+      defaultExclude: false,
+      warnings: [],
+      errors: [],
+      issues: [{ level: "warning", message: "Revisar a linha." }],
+      confidence: 0.4,
+      externalId: null,
+      rawMetadata: null,
     },
   ],
 };
@@ -109,325 +211,157 @@ describe("ImportTransactionsModal", () => {
     });
   });
 
-  it("keeps the footer accessible and does not call AI after generating preview", async () => {
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 2,
-            slug: "itau",
-            name: "Itau",
-            accountType: "bank_account",
-            parentBankConnectionId: null,
-            parentAccountName: null,
-            statementCloseDay: null,
-            statementDueDay: null,
-            connected: true,
-            color: "bg-orange-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
+  function selectBankItau() {
+    fireEvent.change(screen.getByTestId("bank-select"), { target: { value: "2" } });
+  }
 
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+  it("renders the upload state without requiring an importSource selector", () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    expect(screen.getByText("Importar transações")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /gerar preview/i })).toBeDisabled();
+    expect(screen.getByTestId("import-file-dropzone")).toBeInTheDocument();
+    expect(screen.getAllByText(/csv/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/fatura de cartão/i)).not.toBeInTheDocument();
+  });
+
+  it("opens the native file picker when clicking Selecionar arquivo", () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
+    const clickSpy = vi.spyOn(fileInput, "click").mockImplementation(() => {});
+
+    fireEvent.click(screen.getByTestId("select-file-button"));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the native file picker when clicking the dropzone container", () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
+    const clickSpy = vi.spyOn(fileInput, "click").mockImplementation(() => {});
+
+    fireEvent.click(screen.getByTestId("import-file-dropzone"));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("selects a file and requests the universal preview without importSource", async () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
     fireEvent.change(fileInput, {
       target: {
         files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Itau"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
+    selectBankItau();
 
-    await waitFor(() => {
-      expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-preview-body")).toBeInTheDocument());
 
     expect(previewMutateAsync).toHaveBeenCalledWith({
       file: expect.any(File),
-      importSource: "bank_statement",
       bankConnectionId: "2",
       filePassword: "",
     });
   });
 
-  it("accepts PDF uploads for credit card statements", () => {
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
+  it("renders preview summary metadata after generating preview", async () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-
-    expect(fileInput.accept).toContain(".pdf");
-    expect(screen.getByText(/Selecione um arquivo CSV ou PDF da fatura/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Senha do PDF/i)).toBeInTheDocument();
-  });
-
-  it("sends the PDF password only through the preview request", async () => {
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(["%PDF"], "fatura.pdf", { type: "application/pdf" })],
-      },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/Senha do PDF/i), {
-      target: { value: "123456" },
-    });
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
-
-    await waitFor(() => {
-      expect(previewMutateAsync).toHaveBeenCalledWith({
-        file: expect.any(File),
-        importSource: "credit_card_statement",
-        bankConnectionId: "7",
-        filePassword: "123456",
-      });
-    });
-  });
-
-  it("keeps the selected PDF and focuses the password field after password errors", async () => {
-    const passwordError = new Error("Informe a senha do PDF para gerar a previa.") as Error & { code: string };
-    passwordError.code = "import_pdf_password_required";
-    previewMutateAsync.mockRejectedValueOnce(passwordError);
-
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(["%PDF"], "fatura.pdf", { type: "application/pdf" })],
-      },
-    });
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
-
-    const passwordInput = screen.getByPlaceholderText(/Senha do PDF/i);
-
-    await waitFor(() => {
-      expect(passwordInput).toHaveFocus();
-    });
-
-    expect(screen.getByText("fatura.pdf")).toBeInTheDocument();
-  });
-
-  it("commits expenses without category so the backend can apply Outros", async () => {
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 2,
-            slug: "itau",
-            name: "Itau",
-            accountType: "bank_account",
-            parentBankConnectionId: null,
-            parentAccountName: null,
-            statementCloseDay: null,
-            statementDueDay: null,
-            connected: true,
-            color: "bg-orange-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
     fireEvent.change(fileInput, {
       target: {
         files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
       },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Extrato bancario/i }));
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Itau"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("import-preview-table")).toBeInTheDocument();
+    selectBankItau();
+
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
+
+    await waitFor(() => expect(screen.getByText("CSV/TSV parser")).toBeInTheDocument());
+    expect(screen.getByText("Transações genéricas")).toBeInTheDocument();
+    expect(screen.getByText("88%")).toBeInTheDocument();
+    expect(screen.getByText("Nubank")).toBeInTheDocument();
+    expect(screen.getByText(/revise as linhas com baixa confiança/i)).toBeInTheDocument();
+  });
+
+  it("allows rows to be excluded and restored from preview", async () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
+      },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar importa/i }));
+    selectBankItau();
 
-    await waitFor(() => {
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-preview-body")).toBeInTheDocument());
+
+    expect(screen.getByTestId("row-status:preview-1:15")).toHaveTextContent("included");
+    fireEvent.click(screen.getByRole("button", { name: "ignore-preview-1:15" }));
+    expect(screen.getByTestId("row-status:preview-1:15")).toHaveTextContent("ignored");
+    fireEvent.click(screen.getByRole("button", { name: "restore-preview-1:15" }));
+    expect(screen.getByTestId("row-status:preview-1:15")).toHaveTextContent("included");
+  });
+
+  it("renders technical import details collapsed by default", async () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
+      },
+    });
+
+    selectBankItau();
+
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-technical-details")).toBeInTheDocument());
+
+    const details = screen.getByTestId("import-technical-details");
+    expect(details).not.toHaveAttribute("open");
+  });
+
+  it("commits only reviewed valid rows when using importar linhas válidas", async () => {
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["descricao,valor"], "extrato.csv", { type: "text/csv" })],
+      },
+    });
+
+    selectBankItau();
+
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-preview-body")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /importar \d+ linha/i }));
+
+    await waitFor(() =>
       expect(commitMutateAsync).toHaveBeenCalledWith({
         previewToken: "preview-1",
+        bankConnectionId: "2",
         items: [
           expect.objectContaining({
             rowIndex: 15,
             type: "expense",
-            categoryId: "",
           }),
         ],
-      });
-    });
-  });
-
-  it("hides the source layout after preview and commits multiple preview batches", async () => {
-    previewMutateAsync
-      .mockResolvedValueOnce(previewData)
-      .mockResolvedValueOnce({
-        ...previewData,
-        previewToken: "preview-2",
-        fileMetadata: {
-          ...previewData.fileMetadata,
-          originalFilename: "fatura-abril.csv",
-        },
-      });
-
-    render(
-      <ImportTransactionsModal
-        open
-        onOpenChange={vi.fn()}
-        categories={[]}
-        banks={[
-          {
-            id: 7,
-            slug: "nubank",
-            name: "Nubank",
-            accountType: "credit_card",
-            parentBankConnectionId: 2,
-            parentAccountName: "Itau",
-            statementCloseDay: 10,
-            statementDueDay: 17,
-            connected: true,
-            color: "bg-purple-500",
-            currentBalance: 0,
-            formattedBalance: "R$ 0,00",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Fatura do cart/i }));
-
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(["descricao,valor"], "fatura-marco.csv", { type: "text/csv" })],
-      },
-    });
-
-    fireEvent.click(screen.getByRole("combobox", { name: "" }));
-    fireEvent.click(screen.getByText("Nubank"));
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr/i }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Adicionar fatura/i })).toBeInTheDocument();
-    });
-
-    expect(screen.queryByRole("button", { name: /Extrato bancario/i })).not.toBeInTheDocument();
-
-    const addFileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(addFileInput, {
-      target: {
-        files: [new File(["descricao,valor"], "fatura-abril.csv", { type: "text/csv" })],
-      },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Gerar pr.*fatura/i }));
-
-    await waitFor(() => {
-      expect(previewMutateAsync).toHaveBeenCalledTimes(2);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar importa/i }));
-
-    await waitFor(() => {
-      expect(commitMutateAsync).toHaveBeenCalledTimes(2);
-    });
-
-    expect(commitMutateAsync).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        previewToken: "preview-1",
-      }),
-    );
-    expect(commitMutateAsync).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        previewToken: "preview-2",
       }),
     );
   });

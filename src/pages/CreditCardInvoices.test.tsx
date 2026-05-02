@@ -305,8 +305,10 @@ describe("CreditCardInvoicesPage", () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /Detalhes/ }));
+    expect(screen.getByText("Abril de 2026")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Expandir fatura Nubank/ }));
     expect(screen.getAllByText("Mercado").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Configurar cartão" })).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("combobox").at(-1)!);
     fireEvent.click(await screen.findByRole("option", { name: "Saude" }));
@@ -333,7 +335,8 @@ describe("CreditCardInvoicesPage", () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByLabelText("Ajustar fatura"));
+    fireEvent.click(screen.getByRole("button", { name: /Expandir fatura Nubank/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Configurar cartão" }));
     fireEvent.click(screen.getByRole("button", { name: "Salvar ajustes" }));
 
     await waitFor(() => {
@@ -359,7 +362,7 @@ describe("CreditCardInvoicesPage", () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /Detalhes/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Expandir fatura Nubank/ }));
     fireEvent.click(screen.getByLabelText("Excluir despesa"));
     fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
 

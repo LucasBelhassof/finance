@@ -1,20 +1,10 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AlertTriangle, Bell, CalendarDays, ChevronDown, CreditCard, Search, Settings2, Trash2 } from "lucide-react";
+import { AlertTriangle, Bell, CalendarDays, ChevronDown, CreditCard, Search, Settings2 } from "lucide-react";
 
 import AppShell from "@/components/AppShell";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -33,7 +23,6 @@ import { toast } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import { useInvoices, useUpdateInvoiceSettings } from "@/hooks/use-invoices";
 import { useUrlPeriodFilter } from "@/hooks/use-url-period-filter";
-import { useCategories, useDeleteTransaction, useUpdateTransaction } from "@/hooks/use-transactions";
 import { getCurrentMonthSelection, resolveMonthYearRange } from "@/lib/transactions-date-filter";
 import { cn } from "@/lib/utils";
 import type { InvoiceItem, InvoiceSettingsInput, InvoiceStatus, InvoiceTransactionItem } from "@/types/api";
@@ -97,6 +86,77 @@ function getStatusBadgeClassName(status: InvoiceStatus) {
   }
 
   return "border-primary/30 bg-primary/10 text-primary";
+}
+
+function getInvoiceCardClassName(status: InvoiceStatus) {
+  if (status === "overdue") {
+    return "border-destructive/30 bg-destructive/5";
+  }
+
+  if (status === "due_soon") {
+    return "border-warning/30 bg-warning/5";
+  }
+
+  if (status === "closed") {
+    return "border-info/25 bg-info/5";
+  }
+
+  return "border-border/50 bg-card";
+}
+
+const INVOICE_CATEGORY_COLORS = [
+  "bg-primary/70",
+  "bg-info/70",
+  "bg-warning/70",
+  "bg-success/70",
+  "bg-destructive/70",
+  "bg-purple-500/70",
+  "bg-pink-500/70",
+  "bg-orange-400/70",
+];
+
+function InvoiceCategoryBreakdown({ transactions }: { transactions: InvoiceTransactionItem[] }) {
+  const total = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const grouped = transactions.reduce(
+    (acc, t) => {
+      const key = String(t.category.id);
+      if (!acc[key]) {
+        acc[key] = { label: t.category.label, total: 0, count: 0 };
+      }
+      acc[key].total += Math.abs(t.amount);
+      acc[key].count += 1;
+      return acc;
+    },
+    {} as Record<string, { label: string; total: number; count: number }>,
+  );
+
+  const sorted = Object.values(grouped).sort((a, b) => b.total - a.total);
+
+  return (
+    <div className="mt-3 rounded-lg border border-border/50 bg-background/40 px-3 py-3">
+      <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Análise por categoria</p>
+      <div className="space-y-2">
+        {sorted.map((cat, index) => {
+          const pct = total > 0 ? (cat.total / total) * 100 : 0;
+          const barColor = INVOICE_CATEGORY_COLORS[index % INVOICE_CATEGORY_COLORS.length];
+
+          return (
+            <div key={cat.label} className="flex items-center gap-3">
+              <span className="w-[120px] shrink-0 truncate text-xs text-foreground sm:w-[150px]">{cat.label}</span>
+              <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-secondary/60">
+                <div className={cn("absolute inset-y-0 left-0 rounded-full", barColor)} style={{ width: `${pct}%` }} />
+              </div>
+              <span className="w-8 shrink-0 text-right text-[11px] text-muted-foreground">{pct.toFixed(0)}%</span>
+              <span className="w-[84px] shrink-0 text-right text-xs font-medium tabular-nums text-foreground">
+                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cat.total)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function SettingsForm({ invoice, onSave, isSaving }: { invoice: InvoiceItem; onSave: (input: InvoiceSettingsInput) => void; isSaving: boolean }) {
@@ -219,15 +279,10 @@ export default function CreditCardInvoicesPage() {
     [dateRange.endDate, dateRange.startDate, search, selectedCardId, selectedCategoryId, selectedStatus],
   );
   const { data, isLoading, isError, refetch } = useInvoices(filters);
-  const { data: categories = [] } = useCategories();
-  const updateTransaction = useUpdateTransaction();
-  const deleteTransaction = useDeleteTransaction();
   const updateSettings = useUpdateInvoiceSettings();
   const [openInvoiceIds, setOpenInvoiceIds] = useState<Set<string>>(new Set());
   const [settingsInvoice, setSettingsInvoice] = useState<InvoiceItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<InvoiceTransactionItem | null>(null);
   const invoices = data?.invoices ?? [];
-  const expenseCategories = categories.filter((category) => category.transactionType === "expense");
 
   const handleResetFilters = () => {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -241,43 +296,7 @@ export default function CreditCardInvoicesPage() {
     setSearchParams(nextSearchParams, { replace: true });
   };
 
-  const handleCategoryChange = async (transaction: InvoiceTransactionItem, categoryId: string) => {
-    try {
-      await updateTransaction.mutateAsync({
-        id: transaction.id,
-        description: transaction.description,
-        amount: transaction.amount,
-        occurredOn: transaction.occurredOn,
-        bankConnectionId: transaction.account.id,
-        categoryId,
-        isRecurring: transaction.isRecurring,
-      });
-      toast.success("Categoria atualizada.");
-    } catch (error) {
-      toast.error("Não foi possível atualizar a categoria.", {
-        description: error instanceof Error ? error.message : "Tente novamente em instantes.",
-      });
-    }
-  };
 
-  const handleDeleteTransaction = async () => {
-    if (!deleteTarget) {
-      return;
-    }
-
-    try {
-      await deleteTransaction.mutateAsync({
-        id: deleteTarget.id,
-        occurredOn: deleteTarget.occurredOn,
-      });
-      setDeleteTarget(null);
-      toast.success("Despesa removida.");
-    } catch (error) {
-      toast.error("Não foi possível remover a despesa.", {
-        description: error instanceof Error ? error.message : "Tente novamente em instantes.",
-      });
-    }
-  };
 
   const headerContent = (
     <section data-tour-id="invoices-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
@@ -463,128 +482,99 @@ export default function CreditCardInvoicesPage() {
                       return next;
                     })
                   }
-                  className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-foreground", invoice.card.color)}>
-                        <CreditCard size={18} />
+                  <div className={cn("rounded-lg border transition-colors", getInvoiceCardClassName(invoice.status))}>
+                    <div className="flex items-center gap-3 px-3 py-2">
+                      <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground", invoice.card.color)}>
+                        <CreditCard size={16} />
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-lg font-semibold text-foreground">{invoice.card.name}</h2>
-                          <Badge variant="outline" className={getStatusBadgeClassName(invoice.status)}>
-                            {getStatusLabel(invoice.status)}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {invoice.referenceMonthLabel} · {formatDate(invoice.periodStart)} a {formatDate(invoice.periodEnd)}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-secondary/60 px-2.5 py-1">
-                            <CalendarDays size={13} />
-                            Fecha {formatDate(invoice.closingDate)}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-secondary/60 px-2.5 py-1">
-                            <Bell size={13} />
-                            Vence {formatDate(invoice.dueDate)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:justify-end">
-                      <div className="text-left sm:text-right">
-                        <p className="text-2xl font-bold text-foreground">{invoice.formattedTotalAmount}</p>
+                      <CollapsibleTrigger asChild>
+                        <button type="button" className="group min-w-0 flex-1 cursor-pointer text-left">
+                          <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                            <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">{invoice.card.name}</p>
+                            <Badge variant="outline" className={cn("w-fit text-[11px]", getStatusBadgeClassName(invoice.status))}>
+                              {getStatusLabel(invoice.status)}
+                            </Badge>
+                            <span className="hidden text-xs text-muted-foreground sm:inline">{invoice.referenceMonthLabel}</span>
+                          </div>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {formatDate(invoice.periodStart)} a {formatDate(invoice.periodEnd)} · Fecha {formatDate(invoice.closingDate)} · Vence {formatDate(invoice.dueDate)}
+                          </p>
+                        </button>
+                      </CollapsibleTrigger>
+
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{invoice.formattedTotalAmount}</p>
                         <p className="text-xs text-muted-foreground">{invoice.transactionCount} despesa(s)</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="icon" onClick={() => setSettingsInvoice(invoice)} aria-label="Ajustar fatura">
-                          <Settings2 size={16} />
-                        </Button>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="outline" className="gap-2">
-                            Detalhes
-                            <ChevronDown size={16} className={cn("transition-transform", isOpen && "rotate-180")} />
+
+                      <CollapsibleTrigger asChild>
+                        <button
+                          type="button"
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                          aria-label={isOpen ? `Recolher fatura ${invoice.card.name}` : `Expandir fatura ${invoice.card.name}`}
+                        >
+                          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
+                        </button>
+                      </CollapsibleTrigger>
+                    </div>
+
+                    <CollapsibleContent>
+                      <div className="border-t border-border/50 px-3 pb-3 pt-3">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <CalendarDays size={11} />
+                            {formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            · Fecha dia {invoice.card.statementCloseDay ?? "--"}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Bell size={11} />
+                            Vence dia {invoice.card.statementDueDay ?? "--"}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-auto h-7 gap-1.5 rounded-lg px-2 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                            onClick={() => setSettingsInvoice(invoice)}
+                          >
+                            <Settings2 size={12} />
+                            Configurar
                           </Button>
-                        </CollapsibleTrigger>
-                      </div>
-                    </div>
-                  </div>
+                        </div>
 
-                  <CollapsibleContent>
-                    <div className="mt-5 border-t border-border/40 pt-4">
-                      <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-                        <div className="rounded-xl bg-secondary/35 p-3">
-                          <p className="text-xs text-muted-foreground">Período</p>
-                          <p className="mt-1 font-medium text-foreground">
-                            {formatDate(invoice.periodStart)} a {formatDate(invoice.periodEnd)}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-secondary/35 p-3">
-                          <p className="text-xs text-muted-foreground">Fechamento</p>
-                          <p className="mt-1 font-medium text-foreground">Dia {invoice.card.statementCloseDay ?? "--"}</p>
-                        </div>
-                        <div className="rounded-xl bg-secondary/35 p-3">
-                          <p className="text-xs text-muted-foreground">Vencimento</p>
-                          <p className="mt-1 font-medium text-foreground">Dia {invoice.card.statementDueDay ?? "--"}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 overflow-hidden rounded-xl border border-border/40">
-                        <div className="hidden grid-cols-[120px_minmax(0,1fr)_220px_140px_52px] gap-3 bg-secondary/40 px-4 py-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground lg:grid">
-                          <span>Data</span>
-                          <span>Despesa</span>
-                          <span>Categoria</span>
-                          <span className="text-right">Valor</span>
-                          <span />
-                        </div>
-                        <div className="divide-y divide-border/40">
-                          {invoice.transactions.map((transaction) => (
-                            <div key={transaction.id} className="grid grid-cols-1 gap-3 px-4 py-3 lg:grid-cols-[120px_minmax(0,1fr)_220px_140px_52px] lg:items-center">
-                              <span className="text-sm text-muted-foreground">{formatDate(transaction.occurredOn)}</span>
-                              <div className="min-w-0">
-                                <p className="break-words text-sm font-medium text-foreground">{transaction.description}</p>
-                                {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount ? (
-                                  <p className="text-xs text-muted-foreground">
-                                    Parcela {transaction.installmentNumber}/{transaction.installmentCount}
+                        <div className="mt-3 overflow-hidden rounded-lg border border-border/50 bg-background/40">
+                          <div className="divide-y divide-border/40">
+                            {invoice.transactions.map((transaction) => (
+                              <div key={transaction.id} className="flex items-center gap-3 px-3 py-2">
+                                <span className="w-[80px] shrink-0 text-xs text-muted-foreground">
+                                  {formatDate(transaction.occurredOn)}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-medium text-foreground">{transaction.description}</p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount
+                                      ? `Parcela ${transaction.installmentNumber}/${transaction.installmentCount} · `
+                                      : ""}
+                                    {transaction.category.label}
                                   </p>
-                                ) : null}
+                                </div>
+                                <span className="shrink-0 text-sm font-semibold text-destructive tabular-nums">
+                                  {transaction.formattedAmount}
+                                </span>
                               </div>
-                              <Select
-                                value={String(transaction.category.id)}
-                                onValueChange={(value) => void handleCategoryChange(transaction, value)}
-                                disabled={updateTransaction.isPending}
-                              >
-                                <SelectTrigger className="h-10 rounded-xl border-border/60 bg-secondary/35">
-                                  <SelectValue placeholder="Categoria" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {expenseCategories.map((category) => (
-                                    <SelectItem key={category.id} value={String(category.id)}>
-                                      {category.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <span className="text-left text-sm font-semibold text-destructive lg:text-right">
-                                {transaction.formattedAmount}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="justify-self-end text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => setDeleteTarget(transaction)}
-                                aria-label="Excluir despesa"
-                              >
-                                <Trash2 size={16} />
-                              </Button>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
+
+                        {invoice.transactions.length > 0 && (
+                          <InvoiceCategoryBreakdown transactions={invoice.transactions} />
+                        )}
                       </div>
-                    </div>
-                  </CollapsibleContent>
+                    </CollapsibleContent>
+                  </div>
                 </Collapsible>
               );
             })}
@@ -617,29 +607,6 @@ export default function CreditCardInvoicesPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="border-warning/20 bg-card">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir despesa?</AlertDialogTitle>
-            <AlertDialogDescription>
-              A despesa será removida das transações e a fatura será recalculada automaticamente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteTransaction.isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteTransaction.isPending}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDeleteTransaction();
-              }}
-            >
-              {deleteTransaction.isPending ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AppShell>
   );
 }

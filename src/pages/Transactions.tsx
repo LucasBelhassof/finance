@@ -683,7 +683,7 @@ export default function TransactionsPage() {
             <AlertDialogTitle>Excluir categoria?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteCategoryTarget
-                ? `A categoria "${deleteCategoryTarget.label}" será excluída e as referências vinculadas serão movidas para ${deleteCategoryTarget.transactionType === "income" ? '"Salário"' : '"Outros"'}.`
+                ? `A categoria "${deleteCategoryTarget.label}" será excluída e as referências vinculadas serão movidas para ${deleteCategoryTarget.transactionType === "income" ? '"Salário"' : '"Compras"'}.`
                 : "A categoria será excluída e as referências vinculadas serão movidas para uma categoria padrão."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -794,7 +794,7 @@ export default function TransactionsPage() {
               </SelectContent>
             </Select>
             {!categoryIsRequired ? (
-              <p className="text-xs text-muted-foreground">Se não escolher, a despesa será salva como Outros.</p>
+              <p className="text-xs text-muted-foreground">Se não escolher, a despesa será salva como Compras.</p>
             ) : null}
             {transactionForm.type === "income" ? (
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border/50 bg-secondary/20 p-4">

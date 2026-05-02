@@ -7,7 +7,7 @@ export const MAX_IMPORT_ROWS = 5000;
 export const PREVIEW_TTL_MS = 15 * 60 * 1000;
 export const IMPORT_AI_MAX_REASON_LENGTH = 160;
 export const RECURRING_RULE_MIN_CONFIRMATIONS = 3;
-const DEFAULT_EXPENSE_CATEGORY_SLUG = "outros-despesas";
+const DEFAULT_EXPENSE_CATEGORY_SLUG = "compras";
 const IMPORT_FINGERPRINT_VERSION = "v1";
 const PDF_PAGE_JOINER = "\n-- page_number of total_number --\n";
 
@@ -1249,9 +1249,7 @@ function buildPreviewItem({
     if (typeof headerIndexes.amount === "number") {
       const parsed = parseAmountInput(rowValues[headerIndexes.amount]);
       type = importLayout === "credit_card_statement"
-        ? parsed < 0
-          ? "income"
-          : "expense"
+        ? "expense"
         : parsed < 0
           ? "expense"
           : "income";
@@ -1288,6 +1286,10 @@ function buildPreviewItem({
 
   if (suggestion.typeOverride || historicalSuggestion?.typeOverride) {
     type = historicalSuggestion?.typeOverride ?? suggestion.typeOverride;
+  }
+
+  if (importLayout === "credit_card_statement") {
+    type = "expense";
   }
 
   if (importLayout === "credit_card_statement" && isCreditCardPaymentReceived(normalizedDescriptionValue)) {
@@ -1359,7 +1361,7 @@ function buildPreviewItem({
   if (finalRequiresCategorySelection) {
     warnings.push("Selecione uma categoria antes de importar.");
   } else if (!defaultExclude && type === "expense" && !finalSuggestedCategory) {
-    warnings.push("Se nenhuma categoria for escolhida, a despesa sera importada como Outros.");
+    warnings.push("Se nenhuma categoria for escolhida, a despesa sera importada como Compras.");
   }
 
   const canImport = errors.length === 0 && !finalRequiresCategorySelection;

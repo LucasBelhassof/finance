@@ -217,7 +217,7 @@ export default function ImportTransactionCard({
                   </SelectTrigger>
                   <SelectContent>
                     {draft.type === "expense" ? (
-                      <SelectItem value="__uncategorized__">Outros</SelectItem>
+                      <SelectItem value="__uncategorized__">Compras</SelectItem>
                     ) : null}
                     {filteredCategories.map((category) => (
                       <SelectItem key={category.id} value={String(category.id)}>

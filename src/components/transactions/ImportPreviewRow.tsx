@@ -200,7 +200,7 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
               <SelectValue placeholder={draft.type === "income" ? "Categoria obrigatória" : "Categoria"} />
             </SelectTrigger>
             <SelectContent>
-              {draft.type === "expense" ? <SelectItem value="__uncategorized__">Outros</SelectItem> : null}
+              {draft.type === "expense" ? <SelectItem value="__uncategorized__">Compras</SelectItem> : null}
               {filteredCategories.map((category) => (
                 <SelectItem key={category.id} value={String(category.id)}>
                   {category.label}

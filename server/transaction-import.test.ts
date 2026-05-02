@@ -101,7 +101,7 @@ describe("transaction import helpers", () => {
     expect(preview.items[0].type).toBe("expense");
     expect(preview.items[0].suggestedCategoryId).toBe(1);
     expect(preview.items[1].description).toBe("Pagamento recebido");
-    expect(preview.items[1].type).toBe("income");
+    expect(preview.items[1].type).toBe("expense");
     expect(preview.items[1].defaultExclude).toBe(true);
     expect(preview.items[2].type).toBe("expense");
     expect(preview.items[2].suggestedCategoryId).toBe(2);
@@ -423,7 +423,7 @@ describe("transaction import helpers", () => {
     expect(line.normalizedOccurredOn).toBe("2026-04-06");
   });
 
-  it("uses the default Outros category for expenses without category", () => {
+  it("uses the default Compras category for expenses without category", () => {
     const line = validateCommitLine(
       {
         description: "Despesa sem categoria",
@@ -435,7 +435,7 @@ describe("transaction import helpers", () => {
       categories,
     );
 
-    expect(line.categoryId).toBe(4);
+    expect(line.categoryId).toBe(6);
     expect(line.signedAmount).toBe(-10);
   });
 

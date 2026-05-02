@@ -1815,7 +1815,7 @@ async function getCategoryBySlugAndType(slug, transactionType, client = pool) {
 }
 
 async function getDefaultExpenseCategory(client = pool) {
-  return getCategoryBySlugAndType("outros-despesas", "expense", client);
+  return getCategoryBySlugAndType("compras", "expense", client);
 }
 
 async function getFallbackCategoryForDeletion(category, client = pool) {

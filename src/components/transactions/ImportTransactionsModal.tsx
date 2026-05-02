@@ -932,7 +932,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                           <SelectValue placeholder="Categoria" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__uncategorized__">Outros</SelectItem>
+                          <SelectItem value="__uncategorized__">Compras</SelectItem>
                           {categories.map((category) => (
                             <SelectItem key={`bulk-category:${category.id}`} value={String(category.id)}>
                               {category.label}
@@ -1040,7 +1040,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
             <DialogFooter>
               {state.step === "upload" ? (
                 <>
-                  <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                  <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
                     Cancelar
                   </Button>
                   <Button type="button" onClick={handlePreview} disabled={!state.selectedFile || previewImport.isPending}>
@@ -1054,10 +1054,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                 </>
               ) : state.step === "preview" ? (
                 <>
-                  <Button type="button" variant="ghost" onClick={() => dispatch({ type: "reset" })}>
+                  <Button type="button" variant="link" onClick={() => dispatch({ type: "reset" })}>
                     Nova importação
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
                     Cancelar
                   </Button>
                   <Button type="button" onClick={() => void handleCommit(true)} disabled={submitting || commitImport.isPending}>

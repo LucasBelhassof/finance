@@ -25,6 +25,7 @@ const AdminOverviewPage = lazy(() => import("./pages/admin/AdminOverviewPage.tsx
 const AdminSubscriptionsPage = lazy(() => import("./pages/admin/AdminSubscriptionsPage.tsx"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage.tsx"));
 const ChatPage = lazy(() => import("./pages/Chat.tsx"));
+const CreditCardInvoicesPage = lazy(() => import("./pages/CreditCardInvoices.tsx"));
 const ExpenseMetricsPage = lazy(() => import("./pages/ExpenseMetrics.tsx"));
 const RecurringIncomePage = lazy(() => import("./pages/RecurringIncome.tsx"));
 const HousingPage = lazy(() => import("./pages/Housing.tsx"));
@@ -72,6 +73,7 @@ const App = () => (
                 <Route path={appRoutes.dashboard} element={<Suspense fallback={<PageLoader />}><Index /></Suspense>} />
                 <Route path={appRoutes.transactions} element={<Suspense fallback={<PageLoader />}><TransactionsPage /></Suspense>} />
                 <Route path={appRoutes.expenseManagementRecurringIncome} element={<Suspense fallback={<PageLoader />}><RecurringIncomePage /></Suspense>} />
+                <Route path={appRoutes.expenseManagementInvoices} element={<Suspense fallback={<PageLoader />}><CreditCardInvoicesPage /></Suspense>} />
                 <Route path={appRoutes.installments} element={<Navigate to={appRoutes.expenseManagementInstallments} replace />} />
                 <Route path={appRoutes.expenseManagementInstallments} element={<Suspense fallback={<PageLoader />}><InstallmentsPage /></Suspense>} />
                 <Route path={appRoutes.expenseManagementFinancing} element={<Navigate to={appRoutes.expenseManagementHousing} replace />} />

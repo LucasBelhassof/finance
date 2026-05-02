@@ -9,6 +9,7 @@ export const appRoutes = {
   expenseManagement: "/gestao-de-gastos",
   transactions: "/gestao-de-gastos/transactions",
   expenseManagementRecurringIncome: "/gestao-de-gastos/receitas-recorrentes",
+  expenseManagementInvoices: "/gestao-de-gastos/faturas",
   expenseManagementInstallments: "/gestao-de-gastos/parcelamentos",
   expenseManagementFinancing: "/gestao-de-gastos/financiamentos",
   expenseManagementHousing: "/gestao-de-gastos/habitacao",

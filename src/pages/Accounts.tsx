@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
+import { Switch } from "@/components/ui/switch";
 import { useBanks, useCreateBankConnection, useDeleteBankConnection, useUpdateBankConnection } from "@/hooks/use-banks";
 import { ACCOUNT_COLOR_PRESETS, getSuggestedAccountColor } from "@/lib/account-colors";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,9 @@ type AccountFormState = {
   parentBankConnectionId: string;
   statementCloseDay: string;
   statementDueDay: string;
+  notifyInvoiceClosed: boolean;
+  notifyInvoiceDueSoon: boolean;
+  invoiceDueReminderDays: string;
 };
 
 function emptyForm(accountType: AccountType = "bank_account"): AccountFormState {
@@ -60,6 +64,9 @@ function emptyForm(accountType: AccountType = "bank_account"): AccountFormState 
     parentBankConnectionId: "",
     statementCloseDay: "",
     statementDueDay: "",
+    notifyInvoiceClosed: false,
+    notifyInvoiceDueSoon: false,
+    invoiceDueReminderDays: "3",
   };
 }
 
@@ -74,6 +81,9 @@ function mapBankToForm(bank: BankItem): AccountFormState {
     parentBankConnectionId: bank.parentBankConnectionId ? String(bank.parentBankConnectionId) : "",
     statementCloseDay: bank.statementCloseDay ? String(bank.statementCloseDay) : "",
     statementDueDay: bank.statementDueDay ? String(bank.statementDueDay) : "",
+    notifyInvoiceClosed: bank.notifyInvoiceClosed,
+    notifyInvoiceDueSoon: bank.notifyInvoiceDueSoon,
+    invoiceDueReminderDays: String(bank.invoiceDueReminderDays ?? 3),
   };
 }
 
@@ -209,6 +219,13 @@ export default function AccountsPage() {
         toast.error("Cartoes exigem conta pai, dia de fechamento e dia de vencimento.");
         return;
       }
+
+      const reminderDays = Number(form.invoiceDueReminderDays);
+
+      if (!Number.isInteger(reminderDays) || reminderDays < 1 || reminderDays > 15) {
+        toast.error("Informe um lembrete entre 1 e 15 dias.");
+        return;
+      }
     }
 
     const payload = {
@@ -220,6 +237,9 @@ export default function AccountsPage() {
       parentBankConnectionId: form.accountType === "credit_card" ? form.parentBankConnectionId : null,
       statementCloseDay: form.accountType === "credit_card" ? Number(form.statementCloseDay) : null,
       statementDueDay: form.accountType === "credit_card" ? Number(form.statementDueDay) : null,
+      notifyInvoiceClosed: form.accountType === "credit_card" ? form.notifyInvoiceClosed : false,
+      notifyInvoiceDueSoon: form.accountType === "credit_card" ? form.notifyInvoiceDueSoon : false,
+      invoiceDueReminderDays: form.accountType === "credit_card" ? Number(form.invoiceDueReminderDays) : 3,
       connected: true,
     } satisfies CreateBankConnectionInput;
 
@@ -333,6 +353,9 @@ export default function AccountsPage() {
                   parentBankConnectionId: nextType === "credit_card" ? current.parentBankConnectionId : "",
                   statementCloseDay: nextType === "credit_card" ? current.statementCloseDay : "",
                   statementDueDay: nextType === "credit_card" ? current.statementDueDay : "",
+                  notifyInvoiceClosed: nextType === "credit_card" ? current.notifyInvoiceClosed : false,
+                  notifyInvoiceDueSoon: nextType === "credit_card" ? current.notifyInvoiceDueSoon : false,
+                  invoiceDueReminderDays: nextType === "credit_card" ? current.invoiceDueReminderDays : "3",
                   color:
                     nextType === "cash" || !hasManualColorSelection
                       ? getSuggestedAccountColor(current.name, nextType)
@@ -397,6 +420,32 @@ export default function AccountsPage() {
                     inputMode="numeric"
                     className="h-11 rounded-xl border-border/60 bg-secondary/35"
                   />
+                </div>
+
+                <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+                  <div className="space-y-3">
+                    <label className="flex items-center justify-between gap-4 text-sm text-foreground">
+                      <span>Notificar fatura fechada</span>
+                      <Switch
+                        checked={form.notifyInvoiceClosed}
+                        onCheckedChange={(checked) => setForm((current) => ({ ...current, notifyInvoiceClosed: checked }))}
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-4 text-sm text-foreground">
+                      <span>Notificar vencimento próximo</span>
+                      <Switch
+                        checked={form.notifyInvoiceDueSoon}
+                        onCheckedChange={(checked) => setForm((current) => ({ ...current, notifyInvoiceDueSoon: checked }))}
+                      />
+                    </label>
+                    <Input
+                      value={form.invoiceDueReminderDays}
+                      onChange={(event) => setForm((current) => ({ ...current, invoiceDueReminderDays: event.target.value }))}
+                      placeholder="Dias antes do vencimento"
+                      inputMode="numeric"
+                      className="h-11 rounded-xl border-border/60 bg-background/60"
+                    />
+                  </div>
                 </div>
               </>
             ) : null}

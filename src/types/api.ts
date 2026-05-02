@@ -106,12 +106,74 @@ export interface ApiBank {
   parentAccountName?: string | null;
   statementCloseDay?: number | null;
   statementDueDay?: number | null;
+  notifyInvoiceClosed?: boolean;
+  notifyInvoiceDueSoon?: boolean;
+  invoiceDueReminderDays?: number;
   connected?: boolean;
   color?: string;
   currentBalance?: number;
   formattedBalance?: string;
   creditLimit?: number | null;
   formattedCreditLimit?: string | null;
+}
+
+export type InvoiceStatus = "open" | "closed" | "due_soon" | "overdue";
+
+export interface ApiInvoiceCard {
+  id?: number | string;
+  slug?: string;
+  name?: string;
+  color?: string;
+  statementCloseDay?: number | null;
+  statementDueDay?: number | null;
+  notifyInvoiceClosed?: boolean;
+  notifyInvoiceDueSoon?: boolean;
+  invoiceDueReminderDays?: number;
+}
+
+export interface ApiInvoiceItem {
+  id?: string;
+  card?: ApiInvoiceCard;
+  referenceMonth?: string;
+  referenceMonthLabel?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  closingDate?: string;
+  dueDate?: string;
+  status?: InvoiceStatus;
+  totalAmount?: number;
+  formattedTotalAmount?: string;
+  transactionCount?: number;
+  transactions?: ApiTransaction[];
+}
+
+export interface ApiInvoicesResponse {
+  appliedFilters?: {
+    cardId?: string;
+    referenceStart?: string | null;
+    referenceEnd?: string | null;
+    status?: InvoiceStatus | "all";
+    categoryId?: string;
+    search?: string;
+  };
+  summary?: {
+    totalAmount?: number;
+    formattedTotalAmount?: string;
+    dueSoonCount?: number;
+    overdueCount?: number;
+    activeCardsCount?: number;
+    invoiceCount?: number;
+  };
+  filterOptions?: {
+    cards?: Array<{ id?: number | string; name?: string }>;
+    categories?: Array<{ id?: number | string; label?: string }>;
+    statuses?: InvoiceStatus[];
+  };
+  invoices?: ApiInvoiceItem[];
+}
+
+export interface ApiInvoiceSettingsResponse {
+  card?: ApiInvoiceCard;
 }
 
 export interface ApiChatMessage {
@@ -893,12 +955,81 @@ export interface BankItem {
   parentAccountName: string | null;
   statementCloseDay: number | null;
   statementDueDay: number | null;
+  notifyInvoiceClosed: boolean;
+  notifyInvoiceDueSoon: boolean;
+  invoiceDueReminderDays: number;
   connected: boolean;
   color: string;
   currentBalance: number;
   formattedBalance: string;
   creditLimit: number | null;
   formattedCreditLimit: string | null;
+}
+
+export interface InvoiceCardItem {
+  id: number | string;
+  slug: string;
+  name: string;
+  color: string;
+  statementCloseDay: number | null;
+  statementDueDay: number | null;
+  notifyInvoiceClosed: boolean;
+  notifyInvoiceDueSoon: boolean;
+  invoiceDueReminderDays: number;
+}
+
+export type InvoiceTransactionItem = TransactionItem;
+
+export interface InvoiceItem {
+  id: string;
+  card: InvoiceCardItem;
+  referenceMonth: string;
+  referenceMonthLabel: string;
+  periodStart: string;
+  periodEnd: string;
+  closingDate: string;
+  dueDate: string;
+  status: InvoiceStatus;
+  totalAmount: number;
+  formattedTotalAmount: string;
+  transactionCount: number;
+  transactions: InvoiceTransactionItem[];
+}
+
+export interface InvoiceFilters {
+  cardId: string;
+  referenceStart: string | null;
+  referenceEnd: string | null;
+  status: InvoiceStatus | "all";
+  categoryId: string;
+  search: string;
+}
+
+export interface InvoicesData {
+  appliedFilters: InvoiceFilters;
+  summary: {
+    totalAmount: number;
+    formattedTotalAmount: string;
+    dueSoonCount: number;
+    overdueCount: number;
+    activeCardsCount: number;
+    invoiceCount: number;
+  };
+  filterOptions: {
+    cards: Array<{ id: number | string; name: string }>;
+    categories: Array<{ id: number | string; label: string }>;
+    statuses: InvoiceStatus[];
+  };
+  invoices: InvoiceItem[];
+}
+
+export interface InvoiceSettingsInput {
+  cardId: number | string;
+  statementCloseDay: number;
+  statementDueDay: number;
+  notifyInvoiceClosed: boolean;
+  notifyInvoiceDueSoon: boolean;
+  invoiceDueReminderDays: number;
 }
 
 export interface CreateBankConnectionInput {
@@ -911,6 +1042,9 @@ export interface CreateBankConnectionInput {
   parentBankConnectionId?: number | string | null;
   statementCloseDay?: number | null;
   statementDueDay?: number | null;
+  notifyInvoiceClosed?: boolean;
+  notifyInvoiceDueSoon?: boolean;
+  invoiceDueReminderDays?: number;
 }
 
 export interface UpdateBankConnectionInput extends CreateBankConnectionInput {
@@ -1718,7 +1852,7 @@ export interface ApiNotificationItem {
   title?: string;
   message?: string;
   category?: NotificationCategory;
-  source?: "user_self" | "admin_all" | "admin_selected";
+  source?: "user_self" | "admin_all" | "admin_selected" | "system";
   triggerAt?: string | null;
   createdAt?: string;
   isRead?: boolean;
@@ -1749,7 +1883,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   category: NotificationCategory;
-  source: "user_self" | "admin_all" | "admin_selected";
+  source: "user_self" | "admin_all" | "admin_selected" | "system";
   triggerAt: string | null;
   createdAt: string;
   isRead: boolean;

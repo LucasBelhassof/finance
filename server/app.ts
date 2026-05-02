@@ -66,6 +66,7 @@ import {
 } from "./database.js";
 import { createAdminRouter } from "./modules/admin/routes.js";
 import { createAuthRouter, requireAccessToken } from "./modules/auth/routes.js";
+import { createInvoicesRouter } from "./modules/invoices/routes.js";
 import { createNotificationsRouter } from "./modules/notifications/routes.js";
 import { env } from "./shared/env.js";
 import { isHttpError, toHttpError } from "./shared/errors.js";
@@ -133,6 +134,7 @@ export function createApp() {
   });
   app.use("/api/admin", createAdminRouter());
   app.use("/api/notifications", createNotificationsRouter());
+  app.use("/api/invoices", createInvoicesRouter());
 
   app.get("/api/dashboard", async (request, response) => {
     const dashboard = await getDashboardData(getAuthenticatedUserId(request), {

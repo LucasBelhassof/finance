@@ -44,6 +44,9 @@ import type {
   ApiImportPreviewItem,
   ApiImportPreviewResponse,
   ApiInsight,
+  ApiInvoiceItem,
+  ApiInvoiceSettingsResponse,
+  ApiInvoicesResponse,
   ApiInstallmentsOverviewResponse,
   ApiInsightsResponse,
   ApiNotificationsResponse,
@@ -93,6 +96,11 @@ import type {
   ImportPreviewItem,
   ImportSourceKind,
   InsightItem,
+  InvoiceCardItem,
+  InvoiceFilters,
+  InvoiceItem,
+  InvoicesData,
+  InvoiceSettingsInput,
   InstallmentsOverview,
   InstallmentsOverviewFilters,
   InvestmentItem,
@@ -592,7 +600,7 @@ function mapNotificationsResponse(response: ApiNotificationsResponse): Notificat
             ? notification.category
             : "general",
         source:
-          notification.source === "admin_all" || notification.source === "admin_selected"
+          notification.source === "admin_all" || notification.source === "admin_selected" || notification.source === "system"
             ? notification.source
             : "user_self",
         triggerAt: notification.triggerAt ? safeString(notification.triggerAt) : null,
@@ -784,12 +792,100 @@ export function mapBank(bank: ApiBank): BankItem {
     parentAccountName: bank.parentAccountName ?? null,
     statementCloseDay: typeof bank.statementCloseDay === "number" ? bank.statementCloseDay : null,
     statementDueDay: typeof bank.statementDueDay === "number" ? bank.statementDueDay : null,
+    notifyInvoiceClosed: Boolean(bank.notifyInvoiceClosed),
+    notifyInvoiceDueSoon: Boolean(bank.notifyInvoiceDueSoon),
+    invoiceDueReminderDays:
+      typeof bank.invoiceDueReminderDays === "number" ? Math.min(Math.max(Math.trunc(bank.invoiceDueReminderDays), 1), 15) : 3,
     connected: Boolean(bank.connected),
     color: safeString(bank.color, "bg-secondary"),
     currentBalance,
     formattedBalance: safeString(bank.formattedBalance, formatCurrency(currentBalance)),
     creditLimit,
     formattedCreditLimit: creditLimit === null ? null : safeString(bank.formattedCreditLimit, formatCurrency(creditLimit)),
+  };
+}
+
+function mapInvoiceCard(card: ApiInvoiceItem["card"] = {}): InvoiceCardItem {
+  return {
+    id: card.id ?? safeString(card.slug, safeString(card.name, "card")),
+    slug: safeString(card.slug, "card"),
+    name: safeString(card.name, "Cartão"),
+    color: safeString(card.color, "bg-secondary"),
+    statementCloseDay: typeof card.statementCloseDay === "number" ? card.statementCloseDay : null,
+    statementDueDay: typeof card.statementDueDay === "number" ? card.statementDueDay : null,
+    notifyInvoiceClosed: Boolean(card.notifyInvoiceClosed),
+    notifyInvoiceDueSoon: Boolean(card.notifyInvoiceDueSoon),
+    invoiceDueReminderDays:
+      typeof card.invoiceDueReminderDays === "number" ? Math.min(Math.max(Math.trunc(card.invoiceDueReminderDays), 1), 15) : 3,
+  };
+}
+
+export function mapInvoiceItem(invoice: ApiInvoiceItem): InvoiceItem {
+  const totalAmount = safeNumber(invoice.totalAmount);
+
+  return {
+    id: safeString(invoice.id, `${invoice.card?.id ?? "card"}-${safeString(invoice.periodEnd, "period")}`),
+    card: mapInvoiceCard(invoice.card),
+    referenceMonth: safeString(invoice.referenceMonth),
+    referenceMonthLabel: safeString(invoice.referenceMonthLabel, safeString(invoice.referenceMonth)),
+    periodStart: safeString(invoice.periodStart),
+    periodEnd: safeString(invoice.periodEnd),
+    closingDate: safeString(invoice.closingDate),
+    dueDate: safeString(invoice.dueDate),
+    status:
+      invoice.status === "open" || invoice.status === "closed" || invoice.status === "due_soon" || invoice.status === "overdue"
+        ? invoice.status
+        : "open",
+    totalAmount,
+    formattedTotalAmount: safeString(invoice.formattedTotalAmount, formatCurrency(totalAmount)),
+    transactionCount: safeNumber(invoice.transactionCount),
+    transactions: (invoice.transactions ?? []).map(mapTransaction),
+  };
+}
+
+export function mapInvoicesResponse(response: ApiInvoicesResponse): InvoicesData {
+  const appliedFilters = response.appliedFilters ?? {};
+  const summary = response.summary ?? {};
+  const filterOptions = response.filterOptions ?? {};
+
+  return {
+    appliedFilters: {
+      cardId: safeString(appliedFilters.cardId, "all"),
+      referenceStart: appliedFilters.referenceStart ? safeString(appliedFilters.referenceStart) : null,
+      referenceEnd: appliedFilters.referenceEnd ? safeString(appliedFilters.referenceEnd) : null,
+      status:
+        appliedFilters.status === "open" ||
+        appliedFilters.status === "closed" ||
+        appliedFilters.status === "due_soon" ||
+        appliedFilters.status === "overdue"
+          ? appliedFilters.status
+          : "all",
+      categoryId: safeString(appliedFilters.categoryId, "all"),
+      search: safeString(appliedFilters.search),
+    },
+    summary: {
+      totalAmount: safeNumber(summary.totalAmount),
+      formattedTotalAmount: safeString(summary.formattedTotalAmount, formatCurrency(safeNumber(summary.totalAmount))),
+      dueSoonCount: safeNumber(summary.dueSoonCount),
+      overdueCount: safeNumber(summary.overdueCount),
+      activeCardsCount: safeNumber(summary.activeCardsCount),
+      invoiceCount: safeNumber(summary.invoiceCount),
+    },
+    filterOptions: {
+      cards: (filterOptions.cards ?? []).map((card) => ({
+        id: safeIdentifier(card.id, "card"),
+        name: safeString(card.name, "Cartão"),
+      })),
+      categories: (filterOptions.categories ?? []).map((category) => ({
+        id: safeIdentifier(category.id, "category"),
+        label: safeString(category.label, "Categoria"),
+      })),
+      statuses: (filterOptions.statuses ?? []).filter(
+        (status): status is InvoiceItem["status"] =>
+          status === "open" || status === "closed" || status === "due_soon" || status === "overdue",
+      ),
+    },
+    invoices: (response.invoices ?? []).map(mapInvoiceItem),
   };
 }
 
@@ -1737,6 +1833,21 @@ export async function getInstallmentsOverview(filters: Partial<InstallmentsOverv
   return mapInstallmentsOverviewResponse(response);
 }
 
+export async function getInvoices(filters: Partial<InvoiceFilters> = {}) {
+  const response = await request<ApiInvoicesResponse>(
+    buildPath("/api/invoices", {
+      cardId: filters.cardId && filters.cardId !== "all" ? filters.cardId : undefined,
+      referenceStart: filters.referenceStart ?? undefined,
+      referenceEnd: filters.referenceEnd ?? undefined,
+      status: filters.status && filters.status !== "all" ? filters.status : undefined,
+      categoryId: filters.categoryId && filters.categoryId !== "all" ? filters.categoryId : undefined,
+      search: filters.search?.trim() ? filters.search.trim() : undefined,
+    }),
+  );
+
+  return mapInvoicesResponse(response);
+}
+
 export async function getTransactions(limit?: number) {
   const response = await request<ApiTransactionsResponse>(buildPath("/api/transactions", { limit }));
   return mapTransactionsResponse(response);
@@ -1870,13 +1981,31 @@ export async function patchBank(input: UpdateBankConnectionInput) {
         creditLimit: input.creditLimit,
         color: input.color,
         connected: input.connected,
-        parentBankConnectionId: input.parentBankConnectionId,
+      parentBankConnectionId: input.parentBankConnectionId,
       statementCloseDay: input.statementCloseDay,
       statementDueDay: input.statementDueDay,
+      notifyInvoiceClosed: input.notifyInvoiceClosed,
+      notifyInvoiceDueSoon: input.notifyInvoiceDueSoon,
+      invoiceDueReminderDays: input.invoiceDueReminderDays,
     }),
   });
 
   return mapBank(response);
+}
+
+export async function updateInvoiceSettings(input: InvoiceSettingsInput) {
+  const response = await request<ApiInvoiceSettingsResponse>(`/api/invoices/cards/${input.cardId}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      statementCloseDay: input.statementCloseDay,
+      statementDueDay: input.statementDueDay,
+      notifyInvoiceClosed: input.notifyInvoiceClosed,
+      notifyInvoiceDueSoon: input.notifyInvoiceDueSoon,
+      invoiceDueReminderDays: input.invoiceDueReminderDays,
+    }),
+  });
+
+  return mapInvoiceCard(response.card);
 }
 
 export async function deleteBank(id: number | string) {

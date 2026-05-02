@@ -15,7 +15,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   category: NotificationCategory;
-  source: "user_self" | "admin_all" | "admin_selected";
+  source: "user_self" | "admin_all" | "admin_selected" | "system";
   triggerAt: string | null;
   createdAt: string;
   isRead: boolean;
@@ -48,6 +48,15 @@ const ALLOWED_CATEGORIES: NotificationCategory[] = [
   "housing_due",
   "custom",
 ];
+
+type NotificationSource = "user_self" | "admin_all" | "admin_selected" | "system";
+
+type Queryable = {
+  query: (text: string, params?: unknown[]) => Promise<{
+    rows: Array<Record<string, unknown>>;
+    rowCount?: number | null;
+  }>;
+};
 
 function parseNotificationCategory(value: unknown): NotificationCategory {
   if (typeof value !== "string") {
@@ -151,13 +160,18 @@ function parseDateBoundary(value: unknown, boundary: "start" | "end") {
 }
 
 function mapNotificationRow(row: Record<string, unknown>): NotificationItem {
+  const source =
+    row.source === "admin_all" || row.source === "admin_selected" || row.source === "system"
+      ? row.source
+      : "user_self";
+
   return {
     recipientId: Number(row.recipient_id),
     notificationId: Number(row.notification_id),
     title: String(row.title),
     message: String(row.message),
     category: parseNotificationCategory(row.category),
-    source: row.source === "admin_all" || row.source === "admin_selected" ? row.source : "user_self",
+    source,
     triggerAt: row.trigger_at ? new Date(String(row.trigger_at)).toISOString() : null,
     createdAt: new Date(String(row.created_at)).toISOString(),
     isRead: Boolean(row.is_read),
@@ -174,14 +188,15 @@ function mapNotificationRow(row: Record<string, unknown>): NotificationItem {
 }
 
 async function createNotificationBase(input: {
-  createdByUserId: number;
-  source: "user_self" | "admin_all" | "admin_selected";
+  createdByUserId: number | null;
+  source: NotificationSource;
   category: NotificationCategory;
   title: string;
   message: string;
   triggerAt: string | null;
-}) {
-  const result = await db.query(
+  actionHref?: string | null;
+}, client: Queryable = db) {
+  const result = await client.query(
     `
       INSERT INTO notifications (
         created_by_user_id,
@@ -189,9 +204,10 @@ async function createNotificationBase(input: {
         category,
         title,
         message,
-        trigger_at
+        trigger_at,
+        action_href
       )
-      VALUES ($1, $2, $3, $4, $5, $6::timestamptz)
+      VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7)
       RETURNING id
     `,
     [
@@ -201,18 +217,19 @@ async function createNotificationBase(input: {
       input.title,
       input.message,
       input.triggerAt,
+      input.actionHref ?? null,
     ],
   );
 
   return Number(result.rows[0].id);
 }
 
-async function insertRecipients(notificationId: number, userIds: number[]) {
+async function insertRecipients(notificationId: number, userIds: number[], client: Queryable = db) {
   if (userIds.length === 0) {
     throw new BadRequestError("empty_notification_recipients", "At least one recipient is required.");
   }
 
-  await db.query(
+  await client.query(
     `
       INSERT INTO notification_recipients (notification_id, user_id)
       SELECT $1, recipient_id
@@ -271,7 +288,7 @@ export async function listNotificationsForUser(
         )
         AND (
           $3::text = 'all'
-          OR ($3::text = 'system' AND n.source IN ('admin_all', 'admin_selected'))
+          OR ($3::text = 'system' AND n.source IN ('system', 'admin_all', 'admin_selected'))
           OR ($3::text = 'user' AND n.source = 'user_self')
         )
         AND ($4::timestamptz IS NULL OR COALESCE(n.trigger_at, n.created_at) >= $4::timestamptz)
@@ -322,6 +339,40 @@ export async function createSelfNotification(
   });
 
   await insertRecipients(notificationId, [userId]);
+  return notificationId;
+}
+
+export async function createSystemNotificationForUser(
+  userId: number,
+  input: {
+    title: unknown;
+    message: unknown;
+    category?: unknown;
+    triggerAt?: unknown;
+    actionHref?: unknown;
+  },
+  client: Queryable = db,
+) {
+  const title = normalizeText(input.title, "title");
+  const message = normalizeText(input.message, "message");
+  const category = parseNotificationCategory(input.category);
+  const triggerAt = parseTriggerAt(input.triggerAt);
+  const actionHref = typeof input.actionHref === "string" && input.actionHref.trim() ? input.actionHref.trim() : null;
+
+  const notificationId = await createNotificationBase(
+    {
+      createdByUserId: null,
+      source: "system",
+      category,
+      title,
+      message,
+      triggerAt,
+      actionHref,
+    },
+    client,
+  );
+
+  await insertRecipients(notificationId, [userId], client);
   return notificationId;
 }
 

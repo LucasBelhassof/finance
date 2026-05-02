@@ -560,7 +560,10 @@ export async function listBanks(userId) {
           b.parent_bank_connection_id,
           parent.name AS parent_account_name,
           b.statement_close_day,
-        b.statement_due_day
+          b.statement_due_day,
+          b.notify_invoice_closed,
+          b.notify_invoice_due_soon,
+          b.invoice_due_reminder_days
       FROM bank_connections b
       LEFT JOIN bank_connections parent ON parent.id = b.parent_bank_connection_id
       WHERE b.user_id = $1
@@ -578,16 +581,19 @@ export async function listBanks(userId) {
     slug: row.slug,
     name: row.name,
     accountType: row.account_type,
-      connected: row.connected,
-      color: row.color,
-      currentBalance: parseNumeric(row.current_balance),
-      formattedBalance: formatCurrency(row.current_balance),
-      creditLimit: row.credit_limit === null ? null : parseNumeric(row.credit_limit),
-      formattedCreditLimit: row.credit_limit === null ? null : formatCurrency(row.credit_limit),
-      parentBankConnectionId: row.parent_bank_connection_id,
-      parentAccountName: row.parent_account_name,
-      statementCloseDay: row.statement_close_day,
-      statementDueDay: row.statement_due_day,
+    connected: row.connected,
+    color: row.color,
+    currentBalance: parseNumeric(row.current_balance),
+    formattedBalance: formatCurrency(row.current_balance),
+    creditLimit: row.credit_limit === null ? null : parseNumeric(row.credit_limit),
+    formattedCreditLimit: row.credit_limit === null ? null : formatCurrency(row.credit_limit),
+    parentBankConnectionId: row.parent_bank_connection_id,
+    parentAccountName: row.parent_account_name,
+    statementCloseDay: row.statement_close_day,
+    statementDueDay: row.statement_due_day,
+    notifyInvoiceClosed: Boolean(row.notify_invoice_closed),
+    notifyInvoiceDueSoon: Boolean(row.notify_invoice_due_soon),
+    invoiceDueReminderDays: Number(row.invoice_due_reminder_days ?? 3),
   }));
 }
 
@@ -613,9 +619,12 @@ export async function createBankConnection(userId, input) {
         sort_order,
         parent_bank_connection_id,
         statement_close_day,
-        statement_due_day
+        statement_due_day,
+        notify_invoice_closed,
+        notify_invoice_due_soon,
+        invoice_due_reminder_days
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id
     `,
     [
@@ -631,6 +640,9 @@ export async function createBankConnection(userId, input) {
       normalized.parentBankConnectionId,
       normalized.statementCloseDay,
       normalized.statementDueDay,
+      normalized.notifyInvoiceClosed,
+      normalized.notifyInvoiceDueSoon,
+      normalized.invoiceDueReminderDays,
     ],
   );
 
@@ -652,7 +664,7 @@ export async function updateBankConnection(userId, bankConnectionId, input) {
     throw new Error("bank connection not found");
   }
 
-  const normalized = await validateBankConnectionInput(resolvedUserId, input, bankConnectionId);
+  const normalized = await validateBankConnectionInput(resolvedUserId, input, bankConnectionId, existing);
   const hasChildren = await hasChildBankConnections(resolvedUserId, bankConnectionId);
 
   if (hasChildren && normalized.accountType !== "bank_account") {
@@ -671,6 +683,9 @@ export async function updateBankConnection(userId, bankConnectionId, input) {
             parent_bank_connection_id = $9,
             statement_close_day = $10,
             statement_due_day = $11,
+            notify_invoice_closed = $12,
+            notify_invoice_due_soon = $13,
+            invoice_due_reminder_days = $14,
             updated_at = NOW()
         WHERE user_id = $1
           AND id = $2
@@ -679,15 +694,18 @@ export async function updateBankConnection(userId, bankConnectionId, input) {
       resolvedUserId,
       bankConnectionId,
       normalized.name,
-        normalized.accountType,
-        normalized.connected,
-        normalized.color,
-        normalized.currentBalance,
-        normalized.creditLimit,
-        normalized.parentBankConnectionId,
-        normalized.statementCloseDay,
-        normalized.statementDueDay,
-      ],
+      normalized.accountType,
+      normalized.connected,
+      normalized.color,
+      normalized.currentBalance,
+      normalized.creditLimit,
+      normalized.parentBankConnectionId,
+      normalized.statementCloseDay,
+      normalized.statementDueDay,
+      normalized.notifyInvoiceClosed,
+      normalized.notifyInvoiceDueSoon,
+      normalized.invoiceDueReminderDays,
+    ],
   );
 
   const updated = await listBanks(resolvedUserId);
@@ -1913,7 +1931,10 @@ async function getBankConnectionById(userId, bankConnectionId, client = pool) {
         credit_limit,
         parent_bank_connection_id,
         statement_close_day,
-        statement_due_day
+        statement_due_day,
+        notify_invoice_closed,
+        notify_invoice_due_soon,
+        invoice_due_reminder_days
       FROM bank_connections
       WHERE user_id = $1
         AND id = $2
@@ -2024,7 +2045,21 @@ function validateStatementDay(value, fieldName) {
   return value;
 }
 
-async function validateBankConnectionInput(userId, input, currentId = null) {
+function parseBooleanInput(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function validateInvoiceDueReminderDays(value) {
+  const parsed = value === undefined || value === null || value === "" ? 3 : Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 15) {
+    throw new Error("invoiceDueReminderDays must be between 1 and 15");
+  }
+
+  return parsed;
+}
+
+async function validateBankConnectionInput(userId, input, currentId = null, existing = null) {
   const name = String(input.name ?? "").trim();
   const accountType =
     input.accountType === "credit_card"
@@ -2043,6 +2078,14 @@ async function validateBankConnectionInput(userId, input, currentId = null) {
   const parentBankConnectionId = parseOptionalInteger(input.parentBankConnectionId);
   const statementCloseDay = validateStatementDay(parseOptionalInteger(input.statementCloseDay), "statementCloseDay");
   const statementDueDay = validateStatementDay(parseOptionalInteger(input.statementDueDay), "statementDueDay");
+  const existingNotifyInvoiceClosed = Boolean(existing?.notify_invoice_closed);
+  const existingNotifyInvoiceDueSoon = Boolean(existing?.notify_invoice_due_soon);
+  const existingInvoiceDueReminderDays = Number(existing?.invoice_due_reminder_days ?? 3);
+  const notifyInvoiceClosed = parseBooleanInput(input.notifyInvoiceClosed, existingNotifyInvoiceClosed);
+  const notifyInvoiceDueSoon = parseBooleanInput(input.notifyInvoiceDueSoon, existingNotifyInvoiceDueSoon);
+  const invoiceDueReminderDays = validateInvoiceDueReminderDays(
+    input.invoiceDueReminderDays === undefined ? existingInvoiceDueReminderDays : input.invoiceDueReminderDays,
+  );
 
   if (!name || !accountType || !Number.isFinite(currentBalance)) {
     throw new Error("name, accountType and currentBalance are required");
@@ -2098,6 +2141,9 @@ async function validateBankConnectionInput(userId, input, currentId = null) {
     parentBankConnectionId,
     statementCloseDay,
     statementDueDay,
+    notifyInvoiceClosed: accountType === "credit_card" ? notifyInvoiceClosed : false,
+    notifyInvoiceDueSoon: accountType === "credit_card" ? notifyInvoiceDueSoon : false,
+    invoiceDueReminderDays: accountType === "credit_card" ? invoiceDueReminderDays : 3,
   };
 }
 

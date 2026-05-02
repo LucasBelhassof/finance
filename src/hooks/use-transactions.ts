@@ -105,6 +105,7 @@ export function useCreateTransaction(limit?: number) {
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey() });
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -119,6 +120,7 @@ export function useUpdateTransaction(limit?: number) {
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey() });
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -133,6 +135,7 @@ export function useDeleteTransaction(limit?: number) {
       queryClient.invalidateQueries({ queryKey: transactionsQueryKey() });
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -188,6 +191,7 @@ export function useCommitTransactionImport() {
       queryClient.invalidateQueries({ queryKey: spendingQueryKey });
       queryClient.invalidateQueries({ queryKey: insightsQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.removeQueries({ queryKey: transactionImportPreviewQueryKey });
     },
   });

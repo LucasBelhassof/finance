@@ -1,12 +1,12 @@
 import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import CategoryPieChart from "@/components/CategoryPieChart";
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
-import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
-import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import MetricInfoTooltip from "@/components/MetricInfoTooltip";
+import PageFiltersPanel from "@/components/PageFiltersPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,6 +162,7 @@ function TransactionsSkeleton() {
 }
 
 export default function TransactionsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: transactions = [], isLoading, isError } = useTransactions();
   const { data: categories = [] } = useCategories();
   const { data: banks = [] } = useBanks();
@@ -172,6 +173,7 @@ export default function TransactionsPage() {
   const updateCategory = useUpdateCategory();
   const removeCategory = useDeleteCategory();
   const currentSelection = getCurrentMonthSelection();
+  const defaultDateRange = resolveMonthYearRange(currentSelection.monthIndex, currentSelection.year);
   const {
     selectedMonthIndex,
     selectedYear,
@@ -227,20 +229,13 @@ export default function TransactionsPage() {
     () => bankAccounts.find((bank) => String(bank.id) === selectedBankAccountId) ?? null,
     [bankAccounts, selectedBankAccountId],
   );
-  const availableAccountTypeOptions = useMemo(() => {
-    if (!selectedBankAccount) {
-      return [];
-    }
-
-    const hasLinkedCards = creditCards.some(
-      (card) => String(card.parentBankConnectionId) === String(selectedBankAccount.id),
-    );
-
-    return [
+  const availableAccountTypeOptions = useMemo(
+    () => [
       { value: "bank_account" as const, label: "Conta corrente" },
-      ...(hasLinkedCards ? [{ value: "credit_card" as const, label: "Cartão" }] : []),
-    ];
-  }, [creditCards, selectedBankAccount]);
+      ...(creditCards.length > 0 ? [{ value: "credit_card" as const, label: "Cartão" }] : []),
+    ],
+    [creditCards],
+  );
   const selectedBankLinkedCardIds = useMemo(
     () =>
       new Set(
@@ -252,16 +247,6 @@ export default function TransactionsPage() {
   );
 
   useEffect(() => {
-    if (!selectedBankAccount) {
-      setSelectedAccountType("all");
-      return;
-    }
-
-    if (availableAccountTypeOptions.length === 1) {
-      setSelectedAccountType(availableAccountTypeOptions[0].value);
-      return;
-    }
-
     const isCurrentTypeAvailable =
       selectedAccountType === "all" ||
       availableAccountTypeOptions.some((option) => option.value === selectedAccountType);
@@ -284,6 +269,14 @@ export default function TransactionsPage() {
         }
 
         if (!selectedBankAccount) {
+          if (selectedAccountType === "bank_account") {
+            return transaction.account.accountType === "bank_account";
+          }
+
+          if (selectedAccountType === "credit_card") {
+            return transaction.account.accountType === "credit_card";
+          }
+
           return true;
         }
 
@@ -331,6 +324,23 @@ export default function TransactionsPage() {
           right.count - left.count || right.total - left.total || left.label.localeCompare(right.label, "pt-BR"),
       );
   }, [breakdownTransactionType, categories, categoryBreakdown]);
+
+  const handleResetFilters = () => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+
+    nextSearchParams.set("month", String(currentSelection.monthIndex));
+    nextSearchParams.set("year", String(currentSelection.year));
+    nextSearchParams.set("preset", currentSelection.monthIndex === TRANSACTIONS_YEAR_SELECTION ? "year" : "month");
+    nextSearchParams.set("startDate", defaultDateRange.startDate);
+    nextSearchParams.set("endDate", defaultDateRange.endDate);
+    setSearchParams(nextSearchParams, { replace: true });
+
+    setSearch("");
+    setTypeFilter("all");
+    setCategoryFilter("all");
+    setSelectedBankAccountId("all");
+    setSelectedAccountType("all");
+  };
 
   const deleteTarget = visibleTransactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
   const editingCategory = categories.find((category) => String(category.id) === editingCategoryId) ?? null;
@@ -971,124 +981,83 @@ export default function TransactionsPage() {
         </DialogContent>
       </Dialog>
 
-      <div data-tour-id="transactions-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end">
-            <TransactionsMonthYearFilter
-              selectedMonthIndex={selectedMonthIndex}
-              selectedYear={selectedYear}
-              onMonthChange={handleMonthChange}
-              onYearChange={handleYearChange}
-            />
-
-            <TransactionsDateFilter
-              preset={datePreset}
-              range={dateRange}
-              onSelectPreset={handlePresetChange}
-              onApplyCustomRange={handleCustomRangeApply}
-              showPresetButtons={false}
-            />
-
-            {bankAccounts.length ? (
-              <div
-                className={cn(
-                  "grid gap-3",
-                  selectedBankAccount ? "md:grid-cols-2 xl:min-w-[460px]" : "xl:min-w-[220px]",
-                )}
-              >
-                <div className="space-y-1.5">
-                  <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
-                    <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35">
-                      <SelectValue placeholder="Todas as contas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as contas</SelectItem>
-                      {bankAccounts.map((bank) => (
-                        <SelectItem key={bank.id} value={String(bank.id)}>
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedBankAccount ? (
-                  <div className="space-y-1.5">
-                    <Select
-                      value={selectedAccountType}
-                      onValueChange={(value) => setSelectedAccountType(value as "all" | "bank_account" | "credit_card")}
-                    >
-                      <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35">
-                        <SelectValue placeholder="Tipo da conta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableAccountTypeOptions.length > 1 ? <SelectItem value="all">Todos</SelectItem> : null}
-                        {availableAccountTypeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
-              <SelectTrigger
-                data-testid="transactions-category-filter-trigger-hidden"
-                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1"
-              >
-                <SelectValue placeholder="Todas as categorias" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as categorias</SelectItem>
-                {categoriesWithBreakdown.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="relative flex-1">
-              <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar transação..."
-                className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-2 xl:flex xl:flex-wrap">
-              {typeFilters.map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => setTypeFilter(filter.value)}
-                  className={cn(
-                    "min-h-11 rounded-2xl px-3 py-2 text-center text-sm transition-colors sm:px-4 sm:py-2.5",
-                    typeFilter === filter.value
-                      ? "bg-primary/15 text-primary"
-                      : "bg-secondary/50 text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {filter.label}
-                </button>
+      <PageFiltersPanel
+        dataTourId="transactions-filters"
+        selectedMonthIndex={selectedMonthIndex}
+        selectedYear={selectedYear}
+        datePreset={datePreset}
+        dateRange={dateRange}
+        onMonthChange={handleMonthChange}
+        onYearChange={handleYearChange}
+        onSelectPreset={handlePresetChange}
+        onApplyCustomRange={handleCustomRangeApply}
+        accountFilter={{
+          value: selectedBankAccountId,
+          placeholder: "Todas as contas",
+          options: [
+            { value: "all", label: "Todas as contas" },
+            ...bankAccounts.map((bank) => ({
+              value: String(bank.id),
+              label: bank.name,
+            })),
+          ],
+          onChange: setSelectedBankAccountId,
+        }}
+        categoryFilter={{
+          value: categoryFilter,
+          placeholder: "Todas as categorias",
+          options: [
+            { value: "all", label: "Todas as categorias" },
+            ...categoriesWithBreakdown.map((category) => ({
+              value: category.id,
+              label: category.label,
+            })),
+          ],
+          onChange: setCategoryFilter,
+          triggerTestId: "transactions-category-filter-trigger",
+        }}
+        searchValue={search}
+        searchPlaceholder="Buscar transação..."
+        onSearchChange={setSearch}
+        inlineFilters={
+          <Select
+            value={selectedAccountType}
+            onValueChange={(value) => setSelectedAccountType(value as "all" | "bank_account" | "credit_card")}
+          >
+            <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:min-w-[220px] xl:flex-1">
+              <SelectValue placeholder="Tipo da conta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {availableAccountTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
               ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-              {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
-            </div>
-          </div>
-        </div>
-      </div>
+            </SelectContent>
+          </Select>
+        }
+        searchActions={typeFilters.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            onClick={() => setTypeFilter(filter.value)}
+            className={cn(
+              "min-h-11 rounded-2xl px-3 py-2 text-center text-sm transition-colors sm:px-4 sm:py-2.5",
+              typeFilter === filter.value
+                ? "bg-primary/15 text-primary"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {filter.label}
+          </button>
+        ))}
+        onResetFilters={handleResetFilters}
+        periodLabel={`${dateRange.startDate.split("-").reverse().join("/")} - ${dateRange.endDate
+          .split("-")
+          .reverse()
+          .join("/")}`}
+      />
 
       <div data-tour-id="transactions-summary" className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
@@ -1113,119 +1082,6 @@ export default function TransactionsPage() {
             <MetricInfoTooltip content="Resultado entre o total de receitas e o total de despesas dentro dos filtros aplicados na tela." />
           </div>
           <p className="mt-2 text-[2rem] font-semibold text-income">{formatCurrency(summaryCardsData.balance)}</p>
-        </div>
-      </div>
-
-      <div hidden className="hidden rounded-2xl border border-border/40 p-3 sm:p-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end">
-            <TransactionsMonthYearFilter
-              selectedMonthIndex={selectedMonthIndex}
-              selectedYear={selectedYear}
-              onMonthChange={handleMonthChange}
-              onYearChange={handleYearChange}
-            />
-
-            <TransactionsDateFilter
-              preset={datePreset}
-              range={dateRange}
-              onSelectPreset={handlePresetChange}
-              onApplyCustomRange={handleCustomRangeApply}
-              showPresetButtons={false}
-            />
-
-            {bankAccounts.length ? (
-              <div
-                className={cn(
-                  "grid gap-3",
-                  selectedBankAccount ? "md:grid-cols-2 xl:min-w-[460px]" : "xl:min-w-[220px]",
-                )}
-              >
-                <div className="space-y-1.5">
-                  <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
-                    <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35">
-                      <SelectValue placeholder="Todas as contas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as contas</SelectItem>
-                      {bankAccounts.map((bank) => (
-                        <SelectItem key={bank.id} value={String(bank.id)}>
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedBankAccount ? (
-                  <div className="space-y-1.5">
-                    <Select
-                      value={selectedAccountType}
-                      onValueChange={(value) => setSelectedAccountType(value as "all" | "bank_account" | "credit_card")}
-                    >
-                      <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35">
-                        <SelectValue placeholder="Tipo da conta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableAccountTypeOptions.length > 1 ? <SelectItem value="all">Todos</SelectItem> : null}
-                        {availableAccountTypeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value)}>
-              <SelectTrigger
-                data-testid="transactions-category-filter-trigger"
-                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1"
-              >
-                <SelectValue placeholder="Todas as categorias" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as categorias</SelectItem>
-                {categoriesWithBreakdown.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="relative flex-1">
-              <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar transação..."
-                className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-2 xl:flex xl:flex-wrap">
-              {typeFilters.map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => setTypeFilter(filter.value)}
-                  className={cn(
-                    "min-h-11 rounded-2xl px-3 py-2 text-center text-sm transition-colors sm:px-4 sm:py-2.5",
-                    typeFilter === filter.value
-                      ? "bg-primary/15 text-primary"
-                      : "bg-secondary/50 text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 

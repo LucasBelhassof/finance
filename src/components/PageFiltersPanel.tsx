@@ -37,7 +37,9 @@ interface PageFiltersPanelProps {
   onApplyCustomRange: (range: TransactionsDateRange) => void;
   onSearchChange: (value: string) => void;
   onResetFilters: () => void;
+  inlineFilters?: ReactNode;
   searchPlaceholder?: string;
+  searchActions?: ReactNode;
   periodLabel?: string;
   advancedFilters?: ReactNode;
   activeAdvancedCount?: number;
@@ -59,7 +61,9 @@ export default function PageFiltersPanel({
   onApplyCustomRange,
   onSearchChange,
   onResetFilters,
+  inlineFilters,
   searchPlaceholder = "Buscar...",
+  searchActions,
   periodLabel,
   advancedFilters,
   activeAdvancedCount = 0,
@@ -133,6 +137,8 @@ export default function PageFiltersPanel({
               className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
             />
           </div>
+          {inlineFilters}
+          {searchActions ? <div className="grid grid-cols-3 gap-2 xl:flex xl:flex-wrap">{searchActions}</div> : null}
         </div>
 
         {advancedFilters && isAdvancedOpen ? (

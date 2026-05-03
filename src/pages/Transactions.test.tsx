@@ -223,6 +223,38 @@ const transactions: TransactionItem[] = [
     },
   },
   {
+    id: 14,
+    description: "Netflix",
+    amount: -59,
+    formattedAmount: "-R$ 59,00",
+    occurredOn: "2026-04-03",
+    relativeDate: "03 Abr",
+    housingId: null,
+    isInstallment: false,
+    installmentPurchaseId: null,
+    installmentNumber: null,
+    installmentCount: null,
+    purchaseOccurredOn: null,
+    category: {
+      id: 1,
+      slug: "restaurantes",
+      label: "Restaurantes",
+      iconName: "ArrowDownCircle",
+      icon: ArrowDownCircle,
+      color: "#e76f51",
+      groupSlug: "alimentacao",
+      groupLabel: "Alimentacao",
+      groupColor: "#e76f51",
+    },
+    account: {
+      id: 2,
+      slug: "nubank-ultravioleta",
+      name: "Nubank Ultravioleta",
+      accountType: "credit_card",
+      color: "bg-primary",
+    },
+  },
+  {
     id: "recurring:13:2026-04-10",
     sourceTransactionId: 13,
     description: "Salario",
@@ -314,6 +346,45 @@ describe("TransactionsPage", () => {
     });
 
     expect(screen.getByTestId("transactions-category-filter-trigger")).toHaveTextContent("Todas as categorias");
+  });
+
+  it("shows transaction-specific filters in advanced options and resets them", async () => {
+    renderPage();
+
+    expect(screen.queryByRole("button", { name: /Opções avançadas/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Receitas" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Salario").length).toBeGreaterThan(0);
+      expect(screen.queryByText("iFood")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Limpar filtros/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("iFood")).toBeInTheDocument();
+      expect(screen.getByText("Uber")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the account type filter visible and filters all accounts by account type", async () => {
+    renderPage();
+
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+
+    const accountTypeTrigger = screen.getAllByRole("combobox").find((element) => element.textContent?.includes("Todos"));
+
+    expect(accountTypeTrigger).toBeDefined();
+
+    fireEvent.click(accountTypeTrigger!);
+    fireEvent.click(await screen.findByText("Cartão"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Netflix")).toBeInTheDocument();
+      expect(screen.queryByText("iFood")).not.toBeInTheDocument();
+      expect(screen.queryByText("Uber")).not.toBeInTheDocument();
+    });
   });
 
   it("submits the chosen custom color when creating a category", async () => {
@@ -439,7 +510,8 @@ describe("TransactionsPage", () => {
       expect(screen.queryAllByText("Nubank").length).toBeGreaterThan(0);
     });
 
-    expect(screen.queryByText("Nubank Ultravioleta")).not.toBeInTheDocument();
+    const options = screen.queryAllByRole("option").map((option) => option.textContent);
+    expect(options).not.toContain("Nubank Ultravioleta");
   });
 
   it("deletes a projected recurring income using the effective occurrence date", async () => {

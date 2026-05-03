@@ -396,7 +396,6 @@ export default function CreditCardInvoicesPage() {
       activeAdvancedCount={activeAdvancedFilterCount}
       advancedFilters={
         <label className="space-y-1 text-sm text-muted-foreground">
-          <span>Status</span>
           <Select
             value={selectedStatus}
             onValueChange={(value) =>

@@ -1,9 +1,7 @@
-import { Loader2, MessageSquarePlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AiChat from "@/components/AiChat";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { useChatConversations, useCreateChatConversation } from "@/hooks/use-chat";
@@ -25,23 +23,35 @@ export default function DashboardChatCard() {
   const { data: chats = [] } = useChatConversations();
   const createChat = useCreateChatConversation();
   const [selectedChatId, setSelectedChatId] = useState(NEW_CHAT_VALUE);
+  const [activeChatId, setActiveChatId] = useState<string | undefined>();
+  const [pendingInitialMessage, setPendingInitialMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedChatId === NEW_CHAT_VALUE) {
+      setActiveChatId(undefined);
+      setPendingInitialMessage(null);
       return;
     }
 
     if (!chats.some((chat) => chat.id === selectedChatId)) {
+      if (activeChatId === selectedChatId) {
+        return;
+      }
+
       setSelectedChatId(NEW_CHAT_VALUE);
+      return;
     }
-  }, [chats, selectedChatId]);
+
+    setActiveChatId(selectedChatId);
+    setPendingInitialMessage(null);
+  }, [activeChatId, chats, selectedChatId]);
 
   const openNewChat = async (initialMessage?: string) => {
     try {
       const chat = await createChat.mutateAsync();
-      navigate(getChatPath(chat.id), {
-        state: initialMessage ? { initialMessage } : undefined,
-      });
+      setSelectedChatId(chat.id);
+      setActiveChatId(chat.id);
+      setPendingInitialMessage(initialMessage ?? null);
       return true;
     } catch (error) {
       toast.error("Nao foi possivel iniciar um novo chat.", {
@@ -51,43 +61,33 @@ export default function DashboardChatCard() {
     }
   };
 
-  const handleOpenSelectedChat = async () => {
-    if (selectedChatId === NEW_CHAT_VALUE) {
-      await openNewChat();
-      return;
-    }
-
-    navigate(getChatPath(selectedChatId));
-  };
-
   const handleStartConversation = async (message: string) => {
     if (selectedChatId === NEW_CHAT_VALUE) {
       return openNewChat(message);
     }
 
-    navigate(getChatPath(selectedChatId), {
-      state: { initialMessage: message },
-    });
+    setActiveChatId(selectedChatId);
     return true;
   };
 
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-col gap-3 rounded-[28px] border border-border/40 bg-card p-5 shadow-sm">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold text-foreground">Chat financeiro</h2>
-          <p className="text-sm text-muted-foreground">
-            {chats.length
-              ? "Escolha um chat existente para continuar ou inicie um novo."
-              : "Envie a primeira mensagem para criar um novo chat automaticamente."}
-          </p>
-        </div>
+  const handleOpenFullChat = () => {
+    navigate(activeChatId ? getChatPath(activeChatId) : appRoutes.chat);
+  };
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+  return (
+    <AiChat
+      chatId={activeChatId}
+      creatingConversation={createChat.isPending}
+      initialMessage={pendingInitialMessage}
+      onInitialMessageHandled={() => setPendingInitialMessage(null)}
+      onStartConversation={handleStartConversation}
+      onOpenFullChat={handleOpenFullChat}
+      headerActions={
+        <div className="w-full sm:w-auto">
           <Select value={selectedChatId} onValueChange={setSelectedChatId}>
             <SelectTrigger
               aria-label="Escolher conversa do chat financeiro"
-              className={`sm:flex-1 ${INLINE_SELECT_TRIGGER_CLASSNAME}`}
+              className={`w-full min-w-[12rem] ${INLINE_SELECT_TRIGGER_CLASSNAME}`}
             >
               <SelectValue placeholder="Novo chat" />
             </SelectTrigger>
@@ -100,19 +100,8 @@ export default function DashboardChatCard() {
               ))}
             </SelectContent>
           </Select>
-
-          <Button variant="outline" onClick={() => void handleOpenSelectedChat()} disabled={createChat.isPending}>
-            {createChat.isPending && selectedChatId === NEW_CHAT_VALUE ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <MessageSquarePlus size={16} />
-            )}
-            {selectedChatId === NEW_CHAT_VALUE ? "Iniciar novo chat" : "Abrir chat"}
-          </Button>
         </div>
-      </div>
-
-      <AiChat creatingConversation={createChat.isPending} onStartConversation={handleStartConversation} />
-    </div>
+      }
+    />
   );
 }

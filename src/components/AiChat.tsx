@@ -1,5 +1,5 @@
-import { Bot, FolderKanban, Send, User } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { Bot, ExternalLink, FolderKanban, Send, User } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 
 import { toast } from "@/components/ui/sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,11 +15,13 @@ interface AiChatProps {
   onInitialMessageHandled?: () => void;
   onStartConversation?: (message: string) => Promise<boolean>;
   onPlanDraftAction?: (action: PlanDraftAction) => void;
+  onOpenFullChat?: () => void;
+  headerActions?: ReactNode;
 }
 
 function ChatLoadingState() {
   return (
-    <div className="glass-card flex h-full flex-col animate-fade-in">
+    <div className="glass-card grid h-[min(72vh,38rem)] min-h-[26rem] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden animate-fade-in sm:h-[min(68vh,42rem)]">
       <div className="border-b border-border/50 p-4">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
@@ -35,7 +37,7 @@ function ChatLoadingState() {
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
+      <div className="min-h-0 space-y-4 overflow-y-auto p-4 scrollbar-thin">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className={`flex gap-2.5 ${index % 2 === 1 ? "flex-row-reverse" : ""}`}>
             <Skeleton className="h-7 w-7 rounded-full" />
@@ -102,6 +104,8 @@ export default function AiChat({
   onInitialMessageHandled,
   onStartConversation,
   onPlanDraftAction,
+  onOpenFullChat,
+  headerActions,
 }: AiChatProps) {
   const [input, setInput] = useState("");
   const [queuedMessages, setQueuedMessages] = useState<Array<{ id: string; content: string; createdAt: string }>>([]);
@@ -110,6 +114,8 @@ export default function AiChat({
   const { data: messages = [], isLoading, isError, error } = useChatConversationMessages(chatId, DEFAULT_CHAT_LIMIT);
   const sendMessages = useSendChatConversationMessages(chatId, DEFAULT_CHAT_LIMIT);
   const { isPending: isSendingMessages, mutateAsync: sendQueuedMessages } = sendMessages;
+  const hasUserMessage =
+    messages.some((message) => message.role === "user") || queuedMessages.length > 0 || Boolean(initialMessage);
 
   useEffect(() => {
     queuedMessagesRef.current = queuedMessages;
@@ -227,23 +233,41 @@ export default function AiChat({
   }
 
   return (
-    <div className="glass-card flex h-full flex-col animate-fade-in">
+    <div className="glass-card grid h-[min(72vh,38rem)] min-h-[26rem] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden animate-fade-in sm:h-[min(68vh,42rem)]">
       <div className="border-b border-border/50 p-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-            <Bot size={14} className="text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Assistente Finly</h3>
-            <div className="flex items-center gap-1">
-              <span className="pulse-glow h-1.5 w-1.5 rounded-full bg-income" />
-              <span className="text-xs text-muted-foreground">Online</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+              <Bot size={14} className="text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Assistente Finly</h3>
+              <div className="flex items-center gap-1">
+                <span className="pulse-glow h-1.5 w-1.5 rounded-full bg-income" />
+                <span className="text-xs text-muted-foreground">Online</span>
+              </div>
             </div>
           </div>
+
+          {headerActions || (onOpenFullChat && hasUserMessage) ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {headerActions}
+              {onOpenFullChat && hasUserMessage ? (
+                <button
+                  type="button"
+                  onClick={onOpenFullChat}
+                  className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <ExternalLink size={12} />
+                  Abrir no Chat IA
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div ref={scrollContainerRef} className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
+      <div ref={scrollContainerRef} className="min-h-0 space-y-4 overflow-y-auto p-4 scrollbar-thin">
         {!messages.length &&
         !queuedMessages.length &&
         !isSendingMessages &&

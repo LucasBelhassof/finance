@@ -58,14 +58,33 @@ vi.mock("@/components/ui/select", () => ({
 
 vi.mock("@/components/AiChat", () => ({
   default: ({
+    chatId,
+    initialMessage,
     onStartConversation,
     creatingConversation,
+    onInitialMessageHandled,
+    onOpenFullChat,
+    headerActions,
   }: {
+    chatId?: string;
+    initialMessage?: string | null;
     onStartConversation?: (message: string) => Promise<boolean>;
     creatingConversation?: boolean;
+    onInitialMessageHandled?: () => void;
+    onOpenFullChat?: () => void;
+    headerActions?: ReactNode;
   }) => (
     <div>
+      {headerActions}
+      <span>{chatId ?? "sem chat"}</span>
+      <span>{initialMessage ?? "sem mensagem inicial"}</span>
       <span>{creatingConversation ? "criando chat" : "chat pronto"}</span>
+      <button type="button" onClick={() => onInitialMessageHandled?.()}>
+        limpar mensagem inicial
+      </button>
+      <button type="button" onClick={() => onOpenFullChat?.()}>
+        abrir no chat ia
+      </button>
       <button type="button" onClick={() => void onStartConversation?.("Quero organizar minhas contas")}>
         enviar mensagem inicial
       </button>
@@ -90,31 +109,42 @@ describe("DashboardChatCard", () => {
     });
   });
 
-  it("creates a new chat from the dashboard first message and navigates to it", async () => {
+  it("creates a new chat from the dashboard first message and keeps the conversation inline", async () => {
     render(<DashboardChatCard />);
 
+    expect(screen.queryByText("Chat financeiro")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /enviar mensagem inicial/i }));
 
     await waitFor(() => {
       expect(mockCreateChatMutateAsync).toHaveBeenCalled();
     });
-    expect(mockNavigate).toHaveBeenCalledWith(`${appRoutes.chat}/chat-2`, {
-      state: { initialMessage: "Quero organizar minhas contas" },
-    });
+
+    expect(screen.getByText("chat-2")).toBeInTheDocument();
+    expect(screen.getByText("Quero organizar minhas contas")).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("opens an existing chat route with the typed first message when one is selected", async () => {
+  it("loads an existing chat inline when one is selected", async () => {
     render(<DashboardChatCard />);
 
     fireEvent.change(screen.getByLabelText("Escolher conversa do chat financeiro"), {
       target: { value: "chat-1" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /enviar mensagem inicial/i }));
+
+    expect(screen.getByText("chat-1")).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("opens the active conversation in the chat page only when requested", async () => {
+    render(<DashboardChatCard />);
+
+    fireEvent.change(screen.getByLabelText("Escolher conversa do chat financeiro"), {
+      target: { value: "chat-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /abrir no chat ia/i }));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(`${appRoutes.chat}/chat-1`, {
-        state: { initialMessage: "Quero organizar minhas contas" },
-      });
+      expect(mockNavigate).toHaveBeenCalledWith(`${appRoutes.chat}/chat-1`);
     });
   });
 });

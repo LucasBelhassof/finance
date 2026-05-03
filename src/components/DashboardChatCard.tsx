@@ -42,8 +42,11 @@ export default function DashboardChatCard() {
       return;
     }
 
+    if (selectedChatId !== activeChatId) {
+      setPendingInitialMessage(null);
+    }
+
     setActiveChatId(selectedChatId);
-    setPendingInitialMessage(null);
   }, [activeChatId, chats, selectedChatId]);
 
   const openNewChat = async (initialMessage?: string) => {

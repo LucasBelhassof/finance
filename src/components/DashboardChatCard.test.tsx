@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardChatCard from "@/components/DashboardChatCard";
@@ -9,6 +9,7 @@ const mockUseChatConversations = vi.fn();
 const mockUseCreateChatConversation = vi.fn();
 const mockNavigate = vi.fn();
 const mockCreateChatMutateAsync = vi.fn();
+const mockAiChatConsumeInitialMessage = vi.fn();
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
@@ -74,21 +75,31 @@ vi.mock("@/components/AiChat", () => ({
     onOpenFullChat?: () => void;
     headerActions?: ReactNode;
   }) => (
-    <div>
-      {headerActions}
-      <span>{chatId ?? "sem chat"}</span>
-      <span>{initialMessage ?? "sem mensagem inicial"}</span>
-      <span>{creatingConversation ? "criando chat" : "chat pronto"}</span>
-      <button type="button" onClick={() => onInitialMessageHandled?.()}>
-        limpar mensagem inicial
-      </button>
-      <button type="button" onClick={() => onOpenFullChat?.()}>
-        abrir no chat ia
-      </button>
-      <button type="button" onClick={() => void onStartConversation?.("Quero organizar minhas contas")}>
-        enviar mensagem inicial
-      </button>
-    </div>
+    (() => {
+      useEffect(() => {
+        if (!chatId || !initialMessage) {
+          return;
+        }
+
+        mockAiChatConsumeInitialMessage(chatId, initialMessage);
+        onInitialMessageHandled?.();
+      }, [chatId, initialMessage, onInitialMessageHandled]);
+
+      return (
+        <div>
+          {headerActions}
+          <span>{chatId ?? "sem chat"}</span>
+          <span>{initialMessage ?? "sem mensagem inicial"}</span>
+          <span>{creatingConversation ? "criando chat" : "chat pronto"}</span>
+          <button type="button" onClick={() => onOpenFullChat?.()}>
+            abrir no chat ia
+          </button>
+          <button type="button" onClick={() => void onStartConversation?.("Quero organizar minhas contas")}>
+            enviar mensagem inicial
+          </button>
+        </div>
+      );
+    })()
   ),
 }));
 
@@ -100,6 +111,10 @@ describe("DashboardChatCard", () => {
         {
           id: "chat-1",
           title: "Planejamento mensal",
+        },
+        {
+          id: "chat-2",
+          title: "Novo chat",
         },
       ],
     });
@@ -119,8 +134,11 @@ describe("DashboardChatCard", () => {
       expect(mockCreateChatMutateAsync).toHaveBeenCalled();
     });
 
+    await waitFor(() => {
+      expect(mockAiChatConsumeInitialMessage).toHaveBeenCalledWith("chat-2", "Quero organizar minhas contas");
+    });
+
     expect(screen.getByText("chat-2")).toBeInTheDocument();
-    expect(screen.getByText("Quero organizar minhas contas")).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 

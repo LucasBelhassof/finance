@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AlertTriangle, Bell, CalendarDays, CheckCircle2, ChevronDown, CreditCard, Search, Settings2 } from "lucide-react";
+import { AlertTriangle, Bell, CalendarDays, CheckCircle2, ChevronDown, CreditCard, RotateCcw, Search, Settings2 } from "lucide-react";
 
 import AppShell from "@/components/AppShell";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
@@ -413,11 +413,22 @@ export default function CreditCardInvoicesPage() {
             className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
           />
         </div>
-
-        <Button variant="ghost" className="h-11 text-muted-foreground hover:bg-transparent hover:text-foreground" onClick={handleResetFilters}>
-          Limpar filtros
-        </Button>
-      </div>
+      </div> 
+<div className="flex flex-col xl:flex-row xl:items-center xl:justify-between">
+            <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+              {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
+            </div>      
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="ghost"
+                  className="rounded-xl px-3 text-destructive hover:bg-transparent hover:text-destructive/80"
+                  onClick={handleResetFilters}
+                >
+                  <RotateCcw size={14} />
+                  Limpar filtros
+                </Button>
+              </div>
+            </div>
     </section>
   );
 

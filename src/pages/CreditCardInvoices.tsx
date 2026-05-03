@@ -1,20 +1,9 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import {
-  AlertTriangle,
-  Bell,
-  CalendarDays,
-  CheckCircle2,
-  ChevronDown,
-  CreditCard,
-  RotateCcw,
-  Search,
-  Settings2,
-} from "lucide-react";
+import { AlertTriangle, Bell, CalendarDays, CheckCircle2, ChevronDown, CreditCard, Settings2 } from "lucide-react";
 
 import AppShell from "@/components/AppShell";
-import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
-import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
+import PageFiltersPanel from "@/components/PageFiltersPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -349,127 +338,93 @@ export default function CreditCardInvoicesPage() {
     setSearchParams(nextSearchParams, { replace: true });
   };
 
-  const headerContent = (
-    <section data-tour-id="invoices-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-        <TransactionsMonthYearFilter
-          selectedMonthIndex={selectedMonthIndex}
-          selectedYear={selectedYear}
-          onMonthChange={handleMonthChange}
-          onYearChange={handleYearChange}
-        />
+  const activeAdvancedFilterCount = selectedStatus === "all" ? 0 : 1;
 
-        <TransactionsDateFilter
-          preset={datePreset}
-          range={dateRange}
-          onSelectPreset={handlePresetChange}
-          onApplyCustomRange={handleCustomRangeApply}
-          showPresetButtons={false}
-        />
-
-        <Select
-          value={selectedCardId}
-          onValueChange={(value) =>
-            updateUrlFilterParams(searchParams, setSearchParams, {
-              [FILTER_QUERY_PARAM_KEYS.cardId]: value === "all" ? null : value,
-            })
-          }
-        >
-          <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1">
-            <SelectValue placeholder="Todos os cartões" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os cartões</SelectItem>
-            {(data?.filterOptions.cards ?? []).map((card) => (
-              <SelectItem key={card.id} value={String(card.id)}>
-                {card.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={selectedStatus}
-          onValueChange={(value) =>
-            updateUrlFilterParams(searchParams, setSearchParams, {
-              [FILTER_QUERY_PARAM_KEYS.status]: value === "all" ? null : value,
-            })
-          }
-        >
-          <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1">
-            <SelectValue placeholder="Todos os status" />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((status) => (
-              <SelectItem key={status.value} value={status.value}>
-                {status.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={selectedCategoryId}
-          onValueChange={(value) =>
-            updateUrlFilterParams(searchParams, setSearchParams, {
-              [FILTER_QUERY_PARAM_KEYS.categoryId]: value === "all" ? null : value,
-            })
-          }
-        >
-          <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1">
-            <SelectValue placeholder="Todas as categorias" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as categorias</SelectItem>
-            {(data?.filterOptions.categories ?? []).map((category) => (
-              <SelectItem key={category.id} value={String(category.id)}>
-                {category.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="relative w-full xl:max-w-sm xl:flex-1">
-          <Search
-            size={17}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            value={search}
-            onChange={(event) =>
+  const filtersPanel = (
+    <PageFiltersPanel
+      dataTourId="invoices-filters"
+      selectedMonthIndex={selectedMonthIndex}
+      selectedYear={selectedYear}
+      datePreset={datePreset}
+      dateRange={dateRange}
+      onMonthChange={handleMonthChange}
+      onYearChange={handleYearChange}
+      onSelectPreset={handlePresetChange}
+      onApplyCustomRange={handleCustomRangeApply}
+      accountFilter={{
+        value: selectedCardId,
+        placeholder: "Todos os cartões",
+        options: [
+          { value: "all", label: "Todos os cartões" },
+          ...(data?.filterOptions.cards ?? []).map((card) => ({
+            value: String(card.id),
+            label: card.name,
+          })),
+        ],
+        onChange: (value) =>
+          updateUrlFilterParams(searchParams, setSearchParams, {
+            [FILTER_QUERY_PARAM_KEYS.cardId]: value === "all" ? null : value,
+          }),
+      }}
+      categoryFilter={{
+        value: selectedCategoryId,
+        placeholder: "Todas as categorias",
+        options: [
+          { value: "all", label: "Todas as categorias" },
+          ...(data?.filterOptions.categories ?? []).map((category) => ({
+            value: String(category.id),
+            label: category.label,
+          })),
+        ],
+        onChange: (value) =>
+          updateUrlFilterParams(searchParams, setSearchParams, {
+            [FILTER_QUERY_PARAM_KEYS.categoryId]: value === "all" ? null : value,
+          }),
+      }}
+      searchValue={search}
+      searchPlaceholder="Buscar despesa, cartão ou categoria..."
+      onSearchChange={(value) =>
+        updateUrlFilterParams(searchParams, setSearchParams, {
+          [FILTER_QUERY_PARAM_KEYS.search]: value.trim() || null,
+        })
+      }
+      onResetFilters={handleResetFilters}
+      periodLabel={`${dateRange.startDate.split("-").reverse().join("/")} - ${dateRange.endDate
+        .split("-")
+        .reverse()
+        .join("/")}`}
+      activeAdvancedCount={activeAdvancedFilterCount}
+      advancedFilters={
+        <label className="space-y-1 text-sm text-muted-foreground">
+          <span>Status</span>
+          <Select
+            value={selectedStatus}
+            onValueChange={(value) =>
               updateUrlFilterParams(searchParams, setSearchParams, {
-                [FILTER_QUERY_PARAM_KEYS.search]: event.target.value.trim() || null,
+                [FILTER_QUERY_PARAM_KEYS.status]: value === "all" ? null : value,
               })
             }
-            placeholder="Buscar despesa, cartão ou categoria..."
-            className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
-          />
-        </div>
-      </div>
-      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between">
-        <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-          {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="ghost"
-            className="rounded-xl px-3 text-destructive hover:bg-transparent hover:text-destructive/80"
-            onClick={handleResetFilters}
           >
-            <RotateCcw size={14} />
-            Limpar filtros
-          </Button>
-        </div>
-      </div>
-    </section>
+            <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35">
+              <SelectValue placeholder="Todos os status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+      }
+    />
   );
 
   return (
-    <AppShell
-      title="Faturas"
-      description="Acompanhe fechamento, vencimento e despesas dos cartões de crédito."
-      headerContent={headerContent}
-    >
+    <AppShell title="Faturas" description="Acompanhe fechamento, vencimento e despesas dos cartões de crédito.">
+      {filtersPanel}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, index) => (

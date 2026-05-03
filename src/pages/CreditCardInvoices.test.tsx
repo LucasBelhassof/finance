@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -89,7 +89,9 @@ vi.mock("@/components/AppShell", () => ({
     <div>
       <h1>{title}</h1>
       <p>{description}</p>
-      {headerContent}
+      <div data-testid="app-shell-header-content" data-present={headerContent ? "true" : "false"}>
+        {headerContent}
+      </div>
       {children}
     </div>
   ),
@@ -237,6 +239,41 @@ describe("CreditCardInvoicesPage", () => {
         referenceEnd: defaultRange.endDate,
       }),
     );
+  });
+
+  it("renders invoice filters in the page content instead of AppShell headerContent", () => {
+    mockUseInvoices.mockReturnValue({
+      data: createInvoicesData(),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    const { container } = renderPage();
+
+    expect(screen.getByTestId("app-shell-header-content")).toHaveAttribute("data-present", "false");
+    expect(container.querySelector('[data-tour-id="invoices-filters"]')).toBeInTheDocument();
+  });
+
+  it("keeps invoice status in advanced filters and shows active count", () => {
+    mockUseInvoices.mockReturnValue({
+      data: createInvoicesData(),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage("/gestao-de-gastos/faturas?status=closed");
+
+    const advancedButton = screen.getByRole("button", { name: /Opções avançadas/ });
+
+    expect(within(advancedButton).getByText("1")).toBeInTheDocument();
+    expect(screen.queryByText("Status")).not.toBeInTheDocument();
+
+    fireEvent.click(advancedButton);
+
+    expect(screen.getByText("Status")).toBeInTheDocument();
+    expect(screen.getAllByText("Fechada").length).toBeGreaterThan(0);
   });
 
   it("applies month, custom period and search filters immediately", async () => {

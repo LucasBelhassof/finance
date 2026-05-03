@@ -102,9 +102,13 @@ vi.mock("@/components/ui/dialog", () => ({
 
 vi.mock("@/components/ui/alert-dialog", () => ({
   AlertDialog: ({ children, open }: { children: ReactNode; open?: boolean }) => <>{open ? children : null}</>,
-  AlertDialogAction: ({ children, onClick }: { children: ReactNode; onClick?: (event: { preventDefault: () => void }) => void }) => (
-    <button onClick={() => onClick?.({ preventDefault: () => undefined })}>{children}</button>
-  ),
+  AlertDialogAction: ({
+    children,
+    onClick,
+  }: {
+    children: ReactNode;
+    onClick?: (event: { preventDefault: () => void }) => void;
+  }) => <button onClick={() => onClick?.({ preventDefault: () => undefined })}>{children}</button>,
   AlertDialogCancel: ({ children }: { children: ReactNode }) => <button>{children}</button>,
   AlertDialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   AlertDialogDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -128,7 +132,9 @@ vi.mock("@/components/ui/select", () => ({
     </select>
   ),
   SelectContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  SelectItem: ({ children, value }: { children: ReactNode; value: string }) => <option value={value}>{children}</option>,
+  SelectItem: ({ children, value }: { children: ReactNode; value: string }) => (
+    <option value={value}>{children}</option>
+  ),
   SelectTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
   SelectValue: () => null,
 }));

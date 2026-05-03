@@ -50,7 +50,10 @@ describe("ExpensesList", () => {
     );
 
     expect(screen.getByRole("link", { name: "Ver todas" })).toHaveAttribute("href", appRoutes.transactions);
-    expect(screen.getByRole("link", { name: /Abrir transações e ver Supermercado/i })).toHaveAttribute("href", appRoutes.transactions);
+    expect(screen.getByRole("link", { name: /Abrir transações e ver Supermercado/i })).toHaveAttribute(
+      "href",
+      appRoutes.transactions,
+    );
     expect(screen.getByText("Mercado · Nubank")).toBeInTheDocument();
   });
 

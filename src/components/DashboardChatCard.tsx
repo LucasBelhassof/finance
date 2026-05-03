@@ -4,13 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import AiChat from "@/components/AiChat";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { useChatConversations, useCreateChatConversation } from "@/hooks/use-chat";
 import { appRoutes } from "@/lib/routes";
@@ -91,7 +85,10 @@ export default function DashboardChatCard() {
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Select value={selectedChatId} onValueChange={setSelectedChatId}>
-            <SelectTrigger aria-label="Escolher conversa do chat financeiro" className={`sm:flex-1 ${INLINE_SELECT_TRIGGER_CLASSNAME}`}>
+            <SelectTrigger
+              aria-label="Escolher conversa do chat financeiro"
+              className={`sm:flex-1 ${INLINE_SELECT_TRIGGER_CLASSNAME}`}
+            >
               <SelectValue placeholder="Novo chat" />
             </SelectTrigger>
             <SelectContent>
@@ -105,7 +102,11 @@ export default function DashboardChatCard() {
           </Select>
 
           <Button variant="outline" onClick={() => void handleOpenSelectedChat()} disabled={createChat.isPending}>
-            {createChat.isPending && selectedChatId === NEW_CHAT_VALUE ? <Loader2 size={16} className="animate-spin" /> : <MessageSquarePlus size={16} />}
+            {createChat.isPending && selectedChatId === NEW_CHAT_VALUE ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <MessageSquarePlus size={16} />
+            )}
             {selectedChatId === NEW_CHAT_VALUE ? "Iniciar novo chat" : "Abrir chat"}
           </Button>
         </div>

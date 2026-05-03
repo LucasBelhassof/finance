@@ -1,15 +1,39 @@
 import { CheckCircle2, FileSpreadsheet, Info, Loader2, Search, Upload } from "lucide-react";
-import { type ChangeEvent, type DragEvent, type KeyboardEvent, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 
 import ImportTransactionCard, { type ImportTransactionCardRow } from "@/components/transactions/ImportTransactionCard";
 import { ColorField } from "@/components/ui/color-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { useCommitTransactionImport, useCreateCategory, useUniversalImportPreview } from "@/hooks/use-transactions";
 import { DEFAULT_CATEGORY_COLOR } from "@/lib/category-colors";
@@ -347,7 +371,8 @@ function PreviewCountChip({
       onKeyDown={onClick ? (e) => (e.key === "Enter" || e.key === " ") && onClick() : undefined}
       className={cn(
         "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs",
-        onClick && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        onClick &&
+          "cursor-pointer hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         variant === "error" && "border-destructive/30 bg-destructive/10 text-destructive",
         variant === "warning" && "border-warning/30 bg-warning/10",
         !variant && "border-border/70 bg-secondary/30",
@@ -359,7 +384,12 @@ function PreviewCountChip({
   );
 }
 
-export default function ImportTransactionsModal({ open, onOpenChange, categories, banks }: ImportTransactionsModalProps) {
+export default function ImportTransactionsModal({
+  open,
+  onOpenChange,
+  categories,
+  banks,
+}: ImportTransactionsModalProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -418,10 +448,7 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
       const backendHasError = item.issues.some((issue) => issue.level === "error");
       const backendHasWarning = item.issues.some((issue) => issue.level === "warning" && !isInformationalIssue(issue));
       const lowConfidence = (item.confidence ?? 1) < 0.75;
-      const hasPendingCategorySelection =
-        item.requiresCategorySelection &&
-        draft.type !== "expense" &&
-        !hasCategory;
+      const hasPendingCategorySelection = item.requiresCategorySelection && draft.type !== "expense" && !hasCategory;
       const needsReview = lowConfidence || draft.type === "unknown" || hasPendingCategorySelection || backendHasWarning;
 
       return {
@@ -572,7 +599,11 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
     const candidateRows = buildCommitRows(onlyValidRows);
 
     if (!candidateRows.length) {
-      toast.error(onlyValidRows ? "Nenhuma linha válida foi encontrada para importar." : "Nenhuma linha foi marcada para importação.");
+      toast.error(
+        onlyValidRows
+          ? "Nenhuma linha válida foi encontrada para importar."
+          : "Nenhuma linha foi marcada para importação.",
+      );
       return;
     }
 
@@ -595,7 +626,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
         items: candidateRows.map((row) => buildCommitItem(row.draft)),
       });
       dispatch({ type: "set-result", result });
-      toast.success(`${result.importedCount} importadas, ${result.skippedCount} ignoradas e ${result.failedCount} com falha.`);
+      toast.success(
+        `${result.importedCount} importadas, ${result.skippedCount} ignoradas e ${result.failedCount} com falha.`,
+      );
     } catch (error) {
       toast.error("Não foi possível concluir a importação.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
@@ -633,15 +666,20 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={cn(
-          "flex max-h-[90vh] flex-col overflow-hidden p-0",
-          state.step === "upload" || state.step === "processing" ? "sm:max-w-2xl" : "h-[92vh] max-w-[92vw] sm:max-w-6xl",
-        )}>
+        <DialogContent
+          className={cn(
+            "flex max-h-[90vh] flex-col overflow-hidden p-0",
+            state.step === "upload" || state.step === "processing"
+              ? "sm:max-w-2xl"
+              : "h-[92vh] max-w-[92vw] sm:max-w-6xl",
+          )}
+        >
           <div className="border-b border-border/70 px-5 py-3">
             <DialogHeader>
               <DialogTitle>Importar transações</DialogTitle>
               <DialogDescription>
-                Envie CSV, Excel, OFX, QIF, PDF, TXT ou JSON. O sistema detecta o formato e você revisa tudo antes do commit.
+                Envie CSV, Excel, OFX, QIF, PDF, TXT ou JSON. O sistema detecta o formato e você revisa tudo antes do
+                commit.
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -660,7 +698,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   )}
                   onClick={openFilePicker}
                   onKeyDown={handleDropzoneKeyDown}
-                  onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDragActive(true);
+                  }}
                   onDragLeave={() => setDragActive(false)}
                   onDrop={handleFileDrop}
                 >
@@ -678,7 +719,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         <button
                           type="button"
                           className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
-                          onClick={(event) => { event.stopPropagation(); dispatch({ type: "set-file", file: null }); }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            dispatch({ type: "set-file", file: null });
+                          }}
                           aria-label="Remover arquivo"
                         >
                           ✕
@@ -698,7 +742,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         size="sm"
                         className="h-auto p-0 text-xs"
                         data-testid="select-file-button"
-                        onClick={(event) => { event.stopPropagation(); openFilePicker(); }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openFilePicker();
+                        }}
                       >
                         Selecionar arquivo
                       </Button>
@@ -708,7 +755,13 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                     </>
                   )}
                 </div>
-                <Input ref={inputRef} data-testid="import-file-input" type="file" className="hidden" onChange={handleFileChange} />
+                <Input
+                  ref={inputRef}
+                  data-testid="import-file-input"
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
 
                 {/* Config column */}
                 <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-background/70 p-4">
@@ -721,8 +774,16 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                     <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                       Conta ou cartão padrão <span className="text-destructive">*</span>
                     </p>
-                    <Select value={state.globalBankConnectionId} onValueChange={(value) => dispatch({ type: "set-global-bank", value })}>
-                      <SelectTrigger className={cn("h-9 rounded-xl text-sm", !state.globalBankConnectionId && "border-destructive/50")}>
+                    <Select
+                      value={state.globalBankConnectionId}
+                      onValueChange={(value) => dispatch({ type: "set-global-bank", value })}
+                    >
+                      <SelectTrigger
+                        className={cn(
+                          "h-9 rounded-xl text-sm",
+                          !state.globalBankConnectionId && "border-destructive/50",
+                        )}
+                      >
                         <SelectValue placeholder="Selecione uma conta ou cartão" />
                       </SelectTrigger>
                       <SelectContent>
@@ -735,30 +796,42 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                               {accounts.length > 0 && (
                                 <SelectGroup>
                                   <SelectLabel className="flex items-center gap-1.5">
-                                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">Conta bancária</span>
+                                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                                      Conta bancária
+                                    </span>
                                   </SelectLabel>
                                   {accounts.map((bank) => (
-                                    <SelectItem key={bank.id} value={String(bank.id)}>{bank.name}</SelectItem>
+                                    <SelectItem key={bank.id} value={String(bank.id)}>
+                                      {bank.name}
+                                    </SelectItem>
                                   ))}
                                 </SelectGroup>
                               )}
                               {cards.length > 0 && (
                                 <SelectGroup>
                                   <SelectLabel className="flex items-center gap-1.5">
-                                    <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">Cartão de crédito</span>
+                                    <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">
+                                      Cartão de crédito
+                                    </span>
                                   </SelectLabel>
                                   {cards.map((bank) => (
-                                    <SelectItem key={bank.id} value={String(bank.id)}>{bank.name}</SelectItem>
+                                    <SelectItem key={bank.id} value={String(bank.id)}>
+                                      {bank.name}
+                                    </SelectItem>
                                   ))}
                                 </SelectGroup>
                               )}
                               {cash.length > 0 && (
                                 <SelectGroup>
                                   <SelectLabel className="flex items-center gap-1.5">
-                                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-500">Caixa</span>
+                                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-500">
+                                      Caixa
+                                    </span>
                                   </SelectLabel>
                                   {cash.map((bank) => (
-                                    <SelectItem key={bank.id} value={String(bank.id)}>{bank.name}</SelectItem>
+                                    <SelectItem key={bank.id} value={String(bank.id)}>
+                                      {bank.name}
+                                    </SelectItem>
                                   ))}
                                 </SelectGroup>
                               )}
@@ -771,7 +844,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
 
                   {showPasswordField ? (
                     <div className="space-y-1.5">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Senha do PDF</p>
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Senha do PDF
+                      </p>
                       <Input
                         ref={passwordInputRef}
                         value={state.filePassword}
@@ -792,7 +867,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   </div>
 
                   <div className="space-y-1.5">
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Como funciona</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Como funciona
+                    </p>
                     <ul className="space-y-1">
                       {[
                         "Detecta o formato do arquivo",
@@ -816,13 +893,18 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   <FileSpreadsheet className="h-12 w-12 animate-pulse" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-lg font-semibold text-foreground">{PROCESSING_LABELS[state.processingLabelIndex]}</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {PROCESSING_LABELS[state.processingLabelIndex]}
+                  </p>
                   <p className="text-sm text-muted-foreground">{state.selectedFile?.name ?? "Arquivo selecionado"}</p>
                   <p className="text-xs text-muted-foreground">{formatFileSize(state.selectedFile?.size ?? 0)}</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {PROCESSING_LABELS.map((label, index) => (
-                    <Badge key={`processing:${label}`} variant={index === state.processingLabelIndex ? "default" : "outline"}>
+                    <Badge
+                      key={`processing:${label}`}
+                      variant={index === state.processingLabelIndex ? "default" : "outline"}
+                    >
                       {label}
                     </Badge>
                   ))}
@@ -842,16 +924,38 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   </Badge>
                   {state.preview ? (
                     <div className="flex flex-wrap gap-1.5">
-                      <PreviewCountChip label="Total" value={rowCounts.total} onClick={() => dispatch({ type: "set-filter", value: "all" })} />
-                      <PreviewCountChip label="OK" value={rowCounts.valid} onClick={() => dispatch({ type: "set-filter", value: "valid" })} />
+                      <PreviewCountChip
+                        label="Total"
+                        value={rowCounts.total}
+                        onClick={() => dispatch({ type: "set-filter", value: "all" })}
+                      />
+                      <PreviewCountChip
+                        label="OK"
+                        value={rowCounts.valid}
+                        onClick={() => dispatch({ type: "set-filter", value: "valid" })}
+                      />
                       {rowCounts.warnings > 0 ? (
-                        <PreviewCountChip label="Rev." value={rowCounts.warnings} variant="warning" onClick={() => dispatch({ type: "set-filter", value: "warnings" })} />
+                        <PreviewCountChip
+                          label="Rev."
+                          value={rowCounts.warnings}
+                          variant="warning"
+                          onClick={() => dispatch({ type: "set-filter", value: "warnings" })}
+                        />
                       ) : null}
                       {rowCounts.errors > 0 ? (
-                        <PreviewCountChip label="Erros" value={rowCounts.errors} variant="error" onClick={() => dispatch({ type: "set-filter", value: "errors" })} />
+                        <PreviewCountChip
+                          label="Erros"
+                          value={rowCounts.errors}
+                          variant="error"
+                          onClick={() => dispatch({ type: "set-filter", value: "errors" })}
+                        />
                       ) : null}
                       {rowCounts.duplicates > 0 ? (
-                        <PreviewCountChip label="Dup." value={rowCounts.duplicates} onClick={() => dispatch({ type: "set-filter", value: "duplicates" })} />
+                        <PreviewCountChip
+                          label="Dup."
+                          value={rowCounts.duplicates}
+                          onClick={() => dispatch({ type: "set-filter", value: "duplicates" })}
+                        />
                       ) : null}
                     </div>
                   ) : null}
@@ -875,7 +979,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Confiança</p>
-                        <p className="text-xs font-medium">{formatConfidenceLabel(state.preview.sourceKindConfidence)}</p>
+                        <p className="text-xs font-medium">
+                          {formatConfidenceLabel(state.preview.sourceKindConfidence)}
+                        </p>
                       </div>
                       {state.preview.institutionName ? (
                         <div>
@@ -894,7 +1000,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                       id="select-all-visible"
                       checked={allVisibleSelected}
                       onCheckedChange={(checked) => {
-                        visibleRows.forEach((row) => dispatch({ type: "patch-draft", rowKey: row.key, patch: { selected: !!checked } }));
+                        visibleRows.forEach((row) =>
+                          dispatch({ type: "patch-draft", rowKey: row.key, patch: { selected: !!checked } }),
+                        );
                       }}
                       aria-label="Selecionar todos visíveis"
                     />
@@ -966,10 +1074,22 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button type="button" variant="outline" size="sm" className="h-7 rounded-lg px-2 text-xs" onClick={() => applyBulkPatch({ exclude: true })}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-lg px-2 text-xs"
+                        onClick={() => applyBulkPatch({ exclude: true })}
+                      >
                         Ignorar
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-7 rounded-lg px-2 text-xs" onClick={() => applyBulkPatch({ exclude: false })}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-lg px-2 text-xs"
+                        onClick={() => applyBulkPatch({ exclude: false })}
+                      >
                         Restaurar
                       </Button>
                       <Button
@@ -993,7 +1113,10 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                 </div>
 
                 {/* Card list — gets all remaining space */}
-                <div data-testid="import-preview-body" className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/70 bg-background/70">
+                <div
+                  data-testid="import-preview-body"
+                  className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/70 bg-background/70"
+                >
                   <ScrollArea className="h-full">
                     <div className="flex flex-col gap-1.5 p-2">
                       {visibleRows.map((row) => (
@@ -1007,7 +1130,9 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                         />
                       ))}
                       {visibleRows.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma linha encontrada para o filtro selecionado.</p>
+                        <p className="py-12 text-center text-sm text-muted-foreground">
+                          Nenhuma linha encontrada para o filtro selecionado.
+                        </p>
                       ) : null}
                     </div>
                   </ScrollArea>
@@ -1069,7 +1194,11 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
                     Cancelar
                   </Button>
-                  <Button type="button" onClick={handlePreview} disabled={!state.selectedFile || previewImport.isPending}>
+                  <Button
+                    type="button"
+                    onClick={handlePreview}
+                    disabled={!state.selectedFile || previewImport.isPending}
+                  >
                     {previewImport.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -1086,8 +1215,12 @@ export default function ImportTransactionsModal({ open, onOpenChange, categories
                   <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
                     Cancelar
                   </Button>
-                  <Button type="button" onClick={() => void handleCommit(true)} disabled={submitting || commitImport.isPending}>
-                    {(submitting || commitImport.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  <Button
+                    type="button"
+                    onClick={() => void handleCommit(true)}
+                    disabled={submitting || commitImport.isPending}
+                  >
+                    {submitting || commitImport.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Importar {validImportCount} {validImportCount === 1 ? "linha válida" : "linhas válidas"}
                   </Button>
                 </>

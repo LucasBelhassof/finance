@@ -137,7 +137,9 @@ export default function TransactionsDateFilter({
               onClick={() => onSelectPreset(option.value)}
               className={cn(
                 "min-h-11 rounded-2xl px-4 py-2.5 text-sm transition-colors sm:min-h-0",
-                preset === option.value ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+                preset === option.value
+                  ? "bg-primary/15 text-primary"
+                  : "bg-secondary/50 text-muted-foreground hover:text-foreground",
               )}
             >
               {option.label}
@@ -159,7 +161,10 @@ export default function TransactionsDateFilter({
             {preset === "custom" ? customLabel : "Período"}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-[calc(100vw-2rem)] max-w-[326px] rounded-2xl border-border/60 bg-card p-3">
+        <PopoverContent
+          align="end"
+          className="w-[calc(100vw-2rem)] max-w-[326px] rounded-2xl border-border/60 bg-card p-3"
+        >
           <div className="space-y-3">
             <div className="space-y-1 text-center">
               <p className="text-sm font-medium text-foreground">Período Personalizado</p>
@@ -207,7 +212,8 @@ export default function TransactionsDateFilter({
                   month: "space-y-1.5",
                   caption: "relative flex items-center justify-center py-1",
                   caption_label: "text-sm font-semibold",
-                  nav_button: "h-5.5 w-5.5 rounded-md border border-border/50 bg-transparent p-0 opacity-80 hover:opacity-100",
+                  nav_button:
+                    "h-5.5 w-5.5 rounded-md border border-border/50 bg-transparent p-0 opacity-80 hover:opacity-100",
                   table: "mx-auto w-auto border-collapse",
                   head_row: "flex justify-center",
                   head_cell: "w-[30px] rounded-md text-[0.72rem] font-normal text-muted-foreground",

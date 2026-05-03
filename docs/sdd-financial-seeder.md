@@ -18,12 +18,12 @@
 
 ## Rules matrix
 
-| Tipo | Origem permitida | Origem proibida | Parcelamento |
-| --- | --- | --- | --- |
-| Receita | `cash`, `bank_account` | `credit_card` | nunca |
-| Despesa | `bank_account`, `credit_card` | `cash` | apenas em `credit_card` |
-| Despesa em conta | `bank_account` | `cash`, `credit_card` parcelado | nao |
-| Despesa em cartao | `credit_card` | `cash` | a vista ou `2..12` |
+| Tipo              | Origem permitida              | Origem proibida                 | Parcelamento            |
+| ----------------- | ----------------------------- | ------------------------------- | ----------------------- |
+| Receita           | `cash`, `bank_account`        | `credit_card`                   | nunca                   |
+| Despesa           | `bank_account`, `credit_card` | `cash`                          | apenas em `credit_card` |
+| Despesa em conta  | `bank_account`                | `cash`, `credit_card` parcelado | nao                     |
+| Despesa em cartao | `credit_card`                 | `cash`                          | a vista ou `2..12`      |
 
 ## Random distribution
 

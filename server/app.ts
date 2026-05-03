@@ -311,7 +311,11 @@ export function createApp() {
       return;
     }
 
-    const transaction = await updateTransaction(getAuthenticatedUserId(request), transactionId.value, request.body ?? {});
+    const transaction = await updateTransaction(
+      getAuthenticatedUserId(request),
+      transactionId.value,
+      request.body ?? {},
+    );
     response.json(transaction);
   });
 
@@ -389,7 +393,11 @@ export function createApp() {
       return;
     }
 
-    const bank = await updateBankConnection(getAuthenticatedUserId(request), bankConnectionId.value, request.body ?? {});
+    const bank = await updateBankConnection(
+      getAuthenticatedUserId(request),
+      bankConnectionId.value,
+      request.body ?? {},
+    );
     response.json(bank);
   });
 
@@ -468,7 +476,11 @@ export function createApp() {
       return;
     }
 
-    const draftSession = await revisePlanAiDraft(getAuthenticatedUserId(request), request.params.draftId, correction.trim());
+    const draftSession = await revisePlanAiDraft(
+      getAuthenticatedUserId(request),
+      request.params.draftId,
+      correction.trim(),
+    );
     response.json({ draftSession });
   });
 
@@ -502,7 +514,12 @@ export function createApp() {
       return;
     }
 
-    const revisedDraft = await revisePlanDraftFromChat(getAuthenticatedUserId(request), chatId.trim(), draft, correction.trim());
+    const revisedDraft = await revisePlanDraftFromChat(
+      getAuthenticatedUserId(request),
+      chatId.trim(),
+      draft,
+      correction.trim(),
+    );
     response.json({ draft: revisedDraft });
   });
 
@@ -545,7 +562,11 @@ export function createApp() {
       return;
     }
 
-    const plan = await applyPlanRecommendation(getAuthenticatedUserId(request), request.params.planId, recommendationId.value);
+    const plan = await applyPlanRecommendation(
+      getAuthenticatedUserId(request),
+      request.params.planId,
+      recommendationId.value,
+    );
     response.json({ plan });
   });
 
@@ -565,7 +586,11 @@ export function createApp() {
   });
 
   app.delete("/api/plans/:planId/chats/:chatId", async (request, response) => {
-    const plan = await unlinkChatFromPlan(getAuthenticatedUserId(request), request.params.planId, request.params.chatId);
+    const plan = await unlinkChatFromPlan(
+      getAuthenticatedUserId(request),
+      request.params.planId,
+      request.params.chatId,
+    );
     response.json({ plan });
   });
 
@@ -582,7 +607,11 @@ export function createApp() {
   app.get("/api/chats/search", async (request, response) => {
     const query = String(request.query.q ?? "");
     const limit = Number.parseInt(String(request.query.limit ?? "12"), 10);
-    const results = await searchChatConversations(getAuthenticatedUserId(request), query, Number.isNaN(limit) ? 12 : limit);
+    const results = await searchChatConversations(
+      getAuthenticatedUserId(request),
+      query,
+      Number.isNaN(limit) ? 12 : limit,
+    );
     response.json({ results });
   });
 

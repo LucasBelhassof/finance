@@ -20,7 +20,9 @@ function resolveSignedAmount(entry) {
   const amount = normalizeAmountInput(entry.amount ?? entry.value ?? entry.signedAmount);
 
   if (amount !== null) {
-    const type = String(entry.type ?? "").trim().toLowerCase();
+    const type = String(entry.type ?? "")
+      .trim()
+      .toLowerCase();
 
     if (type === "expense" || type === "debit") {
       return -Math.abs(amount);
@@ -52,7 +54,9 @@ export function parseJsonBuffer(fileBuffer) {
   const rows = [];
 
   for (const entry of toArray(parsed)) {
-    const occurredOn = normalizeDateInput(entry.date ?? entry.occurredOn ?? entry.postedOn ?? entry.posted_on ?? entry.postedAt);
+    const occurredOn = normalizeDateInput(
+      entry.date ?? entry.occurredOn ?? entry.postedOn ?? entry.posted_on ?? entry.postedAt,
+    );
     const description = String(entry.description ?? entry.memo ?? entry.title ?? entry.name ?? "").trim();
     const amount = resolveSignedAmount(entry);
 

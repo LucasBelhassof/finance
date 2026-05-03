@@ -150,7 +150,9 @@ export function DatePickerInput({
 
           <div className="mx-auto w-[286px] rounded-xl border border-border/50 bg-secondary/20 px-3 py-2 text-center">
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Data</p>
-            <p className="mt-1 text-sm text-foreground">{draftValue ? formatDateOnly(draftValue) : "Selecione uma data no calendario."}</p>
+            <p className="mt-1 text-sm text-foreground">
+              {draftValue ? formatDateOnly(draftValue) : "Selecione uma data no calendario."}
+            </p>
           </div>
 
           <div className="flex justify-end gap-2">

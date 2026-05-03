@@ -93,10 +93,7 @@ function mapUser(row: Record<string, unknown>): UserRecord {
         ? (row.onboarding_progress as Record<string, unknown>)
         : null,
     role: row.role === "admin" ? "admin" : "user",
-    status:
-      row.status === "inactive" || row.status === "suspended"
-        ? row.status
-        : "active",
+    status: row.status === "inactive" || row.status === "suspended" ? row.status : "active",
     isPremium: Boolean(row.is_premium),
     premiumSince: row.premium_since ? new Date(String(row.premium_since)) : null,
     phone: row.phone === null || row.phone === undefined ? null : String(row.phone),
@@ -105,12 +102,17 @@ function mapUser(row: Record<string, unknown>): UserRecord {
     addressComplement:
       row.address_complement === null || row.address_complement === undefined ? null : String(row.address_complement),
     addressNeighborhood:
-      row.address_neighborhood === null || row.address_neighborhood === undefined ? null : String(row.address_neighborhood),
+      row.address_neighborhood === null || row.address_neighborhood === undefined
+        ? null
+        : String(row.address_neighborhood),
     addressCity: row.address_city === null || row.address_city === undefined ? null : String(row.address_city),
     addressState: row.address_state === null || row.address_state === undefined ? null : String(row.address_state),
     addressPostalCode:
-      row.address_postal_code === null || row.address_postal_code === undefined ? null : String(row.address_postal_code),
-    addressCountry: row.address_country === null || row.address_country === undefined ? null : String(row.address_country),
+      row.address_postal_code === null || row.address_postal_code === undefined
+        ? null
+        : String(row.address_postal_code),
+    addressCountry:
+      row.address_country === null || row.address_country === undefined ? null : String(row.address_country),
   };
 }
 
@@ -141,25 +143,30 @@ function mapSession(row: Record<string, unknown>): SessionRecord {
           name: String(row.user_name),
           email: row.user_email === null || row.user_email === undefined ? null : String(row.user_email),
           passwordHash:
-            row.user_password_hash === null || row.user_password_hash === undefined ? null : String(row.user_password_hash),
+            row.user_password_hash === null || row.user_password_hash === undefined
+              ? null
+              : String(row.user_password_hash),
           emailVerifiedAt: row.user_email_verified_at ? new Date(String(row.user_email_verified_at)) : null,
-          onboardingCompletedAt: row.user_onboarding_completed_at ? new Date(String(row.user_onboarding_completed_at)) : null,
+          onboardingCompletedAt: row.user_onboarding_completed_at
+            ? new Date(String(row.user_onboarding_completed_at))
+            : null,
           onboardingProgress:
             row.user_onboarding_progress && typeof row.user_onboarding_progress === "object"
               ? (row.user_onboarding_progress as Record<string, unknown>)
               : null,
           role: row.user_role === "admin" ? "admin" : "user",
-          status:
-            row.user_status === "inactive" || row.user_status === "suspended"
-              ? row.user_status
-              : "active",
+          status: row.user_status === "inactive" || row.user_status === "suspended" ? row.user_status : "active",
           isPremium: Boolean(row.user_is_premium),
           premiumSince: row.user_premium_since ? new Date(String(row.user_premium_since)) : null,
           phone: row.user_phone === null || row.user_phone === undefined ? null : String(row.user_phone),
           addressStreet:
-            row.user_address_street === null || row.user_address_street === undefined ? null : String(row.user_address_street),
+            row.user_address_street === null || row.user_address_street === undefined
+              ? null
+              : String(row.user_address_street),
           addressNumber:
-            row.user_address_number === null || row.user_address_number === undefined ? null : String(row.user_address_number),
+            row.user_address_number === null || row.user_address_number === undefined
+              ? null
+              : String(row.user_address_number),
           addressComplement:
             row.user_address_complement === null || row.user_address_complement === undefined
               ? null
@@ -168,14 +175,22 @@ function mapSession(row: Record<string, unknown>): SessionRecord {
             row.user_address_neighborhood === null || row.user_address_neighborhood === undefined
               ? null
               : String(row.user_address_neighborhood),
-          addressCity: row.user_address_city === null || row.user_address_city === undefined ? null : String(row.user_address_city),
-          addressState: row.user_address_state === null || row.user_address_state === undefined ? null : String(row.user_address_state),
+          addressCity:
+            row.user_address_city === null || row.user_address_city === undefined
+              ? null
+              : String(row.user_address_city),
+          addressState:
+            row.user_address_state === null || row.user_address_state === undefined
+              ? null
+              : String(row.user_address_state),
           addressPostalCode:
             row.user_address_postal_code === null || row.user_address_postal_code === undefined
               ? null
               : String(row.user_address_postal_code),
           addressCountry:
-            row.user_address_country === null || row.user_address_country === undefined ? null : String(row.user_address_country),
+            row.user_address_country === null || row.user_address_country === undefined
+              ? null
+              : String(row.user_address_country),
         }
       : null,
   };
@@ -193,46 +208,59 @@ function mapPasswordResetToken(row: Record<string, unknown>): PasswordResetToken
     user:
       row.user_name !== undefined
         ? {
-          id: Number(row.user_id),
-          name: String(row.user_name),
-          email: row.user_email === null || row.user_email === undefined ? null : String(row.user_email),
-          passwordHash:
-            row.user_password_hash === null || row.user_password_hash === undefined ? null : String(row.user_password_hash),
-          emailVerifiedAt: row.user_email_verified_at ? new Date(String(row.user_email_verified_at)) : null,
-          onboardingCompletedAt: row.user_onboarding_completed_at ? new Date(String(row.user_onboarding_completed_at)) : null,
-          onboardingProgress:
-            row.user_onboarding_progress && typeof row.user_onboarding_progress === "object"
-              ? (row.user_onboarding_progress as Record<string, unknown>)
+            id: Number(row.user_id),
+            name: String(row.user_name),
+            email: row.user_email === null || row.user_email === undefined ? null : String(row.user_email),
+            passwordHash:
+              row.user_password_hash === null || row.user_password_hash === undefined
+                ? null
+                : String(row.user_password_hash),
+            emailVerifiedAt: row.user_email_verified_at ? new Date(String(row.user_email_verified_at)) : null,
+            onboardingCompletedAt: row.user_onboarding_completed_at
+              ? new Date(String(row.user_onboarding_completed_at))
               : null,
-          role: row.user_role === "admin" ? "admin" : "user",
-          status:
-            row.user_status === "inactive" || row.user_status === "suspended"
-              ? row.user_status
-              : "active",
-          isPremium: Boolean(row.user_is_premium),
-          premiumSince: row.user_premium_since ? new Date(String(row.user_premium_since)) : null,
-          phone: row.user_phone === null || row.user_phone === undefined ? null : String(row.user_phone),
-          addressStreet:
-            row.user_address_street === null || row.user_address_street === undefined ? null : String(row.user_address_street),
-          addressNumber:
-            row.user_address_number === null || row.user_address_number === undefined ? null : String(row.user_address_number),
-          addressComplement:
-            row.user_address_complement === null || row.user_address_complement === undefined
-              ? null
-              : String(row.user_address_complement),
-          addressNeighborhood:
-            row.user_address_neighborhood === null || row.user_address_neighborhood === undefined
-              ? null
-              : String(row.user_address_neighborhood),
-          addressCity: row.user_address_city === null || row.user_address_city === undefined ? null : String(row.user_address_city),
-          addressState: row.user_address_state === null || row.user_address_state === undefined ? null : String(row.user_address_state),
-          addressPostalCode:
-            row.user_address_postal_code === null || row.user_address_postal_code === undefined
-              ? null
-              : String(row.user_address_postal_code),
-          addressCountry:
-            row.user_address_country === null || row.user_address_country === undefined ? null : String(row.user_address_country),
-        }
+            onboardingProgress:
+              row.user_onboarding_progress && typeof row.user_onboarding_progress === "object"
+                ? (row.user_onboarding_progress as Record<string, unknown>)
+                : null,
+            role: row.user_role === "admin" ? "admin" : "user",
+            status: row.user_status === "inactive" || row.user_status === "suspended" ? row.user_status : "active",
+            isPremium: Boolean(row.user_is_premium),
+            premiumSince: row.user_premium_since ? new Date(String(row.user_premium_since)) : null,
+            phone: row.user_phone === null || row.user_phone === undefined ? null : String(row.user_phone),
+            addressStreet:
+              row.user_address_street === null || row.user_address_street === undefined
+                ? null
+                : String(row.user_address_street),
+            addressNumber:
+              row.user_address_number === null || row.user_address_number === undefined
+                ? null
+                : String(row.user_address_number),
+            addressComplement:
+              row.user_address_complement === null || row.user_address_complement === undefined
+                ? null
+                : String(row.user_address_complement),
+            addressNeighborhood:
+              row.user_address_neighborhood === null || row.user_address_neighborhood === undefined
+                ? null
+                : String(row.user_address_neighborhood),
+            addressCity:
+              row.user_address_city === null || row.user_address_city === undefined
+                ? null
+                : String(row.user_address_city),
+            addressState:
+              row.user_address_state === null || row.user_address_state === undefined
+                ? null
+                : String(row.user_address_state),
+            addressPostalCode:
+              row.user_address_postal_code === null || row.user_address_postal_code === undefined
+                ? null
+                : String(row.user_address_postal_code),
+            addressCountry:
+              row.user_address_country === null || row.user_address_country === undefined
+                ? null
+                : String(row.user_address_country),
+          }
         : null,
   };
 }

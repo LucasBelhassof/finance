@@ -10,31 +10,42 @@ export default function AdminFinancialMetricsPage() {
   const { data } = useAdminFinancialMetrics();
 
   return (
-    <AdminLayout title="Financeiro" description="Receitas, despesas, volume transacionado e usuários com maior movimento.">
+    <AdminLayout
+      title="Financeiro"
+      description="Receitas, despesas, volume transacionado e usuários com maior movimento."
+    >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Receitas</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{currencyFormatter.format(data?.summary.totalIncome ?? 0)}</CardContent>
+          <CardContent className="text-2xl font-semibold">
+            {currencyFormatter.format(data?.summary.totalIncome ?? 0)}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Despesas</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{currencyFormatter.format(data?.summary.totalExpenses ?? 0)}</CardContent>
+          <CardContent className="text-2xl font-semibold">
+            {currencyFormatter.format(data?.summary.totalExpenses ?? 0)}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Saldo</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{currencyFormatter.format(data?.summary.aggregateBalance ?? 0)}</CardContent>
+          <CardContent className="text-2xl font-semibold">
+            {currencyFormatter.format(data?.summary.aggregateBalance ?? 0)}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Transações</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{numberFormatter.format(data?.summary.transactionCount ?? 0)}</CardContent>
+          <CardContent className="text-2xl font-semibold">
+            {numberFormatter.format(data?.summary.transactionCount ?? 0)}
+          </CardContent>
         </Card>
       </div>
 

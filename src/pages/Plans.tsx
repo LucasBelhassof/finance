@@ -4,7 +4,11 @@ import { useNavigate } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import CreateInvestmentDialog from "@/components/investments/CreateInvestmentDialog";
-import { formatDecimalInput, parseDecimalInput, type InvestmentCoreFormState } from "@/components/investments/investment-form-utils";
+import {
+  formatDecimalInput,
+  parseDecimalInput,
+  type InvestmentCoreFormState,
+} from "@/components/investments/investment-form-utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -19,22 +23,11 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useChatConversations } from "@/hooks/use-chat";
-import {
-  useCreatePlan,
-  useGeneratePlanDraft,
-  usePlans,
-  useSuggestPlanLink,
-} from "@/hooks/use-plans";
+import { useCreatePlan, useGeneratePlanDraft, usePlans, useSuggestPlanLink } from "@/hooks/use-plans";
 import { useInvestments } from "@/hooks/use-investments";
 import { useCategories } from "@/hooks/use-transactions";
 import { appRoutes } from "@/lib/routes";
@@ -174,12 +167,13 @@ function parseAmountInput(value: string) {
 function createGoalFormFromGoal(goal: PlanGoal): PlanFormGoal {
   const range = getCurrentMonthRange();
   const investmentBoxIds = Array.from(
-    new Set([
-      ...goal.investmentBoxIds.map(String),
-      ...(goal.investmentBoxId ? [String(goal.investmentBoxId)] : []),
-    ]),
+    new Set([...goal.investmentBoxIds.map(String), ...(goal.investmentBoxId ? [String(goal.investmentBoxId)] : [])]),
   );
-  const investmentBoxes = goal.investmentBoxes.length ? goal.investmentBoxes : goal.investmentBox ? [goal.investmentBox] : [];
+  const investmentBoxes = goal.investmentBoxes.length
+    ? goal.investmentBoxes
+    : goal.investmentBox
+      ? [goal.investmentBox]
+      : [];
 
   return {
     type: goal.type,
@@ -192,8 +186,8 @@ function createGoalFormFromGoal(goal: PlanGoal): PlanFormGoal {
     investmentBox: investmentBoxes[0] ?? null,
     investmentBoxIds,
     investmentBoxes,
-    startDate: goal.type === "transaction_sum" ? goal.startDate ?? "" : goal.startDate ?? range.startDate,
-    endDate: goal.type === "transaction_sum" ? goal.endDate ?? "" : goal.endDate ?? range.endDate,
+    startDate: goal.type === "transaction_sum" ? (goal.startDate ?? "") : (goal.startDate ?? range.startDate),
+    endDate: goal.type === "transaction_sum" ? (goal.endDate ?? "") : (goal.endDate ?? range.endDate),
   };
 }
 
@@ -241,8 +235,11 @@ export function normalizePlanForm(form: PlanFormState): CreatePlanInput {
           transactionType: form.goal.transactionType,
           targetModel: form.goal.targetModel,
           categoryIds: form.goal.targetModel === "category" ? form.goal.categoryIds : [],
-          investmentBoxId: form.goal.targetModel === "investment_box" && form.goal.investmentBoxIds[0] ? form.goal.investmentBoxIds[0] : null,
-          investmentBox: form.goal.targetModel === "investment_box" ? form.goal.investmentBoxes[0] ?? null : null,
+          investmentBoxId:
+            form.goal.targetModel === "investment_box" && form.goal.investmentBoxIds[0]
+              ? form.goal.investmentBoxIds[0]
+              : null,
+          investmentBox: form.goal.targetModel === "investment_box" ? (form.goal.investmentBoxes[0] ?? null) : null,
           investmentBoxIds: form.goal.targetModel === "investment_box" ? form.goal.investmentBoxIds : [],
           investmentBoxes: form.goal.targetModel === "investment_box" ? form.goal.investmentBoxes : [],
           startDate: form.goal.startDate || null,
@@ -304,7 +301,11 @@ export function getPlanFormValidationError(form: PlanFormState) {
     return "A data inicial precisa ser anterior a data final.";
   }
 
-  if (form.goal.targetModel === "investment_box" && !form.goal.investmentBoxIds.length && !form.goal.investmentBoxes.length) {
+  if (
+    form.goal.targetModel === "investment_box" &&
+    !form.goal.investmentBoxIds.length &&
+    !form.goal.investmentBoxes.length
+  ) {
     return "Selecione ou crie pelo menos uma caixinha para a meta.";
   }
 
@@ -325,11 +326,15 @@ export function buildInvestmentInitialValues(form: PlanFormState | null): Partia
       ? formatDecimalInput(suggestedInvestment.targetAmount)
       : "";
   const suggestedFixedAmount = hasPlanningTargetAmount
-    ? formatDecimalInput(Number((parsedTargetAmount / getInclusiveMonthSpan(form.goal.startDate, form.goal.endDate)).toFixed(2)))
+    ? formatDecimalInput(
+        Number((parsedTargetAmount / getInclusiveMonthSpan(form.goal.startDate, form.goal.endDate)).toFixed(2)),
+      )
     : suggestedInvestment?.fixedAmount && suggestedInvestment.fixedAmount > 0
       ? formatDecimalInput(suggestedInvestment.fixedAmount)
       : "";
-  const contributionMode = hasPlanningTargetAmount ? "fixed_amount" : suggestedInvestment?.contributionMode ?? "fixed_amount";
+  const contributionMode = hasPlanningTargetAmount
+    ? "fixed_amount"
+    : (suggestedInvestment?.contributionMode ?? "fixed_amount");
 
   return {
     name: suggestedInvestment?.name?.trim() || form.title.trim(),
@@ -543,7 +548,9 @@ export function PlanFormFields({
   onChange: (form: PlanFormState) => void;
   onCreateInvestment?: () => void;
 }) {
-  const availableGoalCategories = categories.filter((category) => category.transactionType === form.goal.transactionType);
+  const availableGoalCategories = categories.filter(
+    (category) => category.transactionType === form.goal.transactionType,
+  );
 
   const updateGoal = (goal: Partial<PlanFormGoal>) => {
     onChange({
@@ -586,7 +593,8 @@ export function PlanFormFields({
       ? Array.from(new Set([...form.goal.investmentBoxIds, investmentId]))
       : form.goal.investmentBoxIds.filter((currentId) => currentId !== investmentId);
     const currentDraftBoxes = form.goal.investmentBoxes.filter(
-      (currentInvestment) => String(currentInvestment.id) === "investment" || String(currentInvestment.id) === "draft-investment-box",
+      (currentInvestment) =>
+        String(currentInvestment.id) === "investment" || String(currentInvestment.id) === "draft-investment-box",
     );
     const selectedExistingBoxes = investments.filter((item) => investmentBoxIds.includes(String(item.id)));
 
@@ -688,7 +696,8 @@ export function PlanFormFields({
                       investmentBoxId: "",
                       investmentBoxIds: form.goal.targetModel === "investment_box" ? form.goal.investmentBoxIds : [],
                       investmentBoxes: form.goal.targetModel === "investment_box" ? form.goal.investmentBoxes : [],
-                      investmentBox: form.goal.targetModel === "investment_box" ? form.goal.investmentBoxes[0] ?? null : null,
+                      investmentBox:
+                        form.goal.targetModel === "investment_box" ? (form.goal.investmentBoxes[0] ?? null) : null,
                     })
                   }
                 >
@@ -729,8 +738,8 @@ export function PlanFormFields({
                     targetModel: nextTargetModel,
                     transactionType: nextTargetModel === "investment_box" ? "income" : form.goal.transactionType,
                     categoryIds: nextTargetModel === "category" ? form.goal.categoryIds : [],
-                    investmentBoxId: nextTargetModel === "investment_box" ? form.goal.investmentBoxIds[0] ?? "" : "",
-                    investmentBox: nextTargetModel === "investment_box" ? form.goal.investmentBoxes[0] ?? null : null,
+                    investmentBoxId: nextTargetModel === "investment_box" ? (form.goal.investmentBoxIds[0] ?? "") : "",
+                    investmentBox: nextTargetModel === "investment_box" ? (form.goal.investmentBoxes[0] ?? null) : null,
                     investmentBoxIds: nextTargetModel === "investment_box" ? form.goal.investmentBoxIds : [],
                     investmentBoxes: nextTargetModel === "investment_box" ? form.goal.investmentBoxes : [],
                   });
@@ -758,7 +767,10 @@ export function PlanFormFields({
 
                         return (
                           <label key={categoryId} className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Checkbox checked={checked} onCheckedChange={(value) => toggleCategory(categoryId, Boolean(value))} />
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(value) => toggleCategory(categoryId, Boolean(value))}
+                            />
                             <span className="truncate">{category.label}</span>
                           </label>
                         );
@@ -784,7 +796,10 @@ export function PlanFormFields({
 
                         return (
                           <label key={investmentId} className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Checkbox checked={checked} onCheckedChange={(value) => toggleInvestment(investment, Boolean(value))} />
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(value) => toggleInvestment(investment, Boolean(value))}
+                            />
                             <span className="min-w-0 flex-1 truncate">{investment.name}</span>
                             <span className="shrink-0 text-xs">{investment.formattedCurrentAmount}</span>
                           </label>
@@ -804,7 +819,10 @@ export function PlanFormFields({
                 {selectedInvestments.length ? (
                   <div className="space-y-2">
                     {selectedInvestments.map((investment) => (
-                      <div key={investment.id} className="rounded-md border border-border/40 bg-background p-3 text-sm text-muted-foreground">
+                      <div
+                        key={investment.id}
+                        className="rounded-md border border-border/40 bg-background p-3 text-sm text-muted-foreground"
+                      >
                         <p className="font-medium text-foreground">{investment.name}</p>
                         <p className="mt-1">
                           {investment.contributionMode === "income_percentage"
@@ -841,7 +859,10 @@ export function PlanFormFields({
             variant="secondary"
             size="sm"
             onClick={() =>
-              onChange({ ...form, items: [...form.items, { title: "", description: "", status: "todo", priority: "medium" }] })
+              onChange({
+                ...form,
+                items: [...form.items, { title: "", description: "", status: "todo", priority: "medium" }],
+              })
             }
           >
             <Plus size={15} />
@@ -1031,7 +1052,9 @@ export default function PlansPage() {
 
   const handleCreatedInvestment = (investment: InvestmentItem) => {
     if (investmentDialogContext === "ai") {
-      setAiDraftForm((currentForm) => (currentForm ? applyCreatedInvestmentToPlanForm(currentForm, investment) : currentForm));
+      setAiDraftForm((currentForm) =>
+        currentForm ? applyCreatedInvestmentToPlanForm(currentForm, investment) : currentForm,
+      );
       return;
     }
 
@@ -1076,7 +1099,9 @@ export default function PlansPage() {
         </div>
       </div>
 
-      {isLoading ? <div className="glass-card p-5 text-sm text-muted-foreground">Carregando planejamentos...</div> : null}
+      {isLoading ? (
+        <div className="glass-card p-5 text-sm text-muted-foreground">Carregando planejamentos...</div>
+      ) : null}
       {isError ? (
         <div className="glass-card p-5 text-sm text-muted-foreground">Nao foi possivel carregar os planejamentos.</div>
       ) : null}
@@ -1209,7 +1234,6 @@ export default function PlansPage() {
         onCreated={handleCreatedInvestment}
         initialValues={createInvestmentInitialValues}
       />
-
     </AppShell>
   );
 }

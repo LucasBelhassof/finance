@@ -121,7 +121,10 @@ function createDbState() {
     ],
   ]);
   const transactionsBySeed = new Map<string, { id: number; row: Record<string, unknown> }>();
-  const installmentPurchases = new Map<string, { id: number; installment_count: number; purchase_occurred_on: string }>();
+  const installmentPurchases = new Map<
+    string,
+    { id: number; installment_count: number; purchase_occurred_on: string }
+  >();
   const rules = new Map<string, { id: number; type: string; category_id: number; times_confirmed: number }>();
   let nextTransactionId = 1000;
   let nextInstallmentPurchaseId = 500;
@@ -139,11 +142,17 @@ function createDbState() {
         return Promise.resolve({ rows: [], rowCount: 0 });
       }
 
-      if (normalizedSql.includes("SELECT id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color, is_system FROM categories")) {
+      if (
+        normalizedSql.includes(
+          "SELECT id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color, is_system FROM categories",
+        )
+      ) {
         return Promise.resolve({ rows: categories, rowCount: categories.length });
       }
 
-      if (normalizedSql.includes("SELECT occurred_on, amount, description, seed_key FROM transactions WHERE user_id = $1")) {
+      if (
+        normalizedSql.includes("SELECT occurred_on, amount, description, seed_key FROM transactions WHERE user_id = $1")
+      ) {
         return Promise.resolve({
           rows: Array.from(transactionsBySeed.values()).map(({ row }) => ({
             occurred_on: row.occurred_on,
@@ -176,7 +185,9 @@ function createDbState() {
         return Promise.resolve({ rows: [], rowCount: 0 });
       }
 
-      if (normalizedSql.includes("FROM transaction_categorization_rules WHERE user_id = $1 AND match_key = $2 LIMIT 1")) {
+      if (
+        normalizedSql.includes("FROM transaction_categorization_rules WHERE user_id = $1 AND match_key = $2 LIMIT 1")
+      ) {
         const existing = rules.get(String(params[1]));
         return Promise.resolve({ rows: existing ? [existing] : [], rowCount: existing ? 1 : 0 });
       }
@@ -195,7 +206,11 @@ function createDbState() {
         return Promise.resolve({ rows: [], rowCount: 1 });
       }
 
-      if (normalizedSql.includes("SELECT id, installment_count, purchase_occurred_on FROM installment_purchases WHERE user_id = $1 AND seed_key = $2 LIMIT 1")) {
+      if (
+        normalizedSql.includes(
+          "SELECT id, installment_count, purchase_occurred_on FROM installment_purchases WHERE user_id = $1 AND seed_key = $2 LIMIT 1",
+        )
+      ) {
         const existing = installmentPurchases.get(String(params[1]));
         return Promise.resolve({ rows: existing ? [existing] : [], rowCount: existing ? 1 : 0 });
       }
@@ -221,7 +236,9 @@ function createDbState() {
         const id = nextTransactionId++;
         const bankConnection = bankConnections.get(Number(params[1]));
         const category = categories.find((item) => Number(item.id) === Number(params[2]));
-        const installmentPurchase = params[7] ? Array.from(installmentPurchases.values()).find((item) => item.id === Number(params[7])) : null;
+        const installmentPurchase = params[7]
+          ? Array.from(installmentPurchases.values()).find((item) => item.id === Number(params[7]))
+          : null;
         const row = {
           id,
           description: String(params[3]),
@@ -655,7 +672,12 @@ describe("transaction import commit dispatcher", () => {
 
     expect(result.importedCount).toBe(4);
     expect(pgState.current?.inserts).toHaveLength(4);
-    expect(pgState.current?.inserts.map((item) => item.description)).toEqual(["Kabum 1/4", "Kabum 2/4", "Kabum 3/4", "Kabum 4/4"]);
+    expect(pgState.current?.inserts.map((item) => item.description)).toEqual([
+      "Kabum 1/4",
+      "Kabum 2/4",
+      "Kabum 3/4",
+      "Kabum 4/4",
+    ]);
   });
 
   it("imports 'Compra Loja 1/3' as one purchase plus three installment transactions", async () => {
@@ -698,7 +720,11 @@ describe("transaction import commit dispatcher", () => {
 
     expect(result.importedCount).toBe(3);
     expect(pgState.current?.installmentPurchases.size).toBe(1);
-    expect(pgState.current?.inserts.map((item) => item.description)).toEqual(["Compra Loja 1/3", "Compra Loja 2/3", "Compra Loja 3/3"]);
+    expect(pgState.current?.inserts.map((item) => item.description)).toEqual([
+      "Compra Loja 1/3",
+      "Compra Loja 2/3",
+      "Compra Loja 3/3",
+    ]);
     expect(pgState.current?.inserts.map((item) => item.occurredOn)).toEqual(["2026-03-15", "2026-04-15", "2026-05-15"]);
   });
 
@@ -742,7 +768,11 @@ describe("transaction import commit dispatcher", () => {
 
     expect(result.importedCount).toBe(3);
     expect(pgState.current?.installmentPurchases.size).toBe(1);
-    expect(pgState.current?.inserts.map((item) => item.description)).toEqual(["Compra Loja 1/3", "Compra Loja 2/3", "Compra Loja 3/3"]);
+    expect(pgState.current?.inserts.map((item) => item.description)).toEqual([
+      "Compra Loja 1/3",
+      "Compra Loja 2/3",
+      "Compra Loja 3/3",
+    ]);
     expect(pgState.current?.inserts.map((item) => item.occurredOn)).toEqual(["2026-03-15", "2026-04-15", "2026-05-15"]);
   });
 
@@ -833,7 +863,8 @@ describe("transaction import commit dispatcher", () => {
 
   it("keeps AI suggestions working for universal sessions without mutating protected fields", async () => {
     const { getTransactionImportAiSuggestions } = await loadDatabaseModule();
-    const { getUniversalPreviewSession, setUniversalPreviewSession } = await import("./import/preview-session-store.js");
+    const { getUniversalPreviewSession, setUniversalPreviewSession } =
+      await import("./import/preview-session-store.js");
 
     suggestImportCategoriesMock.mockResolvedValue({
       items: [
@@ -955,9 +986,11 @@ describe("transaction import commit dispatcher", () => {
 
   it("rejects a universal preview after detection when a bank statement is linked to a credit card", async () => {
     const { previewTransactionImport } = await loadDatabaseModule();
-    const csv = ["Data;Descricao;Valor", "06/04/2026;Transferencia Pix;-67,90", "06/04/2026;Deposito recebido;100,00"].join(
-      "\n",
-    );
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;Transferencia Pix;-67,90",
+      "06/04/2026;Deposito recebido;100,00",
+    ].join("\n");
 
     await expect(
       previewTransactionImport(7, Buffer.from(csv, "utf8"), undefined, 20, "extrato.csv", "text/csv", undefined),
@@ -973,7 +1006,15 @@ describe("transaction import commit dispatcher", () => {
     ].join("\n");
 
     await expect(
-      previewTransactionImport(7, Buffer.from(csv, "utf8"), undefined, 10, "Nubank_2026-03-27.csv", "text/csv", undefined),
+      previewTransactionImport(
+        7,
+        Buffer.from(csv, "utf8"),
+        undefined,
+        10,
+        "Nubank_2026-03-27.csv",
+        "text/csv",
+        undefined,
+      ),
     ).rejects.toThrow("A fatura do cartao precisa ser vinculada a uma conta do tipo cartao.");
   });
 

@@ -17,9 +17,7 @@ export default function MetricInfoTooltip({ content }: MetricInfoTooltipProps) {
             ?
           </button>
         </TooltipTrigger>
-        <TooltipContent className="max-w-[260px] text-xs leading-relaxed">
-          {content}
-        </TooltipContent>
+        <TooltipContent className="max-w-[260px] text-xs leading-relaxed">{content}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

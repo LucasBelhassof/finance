@@ -18,7 +18,10 @@ function getLocalDateKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function resolveInstallmentsPeriodRange(preset: Exclude<InstallmentsPeriodPreset, "custom">, now = new Date()): InstallmentsPeriodRange {
+export function resolveInstallmentsPeriodRange(
+  preset: Exclude<InstallmentsPeriodPreset, "custom">,
+  now = new Date(),
+): InstallmentsPeriodRange {
   const monthOffset = preset === "next_month" ? 1 : 0;
   const year = now.getFullYear();
   const month = now.getMonth() + monthOffset;

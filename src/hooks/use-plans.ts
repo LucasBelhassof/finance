@@ -23,7 +23,14 @@ import {
   suggestPlanLink,
   unlinkChatFromPlan,
 } from "@/lib/api";
-import type { CreatePlanInput, Plan, PlanDraft, RevisePlanDraftInput, RevisePlanDraftSessionInput, UpdatePlanInput } from "@/types/api";
+import type {
+  CreatePlanInput,
+  Plan,
+  PlanDraft,
+  RevisePlanDraftInput,
+  RevisePlanDraftSessionInput,
+  UpdatePlanInput,
+} from "@/types/api";
 import { chatConversationMessagesQueryKey, chatConversationsQueryKey, DEFAULT_CHAT_LIMIT } from "@/hooks/use-chat";
 
 export const plansQueryKey = ["plans"] as const;
@@ -200,7 +207,9 @@ export function useCreatePlanDraftSession() {
     mutationFn: createPlanDraftSession,
     onSuccess: (draftSession) => {
       queryClient.setQueryData(planDraftSessionQueryKey(draftSession.id), draftSession);
-      queryClient.invalidateQueries({ queryKey: chatConversationMessagesQueryKey(draftSession.chatId, DEFAULT_CHAT_LIMIT) });
+      queryClient.invalidateQueries({
+        queryKey: chatConversationMessagesQueryKey(draftSession.chatId, DEFAULT_CHAT_LIMIT),
+      });
       queryClient.invalidateQueries({ queryKey: chatConversationsQueryKey });
     },
   });
@@ -264,7 +273,9 @@ export function useDismissPlanDraftSession() {
     mutationFn: dismissPlanDraftSession,
     onSuccess: (draftSession) => {
       queryClient.setQueryData(planDraftSessionQueryKey(draftSession.id), draftSession);
-      queryClient.invalidateQueries({ queryKey: chatConversationMessagesQueryKey(draftSession.chatId, DEFAULT_CHAT_LIMIT) });
+      queryClient.invalidateQueries({
+        queryKey: chatConversationMessagesQueryKey(draftSession.chatId, DEFAULT_CHAT_LIMIT),
+      });
       queryClient.invalidateQueries({ queryKey: chatConversationsQueryKey });
     },
   });

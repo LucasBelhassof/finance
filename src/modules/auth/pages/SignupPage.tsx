@@ -128,7 +128,11 @@ export default function SignupPage() {
                 )}
               />
 
-              <Button className="h-12 w-full rounded-xl text-sm font-semibold" disabled={signupMutation.isPending} type="submit">
+              <Button
+                className="h-12 w-full rounded-xl text-sm font-semibold"
+                disabled={signupMutation.isPending}
+                type="submit"
+              >
                 {signupMutation.isPending ? <LoaderCircle className="animate-spin" size={16} /> : null}
                 Criar conta
               </Button>

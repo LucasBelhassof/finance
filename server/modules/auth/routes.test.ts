@@ -242,9 +242,7 @@ describe("auth routes", () => {
   it("returns the authenticated user on /me", async () => {
     const app = createTestApp();
 
-    const response = await request(app)
-      .get("/api/auth/me")
-      .set("Authorization", "Bearer access-token");
+    const response = await request(app).get("/api/auth/me").set("Authorization", "Bearer access-token");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({

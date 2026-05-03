@@ -1,6 +1,16 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AlertTriangle, Bell, CalendarDays, CheckCircle2, ChevronDown, CreditCard, RotateCcw, Search, Settings2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  CreditCard,
+  RotateCcw,
+  Search,
+  Settings2,
+} from "lucide-react";
 
 import AppShell from "@/components/AppShell";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
@@ -139,7 +149,9 @@ function InvoiceCategoryBreakdown({ transactions }: { transactions: InvoiceTrans
 
   return (
     <div className="mt-3 rounded-lg border border-border/50 bg-background/40 px-3 py-3">
-      <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Análise por categoria</p>
+      <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        Análise por categoria
+      </p>
       <div className="space-y-2">
         {sorted.map((cat, index) => {
           const pct = total > 0 ? (cat.total / total) * 100 : 0;
@@ -163,19 +175,36 @@ function InvoiceCategoryBreakdown({ transactions }: { transactions: InvoiceTrans
   );
 }
 
-function SettingsForm({ invoice, onSave, isSaving }: { invoice: InvoiceItem; onSave: (input: InvoiceSettingsInput) => void; isSaving: boolean }) {
+function SettingsForm({
+  invoice,
+  onSave,
+  isSaving,
+}: {
+  invoice: InvoiceItem;
+  onSave: (input: InvoiceSettingsInput) => void;
+  isSaving: boolean;
+}) {
   const [statementCloseDay, setStatementCloseDay] = useState(String(invoice.card.statementCloseDay ?? ""));
   const [statementDueDay, setStatementDueDay] = useState(String(invoice.card.statementDueDay ?? ""));
   const [notifyInvoiceClosed, setNotifyInvoiceClosed] = useState(invoice.card.notifyInvoiceClosed);
   const [notifyInvoiceDueSoon, setNotifyInvoiceDueSoon] = useState(invoice.card.notifyInvoiceDueSoon);
-  const [invoiceDueReminderDays, setInvoiceDueReminderDays] = useState(String(invoice.card.invoiceDueReminderDays ?? 3));
+  const [invoiceDueReminderDays, setInvoiceDueReminderDays] = useState(
+    String(invoice.card.invoiceDueReminderDays ?? 3),
+  );
 
   const handleSave = () => {
     const closeDay = Number(statementCloseDay);
     const dueDay = Number(statementDueDay);
     const reminderDays = Number(invoiceDueReminderDays);
 
-    if (!Number.isInteger(closeDay) || closeDay < 1 || closeDay > 31 || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+    if (
+      !Number.isInteger(closeDay) ||
+      closeDay < 1 ||
+      closeDay > 31 ||
+      !Number.isInteger(dueDay) ||
+      dueDay < 1 ||
+      dueDay > 31
+    ) {
       toast.error("Informe dias de fechamento e vencimento entre 1 e 31.");
       return;
     }
@@ -269,7 +298,9 @@ export default function CreditCardInvoicesPage() {
   const selectedCardId = searchParams.get(FILTER_QUERY_PARAM_KEYS.cardId)?.trim() || "all";
   const selectedCategoryId = searchParams.get(FILTER_QUERY_PARAM_KEYS.categoryId)?.trim() || "all";
   const statusParam = searchParams.get(FILTER_QUERY_PARAM_KEYS.status);
-  const selectedStatus = statusOptions.some((item) => item.value === statusParam) ? (statusParam as InvoiceStatus | "all") : "all";
+  const selectedStatus = statusOptions.some((item) => item.value === statusParam)
+    ? (statusParam as InvoiceStatus | "all")
+    : "all";
   const search = searchParams.get(FILTER_QUERY_PARAM_KEYS.search) ?? "";
   const filters = useMemo(
     () => ({
@@ -317,8 +348,6 @@ export default function CreditCardInvoicesPage() {
     Object.values(FILTER_QUERY_PARAM_KEYS).forEach((key) => nextSearchParams.delete(key));
     setSearchParams(nextSearchParams, { replace: true });
   };
-
-
 
   const headerContent = (
     <section data-tour-id="invoices-filters" className="glass-card rounded-[28px] border border-border/40 p-4">
@@ -401,7 +430,10 @@ export default function CreditCardInvoicesPage() {
         </Select>
 
         <div className="relative w-full xl:max-w-sm xl:flex-1">
-          <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={17}
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             value={search}
             onChange={(event) =>
@@ -413,22 +445,22 @@ export default function CreditCardInvoicesPage() {
             className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
           />
         </div>
-      </div> 
-<div className="flex flex-col xl:flex-row xl:items-center xl:justify-between">
-            <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-              {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
-            </div>      
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="ghost"
-                  className="rounded-xl px-3 text-destructive hover:bg-transparent hover:text-destructive/80"
-                  onClick={handleResetFilters}
-                >
-                  <RotateCcw size={14} />
-                  Limpar filtros
-                </Button>
-              </div>
-            </div>
+      </div>
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between">
+        <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+          {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="ghost"
+            className="rounded-xl px-3 text-destructive hover:bg-transparent hover:text-destructive/80"
+            onClick={handleResetFilters}
+          >
+            <RotateCcw size={14} />
+            Limpar filtros
+          </Button>
+        </div>
+      </div>
     </section>
   );
 
@@ -450,7 +482,9 @@ export default function CreditCardInvoicesPage() {
           <>
             <div className="glass-card p-4">
               <p className="text-sm text-muted-foreground">Total filtrado</p>
-              <p className="mt-1 text-2xl font-bold text-foreground">{data?.summary.formattedTotalAmount ?? "R$ 0,00"}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">
+                {data?.summary.formattedTotalAmount ?? "R$ 0,00"}
+              </p>
             </div>
             <div className="glass-card p-4">
               <p className="text-sm text-muted-foreground">Vencendo</p>
@@ -516,27 +550,47 @@ export default function CreditCardInvoicesPage() {
                     })
                   }
                 >
-                  <div className={cn("rounded-lg border transition-colors", getInvoiceCardClassName(invoice.status, invoice.isPaid))}>
+                  <div
+                    className={cn(
+                      "rounded-lg border transition-colors",
+                      getInvoiceCardClassName(invoice.status, invoice.isPaid),
+                    )}
+                  >
                     <div className="flex items-center gap-3 px-3 py-2">
-                      <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground", invoice.card.color)}>
+                      <div
+                        className={cn(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground",
+                          invoice.card.color,
+                        )}
+                      >
                         <CreditCard size={16} />
                       </div>
 
                       <CollapsibleTrigger asChild>
                         <button type="button" className="group min-w-0 flex-1 cursor-pointer text-left">
                           <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                            <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">{invoice.card.name}</p>
+                            <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
+                              {invoice.card.name}
+                            </p>
                             {invoice.isPaid ? (
-                              <Badge variant="outline" className="w-fit text-[11px] border-success/30 bg-success/10 text-success">
+                              <Badge
+                                variant="outline"
+                                className="w-fit text-[11px] border-success/30 bg-success/10 text-success"
+                              >
                                 <CheckCircle2 size={10} className="mr-1" />
                                 Paga
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className={cn("w-fit text-[11px]", getStatusBadgeClassName(invoice.status))}>
+                              <Badge
+                                variant="outline"
+                                className={cn("w-fit text-[11px]", getStatusBadgeClassName(invoice.status))}
+                              >
                                 {getStatusLabel(invoice.status)}
                               </Badge>
                             )}
-                            <span className="hidden text-xs text-muted-foreground sm:inline">{invoice.referenceMonthLabel}</span>
+                            <span className="hidden text-xs text-muted-foreground sm:inline">
+                              {invoice.referenceMonthLabel}
+                            </span>
                           </div>
                           <p className="truncate text-xs text-muted-foreground">
                             Fecha {formatDate(invoice.closingDate)} · Vence {formatDate(invoice.dueDate)}
@@ -545,7 +599,9 @@ export default function CreditCardInvoicesPage() {
                       </CollapsibleTrigger>
 
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{invoice.formattedTotalAmount}</p>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">
+                          {invoice.formattedTotalAmount}
+                        </p>
                         <p className="text-xs text-muted-foreground">{invoice.transactionCount} despesa(s)</p>
                       </div>
 
@@ -572,9 +628,13 @@ export default function CreditCardInvoicesPage() {
                         <button
                           type="button"
                           className="shrink-0 text-muted-foreground hover:text-foreground"
-                          aria-label={isOpen ? `Recolher fatura ${invoice.card.name}` : `Expandir fatura ${invoice.card.name}`}
+                          aria-label={
+                            isOpen ? `Recolher fatura ${invoice.card.name}` : `Expandir fatura ${invoice.card.name}`
+                          }
                         >
-                          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
+                          <ChevronDown
+                            className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")}
+                          />
                         </button>
                       </CollapsibleTrigger>
                     </div>
@@ -605,9 +665,13 @@ export default function CreditCardInvoicesPage() {
                                   {formatDate(transaction.occurredOn)}
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-medium text-foreground">{transaction.description}</p>
+                                  <p className="truncate text-sm font-medium text-foreground">
+                                    {transaction.description}
+                                  </p>
                                   <p className="truncate text-xs text-muted-foreground">
-                                    {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount
+                                    {transaction.isInstallment &&
+                                    transaction.installmentNumber &&
+                                    transaction.installmentCount
                                       ? `Parcela ${transaction.installmentNumber}/${transaction.installmentCount} · `
                                       : ""}
                                     {transaction.category.label}
@@ -658,7 +722,6 @@ export default function CreditCardInvoicesPage() {
           ) : null}
         </DialogContent>
       </Dialog>
-
     </AppShell>
   );
 }

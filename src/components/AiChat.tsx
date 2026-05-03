@@ -57,13 +57,15 @@ function ChatLoadingState() {
 function renderMessageContent(content: string) {
   return content.split("\n").map((line, lineIndex) => (
     <p key={`${lineIndex}-${line}`} className={lineIndex > 0 ? "mt-1" : ""}>
-      {line.split(/(\*\*.*?\*\*)/).map((part, partIndex) =>
-        part.startsWith("**") && part.endsWith("**") ? (
-          <strong key={`${partIndex}-${part}`}>{part.slice(2, -2)}</strong>
-        ) : (
-          <span key={`${partIndex}-${part}`}>{part}</span>
-        ),
-      )}
+      {line
+        .split(/(\*\*.*?\*\*)/)
+        .map((part, partIndex) =>
+          part.startsWith("**") && part.endsWith("**") ? (
+            <strong key={`${partIndex}-${part}`}>{part.slice(2, -2)}</strong>
+          ) : (
+            <span key={`${partIndex}-${part}`}>{part}</span>
+          ),
+        )}
     </p>
   ));
 }
@@ -242,17 +244,18 @@ export default function AiChat({
       </div>
 
       <div ref={scrollContainerRef} className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
-        {!messages.length && !queuedMessages.length && !isSendingMessages && !planningInProgress && !creatingConversation ? (
+        {!messages.length &&
+        !queuedMessages.length &&
+        !isSendingMessages &&
+        !planningInProgress &&
+        !creatingConversation ? (
           <div className="rounded-lg border border-border/30 bg-secondary/30 p-4 text-sm text-muted-foreground">
             {isError ? "Nao foi possivel carregar a conversa agora." : "Comece uma conversa com o assistente."}
           </div>
         ) : (
           <>
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-2.5 ${message.role === "user" ? "flex-row-reverse" : ""}`}
-              >
+              <div key={message.id} className={`flex gap-2.5 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
                 <div
                   className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
                     message.role === "assistant" ? "bg-primary/10" : "bg-secondary"
@@ -335,7 +338,9 @@ export default function AiChat({
             />
             <button
               type="submit"
-              disabled={!input.trim() || planningInProgress || creatingConversation || (!chatId && !onStartConversation)}
+              disabled={
+                !input.trim() || planningInProgress || creatingConversation || (!chatId && !onStartConversation)
+              }
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             >
               <Send size={14} className="text-primary-foreground" />

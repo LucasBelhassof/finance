@@ -188,7 +188,11 @@ function normalizeOnboardingProgress(
         ? ONBOARDING_STEPS.length - 1
         : 0;
 
-  const completedStepsRaw = Array.isArray(value?.completedSteps) ? value.completedSteps : onboardingCompletedAt ? ONBOARDING_STEPS : [];
+  const completedStepsRaw = Array.isArray(value?.completedSteps)
+    ? value.completedSteps
+    : onboardingCompletedAt
+      ? ONBOARDING_STEPS
+      : [];
   const skippedStepsRaw = Array.isArray(value?.skippedSteps) ? value.skippedSteps : [];
   const normalizedCompletedSteps = completedStepsRaw
     .map((step) => normalizeOnboardingStepId(step))
@@ -198,7 +202,9 @@ function normalizeOnboardingProgress(
     .filter((step): step is OnboardingStepId => step !== null);
 
   const completedSteps = ONBOARDING_STEPS.filter((step) => normalizedCompletedSteps.includes(step));
-  const skippedSteps = ONBOARDING_STEPS.filter((step) => normalizedSkippedSteps.includes(step) && !completedSteps.includes(step));
+  const skippedSteps = ONBOARDING_STEPS.filter(
+    (step) => normalizedSkippedSteps.includes(step) && !completedSteps.includes(step),
+  );
 
   return {
     currentStep: Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, currentStepRaw)),
@@ -272,10 +278,7 @@ async function toAuthUser(user: {
     hasCompletedOnboarding,
     onboardingProgress,
     role: user.role === "admin" ? "admin" : "user",
-    status:
-      user.status === "inactive" || user.status === "suspended"
-        ? user.status
-        : "active",
+    status: user.status === "inactive" || user.status === "suspended" ? user.status : "active",
     isPremium: Boolean(user.isPremium),
     premiumSince: user.premiumSince ? user.premiumSince.toISOString() : null,
     phone: user.phone ?? null,
@@ -789,7 +792,7 @@ export async function updateOnboardingProgress(userId: number, input: AuthOnboar
 
   const updatedUser = await updateUserOnboardingState(userId, {
     onboardingProgress,
-    onboardingCompletedAt: hasCompletedOnboarding ? user.onboardingCompletedAt ?? new Date() : null,
+    onboardingCompletedAt: hasCompletedOnboarding ? (user.onboardingCompletedAt ?? new Date()) : null,
   });
 
   if (!updatedUser) {
@@ -969,7 +972,10 @@ export async function verifyAccessToken(accessToken: string) {
       user,
     };
   } catch (error) {
-    throw new UnauthorizedError("access_token_invalid", error instanceof Error ? error.message : "Invalid access token.");
+    throw new UnauthorizedError(
+      "access_token_invalid",
+      error instanceof Error ? error.message : "Invalid access token.",
+    );
   }
 }
 

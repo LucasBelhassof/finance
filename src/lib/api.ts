@@ -419,7 +419,9 @@ function mapAdminFinancialMetricsResponse(response: ApiAdminFinancialMetricsResp
   };
 }
 
-function mapAdminSubscriptionMetricsResponse(response: ApiAdminSubscriptionMetricsResponse): AdminSubscriptionMetricsData {
+function mapAdminSubscriptionMetricsResponse(
+  response: ApiAdminSubscriptionMetricsResponse,
+): AdminSubscriptionMetricsData {
   return {
     period: {
       startDate: safeString(response.period?.startDate),
@@ -451,7 +453,7 @@ function mapAdminActivityResponse(response: ApiAdminActivityResponse): AdminActi
       user: item.user
         ? {
             id: item.user.id ?? "",
-                name: safeString(item.user.name, "Usuário"),
+            name: safeString(item.user.name, "Usuário"),
             role: item.user.role === "admin" ? "admin" : "user",
           }
         : null,
@@ -600,7 +602,9 @@ function mapNotificationsResponse(response: ApiNotificationsResponse): Notificat
             ? notification.category
             : "general",
         source:
-          notification.source === "admin_all" || notification.source === "admin_selected" || notification.source === "system"
+          notification.source === "admin_all" ||
+          notification.source === "admin_selected" ||
+          notification.source === "system"
             ? notification.source
             : "user_self",
         triggerAt: notification.triggerAt ? safeString(notification.triggerAt) : null,
@@ -620,7 +624,9 @@ function mapNotificationsResponse(response: ApiNotificationsResponse): Notificat
   };
 }
 
-function mapAdminNotificationTargetsResponse(response: ApiAdminNotificationTargetsResponse): AdminNotificationTargetsData {
+function mapAdminNotificationTargetsResponse(
+  response: ApiAdminNotificationTargetsResponse,
+): AdminNotificationTargetsData {
   return {
     users: (response.users ?? []).map((user) => ({
       id: user.id ?? "",
@@ -681,7 +687,9 @@ export function mapTransaction(transaction: ApiTransaction): TransactionItem {
   const account = transaction.account ?? {};
 
   return {
-    id: transaction.id ?? `${safeString(transaction.description, "transaction")}-${safeString(transaction.occurredOn, "0")}`,
+    id:
+      transaction.id ??
+      `${safeString(transaction.description, "transaction")}-${safeString(transaction.occurredOn, "0")}`,
     description: safeString(transaction.description, "Transação"),
     amount,
     formattedAmount: safeString(
@@ -740,7 +748,10 @@ export function mapSpendingItem(item: ApiSpendingItem): SpendingItem {
 export function mapInsight(insight: ApiInsight): InsightItem {
   const colors = normalizeInsightColors(insight);
   const tone = safeString(insight.tone, "primary");
-  const priority = insight.priority === "high" || insight.priority === "medium" || insight.priority === "low" ? insight.priority : "low";
+  const priority =
+    insight.priority === "high" || insight.priority === "medium" || insight.priority === "low"
+      ? insight.priority
+      : "low";
   const insightType = safeString(insight.insightType, "general");
   const action = insight.action;
   const actionHref =
@@ -760,7 +771,8 @@ export function mapInsight(insight: ApiInsight): InsightItem {
     tone,
     priority,
     priorityLabel: priority === "high" ? "Alta" : priority === "medium" ? "Média" : "Baixa",
-    toneLabel: tone === "warning" ? "Atencao" : tone === "info" ? "Analise" : tone === "success" ? "Oportunidade" : "Leitura",
+    toneLabel:
+      tone === "warning" ? "Atencao" : tone === "info" ? "Analise" : tone === "success" ? "Oportunidade" : "Leitura",
     insightType,
     metadata: typeof insight.metadata === "object" && insight.metadata !== null ? insight.metadata : {},
     action:
@@ -780,8 +792,7 @@ export function mapInsight(insight: ApiInsight): InsightItem {
 
 export function mapBank(bank: ApiBank): BankItem {
   const currentBalance = safeNumber(bank.currentBalance);
-  const creditLimit =
-    typeof bank.creditLimit === "number" ? bank.creditLimit : bank.creditLimit === null ? null : null;
+  const creditLimit = typeof bank.creditLimit === "number" ? bank.creditLimit : bank.creditLimit === null ? null : null;
 
   return {
     id: bank.id ?? safeString(bank.slug, safeString(bank.name, "bank")),
@@ -795,13 +806,16 @@ export function mapBank(bank: ApiBank): BankItem {
     notifyInvoiceClosed: Boolean(bank.notifyInvoiceClosed),
     notifyInvoiceDueSoon: Boolean(bank.notifyInvoiceDueSoon),
     invoiceDueReminderDays:
-      typeof bank.invoiceDueReminderDays === "number" ? Math.min(Math.max(Math.trunc(bank.invoiceDueReminderDays), 1), 15) : 3,
+      typeof bank.invoiceDueReminderDays === "number"
+        ? Math.min(Math.max(Math.trunc(bank.invoiceDueReminderDays), 1), 15)
+        : 3,
     connected: Boolean(bank.connected),
     color: safeString(bank.color, "bg-secondary"),
     currentBalance,
     formattedBalance: safeString(bank.formattedBalance, formatCurrency(currentBalance)),
     creditLimit,
-    formattedCreditLimit: creditLimit === null ? null : safeString(bank.formattedCreditLimit, formatCurrency(creditLimit)),
+    formattedCreditLimit:
+      creditLimit === null ? null : safeString(bank.formattedCreditLimit, formatCurrency(creditLimit)),
   };
 }
 
@@ -816,7 +830,9 @@ function mapInvoiceCard(card: ApiInvoiceItem["card"] = {}): InvoiceCardItem {
     notifyInvoiceClosed: Boolean(card.notifyInvoiceClosed),
     notifyInvoiceDueSoon: Boolean(card.notifyInvoiceDueSoon),
     invoiceDueReminderDays:
-      typeof card.invoiceDueReminderDays === "number" ? Math.min(Math.max(Math.trunc(card.invoiceDueReminderDays), 1), 15) : 3,
+      typeof card.invoiceDueReminderDays === "number"
+        ? Math.min(Math.max(Math.trunc(card.invoiceDueReminderDays), 1), 15)
+        : 3,
   };
 }
 
@@ -833,7 +849,10 @@ export function mapInvoiceItem(invoice: ApiInvoiceItem): InvoiceItem {
     closingDate: safeString(invoice.closingDate),
     dueDate: safeString(invoice.dueDate),
     status:
-      invoice.status === "open" || invoice.status === "closed" || invoice.status === "due_soon" || invoice.status === "overdue"
+      invoice.status === "open" ||
+      invoice.status === "closed" ||
+      invoice.status === "due_soon" ||
+      invoice.status === "overdue"
         ? invoice.status
         : "open",
     totalAmount,
@@ -910,7 +929,8 @@ export function mapHousingItem(item: ApiHousingItem): HousingItem {
       id: bank.id ?? "bank",
       slug: safeString(bank.slug, "bank"),
       name: safeString(bank.name, "Conta"),
-      accountType: bank.accountType === "credit_card" || bank.accountType === "cash" ? bank.accountType : "bank_account",
+      accountType:
+        bank.accountType === "credit_card" || bank.accountType === "cash" ? bank.accountType : "bank_account",
       color: safeString(bank.color, "bg-secondary"),
     },
     category: {
@@ -1022,18 +1042,19 @@ function clampPercentage(value: unknown) {
 
 function mapPlanGoal(goal: ApiPlanGoal = {}): PlanGoal {
   const type = normalizePlanGoalType(goal.type);
-  const investmentBoxes = [
-    ...(goal.investmentBoxes ?? []),
-    ...(goal.investmentBox ? [goal.investmentBox] : []),
-  ].map(mapInvestmentItem);
+  const investmentBoxes = [...(goal.investmentBoxes ?? []), ...(goal.investmentBox ? [goal.investmentBox] : [])].map(
+    mapInvestmentItem,
+  );
   const investmentBoxIds = Array.from(
-    new Set([
-      ...(goal.investmentBoxIds ?? []),
-      ...(goal.investmentBoxId === undefined || goal.investmentBoxId === null || goal.investmentBoxId === ""
-        ? []
-        : [goal.investmentBoxId]),
-      ...investmentBoxes.map((investment) => investment.id),
-    ].map(String)),
+    new Set(
+      [
+        ...(goal.investmentBoxIds ?? []),
+        ...(goal.investmentBoxId === undefined || goal.investmentBoxId === null || goal.investmentBoxId === ""
+          ? []
+          : [goal.investmentBoxId]),
+        ...investmentBoxes.map((investment) => investment.id),
+      ].map(String),
+    ),
   );
   const investmentBox = investmentBoxes[0] ?? null;
 
@@ -1043,7 +1064,9 @@ function mapPlanGoal(goal: ApiPlanGoal = {}): PlanGoal {
     targetAmount: type === "transaction_sum" ? safeNumber(goal.targetAmount) : null,
     transactionType: normalizePlanTransactionType(goal.transactionType),
     targetModel: type === "transaction_sum" ? normalizePlanGoalTargetModel(goal.targetModel) : "category",
-    categoryIds: (goal.categoryIds ?? []).filter((categoryId) => categoryId !== undefined && categoryId !== null && categoryId !== ""),
+    categoryIds: (goal.categoryIds ?? []).filter(
+      (categoryId) => categoryId !== undefined && categoryId !== null && categoryId !== "",
+    ),
     investmentBoxId: investmentBoxIds[0] ?? null,
     investmentBox,
     investmentBoxIds,
@@ -1076,7 +1099,8 @@ export function mapInvestmentItem(item: ApiInvestmentItem): InvestmentItem {
           id: bank.id ?? "bank",
           slug: safeString(bank.slug, "bank"),
           name: safeString(bank.name, "Conta"),
-          accountType: bank.accountType === "credit_card" || bank.accountType === "cash" ? bank.accountType : "bank_account",
+          accountType:
+            bank.accountType === "credit_card" || bank.accountType === "cash" ? bank.accountType : "bank_account",
           color: safeString(bank.color, "bg-secondary"),
         }
       : null,
@@ -1090,12 +1114,20 @@ function mapPlanProgress(progress: ApiPlanProgress = {}, goal: PlanGoal, items: 
     return {
       type: normalizePlanGoalType(progress.type),
       percentage: clampPercentage(progress.percentage),
-      currentValue: progress.currentValue === null || progress.currentValue === undefined ? null : safeNumber(progress.currentValue),
-      targetValue: progress.targetValue === null || progress.targetValue === undefined ? null : safeNumber(progress.targetValue),
+      currentValue:
+        progress.currentValue === null || progress.currentValue === undefined
+          ? null
+          : safeNumber(progress.currentValue),
+      targetValue:
+        progress.targetValue === null || progress.targetValue === undefined ? null : safeNumber(progress.targetValue),
       formattedCurrentValue: safeString(progress.formattedCurrentValue, "") || null,
       formattedTargetValue: safeString(progress.formattedTargetValue, "") || null,
-      completedItems: progress.completedItems === null || progress.completedItems === undefined ? null : safeNumber(progress.completedItems),
-      totalItems: progress.totalItems === null || progress.totalItems === undefined ? null : safeNumber(progress.totalItems),
+      completedItems:
+        progress.completedItems === null || progress.completedItems === undefined
+          ? null
+          : safeNumber(progress.completedItems),
+      totalItems:
+        progress.totalItems === null || progress.totalItems === undefined ? null : safeNumber(progress.totalItems),
     };
   }
 
@@ -1183,7 +1215,9 @@ export function mapPlan(plan: ApiPlan): Plan {
           assessedAt: safeString(assessment.assessedAt, new Date(0).toISOString()),
         }
       : null,
-    pendingRecommendations: (plan.pendingRecommendations ?? []).map((item) => mapPlanRecommendation(item as Record<string, unknown>)),
+    pendingRecommendations: (plan.pendingRecommendations ?? []).map((item) =>
+      mapPlanRecommendation(item as Record<string, unknown>),
+    ),
   };
 }
 
@@ -1233,9 +1267,12 @@ export function mapInstallmentsOverviewResponse(response: ApiInstallmentsOvervie
 
   return {
     appliedFilters: {
-      cardId: appliedFilters.cardId !== undefined && appliedFilters.cardId !== null ? String(appliedFilters.cardId) : "all",
+      cardId:
+        appliedFilters.cardId !== undefined && appliedFilters.cardId !== null ? String(appliedFilters.cardId) : "all",
       categoryId:
-        appliedFilters.categoryId !== undefined && appliedFilters.categoryId !== null ? String(appliedFilters.categoryId) : "all",
+        appliedFilters.categoryId !== undefined && appliedFilters.categoryId !== null
+          ? String(appliedFilters.categoryId)
+          : "all",
       search: safeString(appliedFilters.search),
       status:
         appliedFilters.status === "active" || appliedFilters.status === "paid" || appliedFilters.status === "overdue"
@@ -1246,7 +1283,8 @@ export function mapInstallmentsOverviewResponse(response: ApiInstallmentsOvervie
       installmentAmountMax:
         typeof appliedFilters.installmentAmountMax === "number" ? appliedFilters.installmentAmountMax : null,
       installmentCountMode:
-        appliedFilters.installmentCountMode === "installment_count" || appliedFilters.installmentCountMode === "remaining_installments"
+        appliedFilters.installmentCountMode === "installment_count" ||
+        appliedFilters.installmentCountMode === "remaining_installments"
           ? appliedFilters.installmentCountMode
           : "all",
       installmentCountValue:
@@ -1307,8 +1345,10 @@ export function mapInstallmentsOverviewResponse(response: ApiInstallmentsOvervie
         id: item.id ?? "category",
         label: safeString(item.label, "Categoria"),
       })),
-      statuses: (filterOptions.statuses ?? [])
-        .filter((value): value is "active" | "paid" | "overdue" => value === "active" || value === "paid" || value === "overdue"),
+      statuses: (filterOptions.statuses ?? []).filter(
+        (value): value is "active" | "paid" | "overdue" =>
+          value === "active" || value === "paid" || value === "overdue",
+      ),
       installmentCountValues: (filterOptions.installment_count_values ?? []).filter(
         (value): value is number => typeof value === "number" && Number.isFinite(value),
       ),
@@ -1393,7 +1433,7 @@ export function mapPlanDraftSessionResponse(response: ApiPlanDraftSessionRespons
   const draftSession = response.draftSession ?? {};
   const revisionMessages = (draftSession.revisionMessages ?? [])
     .map((message) => ({
-      role: message.role === "assistant" ? "assistant" as const : "user" as const,
+      role: message.role === "assistant" ? ("assistant" as const) : ("user" as const),
       content: safeString(message.content, ""),
     }))
     .filter((message) => message.content);
@@ -1441,9 +1481,10 @@ export function mapPlanChatSummaryResponse(response: ApiPlanChatSummaryResponse)
 }
 
 export function mapChatReplyResponse(response: ApiChatReplyResponse): ChatReply {
-  const userMessages = Array.isArray(response.userMessages) && response.userMessages.length
-    ? response.userMessages.map(mapChatMessage)
-    : [mapChatMessage(response.userMessage ?? { role: "user" })];
+  const userMessages =
+    Array.isArray(response.userMessages) && response.userMessages.length
+      ? response.userMessages.map(mapChatMessage)
+      : [mapChatMessage(response.userMessage ?? { role: "user" })];
 
   return {
     chat: response.chat ? mapChatConversation(response.chat) : null,
@@ -1477,7 +1518,8 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     isInstallment: Boolean(item.isInstallment),
     installmentIndex: typeof item.installmentIndex === "number" ? item.installmentIndex : null,
     installmentCount: typeof item.installmentCount === "number" ? item.installmentCount : null,
-    generatedInstallmentCount: typeof item.generatedInstallmentCount === "number" ? item.generatedInstallmentCount : null,
+    generatedInstallmentCount:
+      typeof item.generatedInstallmentCount === "number" ? item.generatedInstallmentCount : null,
     type: normalizeImportType(item.type),
     suggestedCategoryId: item.suggestedCategoryId ?? null,
     suggestedCategoryLabel: item.suggestedCategoryLabel ?? null,
@@ -1492,7 +1534,8 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
     bankConnectionId: item.bankConnectionId ?? "",
     bankConnectionName: safeString(item.bankConnectionName, "Conta"),
     matchedRuleId: item.matchedRuleId ?? null,
-    aiSuggestedType: item.aiSuggestedType === "income" || item.aiSuggestedType === "expense" ? item.aiSuggestedType : null,
+    aiSuggestedType:
+      item.aiSuggestedType === "income" || item.aiSuggestedType === "expense" ? item.aiSuggestedType : null,
     aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
     aiSuggestedCategoryLabel: item.aiSuggestedCategoryLabel ?? null,
     aiConfidence: typeof item.aiConfidence === "number" ? item.aiConfidence : null,
@@ -1524,10 +1567,11 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
 }
 
 function mapImportAiSuggestionItem(item: ApiImportAiSuggestionItem): ImportAiSuggestionItem {
-    return {
-      rowIndex: safeNumber(item.rowIndex),
-      aiSuggestedType: item.aiSuggestedType === "income" || item.aiSuggestedType === "expense" ? item.aiSuggestedType : null,
-      aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
+  return {
+    rowIndex: safeNumber(item.rowIndex),
+    aiSuggestedType:
+      item.aiSuggestedType === "income" || item.aiSuggestedType === "expense" ? item.aiSuggestedType : null,
+    aiSuggestedCategoryId: item.aiSuggestedCategoryId ?? null,
     aiSuggestedCategoryLabel: item.aiSuggestedCategoryLabel ?? null,
     aiConfidence: typeof item.aiConfidence === "number" ? item.aiConfidence : null,
     aiReason: safeString(item.aiReason),
@@ -1560,13 +1604,19 @@ export function mapImportPreviewResponse(response: ApiImportPreviewResponse): Im
         : null,
     accountHint: response.accountHint ? safeString(response.accountHint) : null,
     selectedBankConnectionId: response.selectedBankConnectionId ?? null,
-    warnings: Array.isArray(response.warnings) ? response.warnings.map((value) => safeString(value)).filter(Boolean) : [],
+    warnings: Array.isArray(response.warnings)
+      ? response.warnings.map((value) => safeString(value)).filter(Boolean)
+      : [],
     bankConnectionId: response.bankConnectionId ?? "",
     bankConnectionName: safeString(response.bankConnectionName, "Conta"),
     fileMetadata: {
-      originalFilename: response.fileMetadata?.originalFilename ? safeString(response.fileMetadata.originalFilename) : null,
+      originalFilename: response.fileMetadata?.originalFilename
+        ? safeString(response.fileMetadata.originalFilename)
+        : null,
       issuerName: response.fileMetadata?.issuerName ? safeString(response.fileMetadata.issuerName) : null,
-      statementDueDate: response.fileMetadata?.statementDueDate ? safeString(response.fileMetadata.statementDueDate) : null,
+      statementDueDate: response.fileMetadata?.statementDueDate
+        ? safeString(response.fileMetadata.statementDueDate)
+        : null,
       statementReferenceMonth: response.fileMetadata?.statementReferenceMonth
         ? safeString(response.fileMetadata.statementReferenceMonth)
         : null,
@@ -1603,7 +1653,9 @@ export function mapImportAiSuggestionsResponse(response: ApiImportAiSuggestionsR
     previewToken: safeString(response.previewToken),
     status: response.status === "disabled" ? "disabled" : "completed",
     autoApplyThreshold:
-      typeof response.autoApplyThreshold === "number" && response.autoApplyThreshold >= 0 && response.autoApplyThreshold <= 1
+      typeof response.autoApplyThreshold === "number" &&
+      response.autoApplyThreshold >= 0 &&
+      response.autoApplyThreshold <= 1
         ? response.autoApplyThreshold
         : 0.8,
     summary: {
@@ -1662,13 +1714,15 @@ export async function getAdminOverview(startDate?: string, endDate?: string) {
   return mapAdminOverviewResponse(response);
 }
 
-export async function getAdminUsers(params: {
-  page?: number;
-  pageSize?: number;
-  status?: string;
-  premium?: string;
-  recentActivity?: string;
-} = {}) {
+export async function getAdminUsers(
+  params: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    premium?: string;
+    recentActivity?: string;
+  } = {},
+) {
   const response = await request<ApiAdminUsersResponse>(
     buildPath("/api/admin/users", {
       page: params.page,
@@ -1975,13 +2029,13 @@ export async function postBank(input: CreateBankConnectionInput) {
 export async function patchBank(input: UpdateBankConnectionInput) {
   const response = await request<ApiBank>(`/api/banks/${input.id}`, {
     method: "PATCH",
-      body: JSON.stringify({
-        name: input.name,
-        accountType: input.accountType,
-        currentBalance: input.currentBalance,
-        creditLimit: input.creditLimit,
-        color: input.color,
-        connected: input.connected,
+    body: JSON.stringify({
+      name: input.name,
+      accountType: input.accountType,
+      currentBalance: input.currentBalance,
+      creditLimit: input.creditLimit,
+      color: input.color,
+      connected: input.connected,
       parentBankConnectionId: input.parentBankConnectionId,
       statementCloseDay: input.statementCloseDay,
       statementDueDay: input.statementDueDay,
@@ -2213,9 +2267,12 @@ export async function confirmPlanDraftSession(draftId: string) {
 }
 
 export async function dismissPlanDraftSession(draftId: string) {
-  const response = await request<ApiPlanDraftSessionResponse>(`/api/plan-drafts/${encodeURIComponent(draftId)}/dismiss`, {
-    method: "POST",
-  });
+  const response = await request<ApiPlanDraftSessionResponse>(
+    `/api/plan-drafts/${encodeURIComponent(draftId)}/dismiss`,
+    {
+      method: "POST",
+    },
+  );
 
   return mapPlanDraftSessionResponse(response);
 }
@@ -2313,7 +2370,9 @@ export async function postTransaction(input: CreateTransactionInput) {
     occurredOn: input.occurredOn,
     bankConnectionId: input.bankConnectionId,
     isRecurring: Boolean(input.isRecurring),
-    ...(input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== "" ? { categoryId: input.categoryId } : {}),
+    ...(input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== ""
+      ? { categoryId: input.categoryId }
+      : {}),
   };
 
   const response = await request<ApiTransaction>("/api/transactions", {
@@ -2331,7 +2390,9 @@ export async function patchTransaction(input: UpdateTransactionInput) {
     occurredOn: input.occurredOn,
     bankConnectionId: input.bankConnectionId,
     isRecurring: Boolean(input.isRecurring),
-    ...(input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== "" ? { categoryId: input.categoryId } : {}),
+    ...(input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== ""
+      ? { categoryId: input.categoryId }
+      : {}),
   };
 
   const response = await request<ApiTransaction>(`/api/transactions/${input.id}`, {

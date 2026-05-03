@@ -25,7 +25,13 @@ vi.mock("@/hooks/use-transactions", () => ({
 }));
 
 vi.mock("@/components/transactions/ImportTransactionCard", () => ({
-  default: ({ row, onChange }: { row: { key: string; draft: { exclude: boolean } }; onChange: (patch: { exclude?: boolean }) => void }) => (
+  default: ({
+    row,
+    onChange,
+  }: {
+    row: { key: string; draft: { exclude: boolean } };
+    onChange: (patch: { exclude?: boolean }) => void;
+  }) => (
     <div data-testid={`import-card:${row.key}`}>
       <span data-testid={`row-status:${row.key}`}>{row.draft.exclude ? "ignored" : "included"}</span>
       <span data-testid={`row-review-status:${row.key}`}>
@@ -52,7 +58,15 @@ vi.mock("@/components/ui/sonner", () => ({
 }));
 
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ value, onValueChange, children }: { value?: string; onValueChange: (v: string) => void; children: React.ReactNode }) => (
+  Select: ({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value?: string;
+    onValueChange: (v: string) => void;
+    children: React.ReactNode;
+  }) => (
     <select data-testid="bank-select" value={value ?? ""} onChange={(e) => onValueChange(e.target.value)}>
       {children}
     </select>
@@ -62,7 +76,9 @@ vi.mock("@/components/ui/select", () => ({
   SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SelectGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SelectLabel: () => null,
-  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => <option value={value}>{children}</option>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <option value={value}>{children}</option>
+  ),
 }));
 
 const banks = [
@@ -250,9 +266,17 @@ const installmentPreviewData: ImportPreviewData = {
       requiresCategorySelection: false,
       requiresUserAction: false,
       defaultExclude: false,
-      warnings: ["Compra parcelada detectada: 10 despesas mensais serao geradas ao importar, incluindo parcelas anteriores."],
+      warnings: [
+        "Compra parcelada detectada: 10 despesas mensais serao geradas ao importar, incluindo parcelas anteriores.",
+      ],
       errors: [],
-      issues: [{ level: "warning", message: "Compra parcelada detectada: 10 despesas mensais serao geradas ao importar, incluindo parcelas anteriores." }],
+      issues: [
+        {
+          level: "warning",
+          message:
+            "Compra parcelada detectada: 10 despesas mensais serao geradas ao importar, incluindo parcelas anteriores.",
+        },
+      ],
       confidence: 0.9,
       externalId: null,
       rawMetadata: null,
@@ -366,7 +390,9 @@ const uncategorizedExpensePreviewData: ImportPreviewData = {
       defaultExclude: false,
       warnings: ["Se nenhuma categoria for escolhida, a despesa sera importada como Compras."],
       errors: [],
-      issues: [{ level: "warning", message: "Se nenhuma categoria for escolhida, a despesa sera importada como Compras." }],
+      issues: [
+        { level: "warning", message: "Se nenhuma categoria for escolhida, a despesa sera importada como Compras." },
+      ],
       confidence: 0.9,
       externalId: null,
       rawMetadata: null,

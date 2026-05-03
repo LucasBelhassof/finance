@@ -110,14 +110,20 @@ export const updateAccountSchema = z
     path: ["confirmEmail"],
   });
 
-const optionalTrimmedText = z.string().trim().max(255).optional().nullable().transform((value) => {
-  if (value == null) {
-    return null;
-  }
+const optionalTrimmedText = z
+  .string()
+  .trim()
+  .max(255)
+  .optional()
+  .nullable()
+  .transform((value) => {
+    if (value == null) {
+      return null;
+    }
 
-  const normalizedValue = value.trim();
-  return normalizedValue ? normalizedValue : null;
-});
+    const normalizedValue = value.trim();
+    return normalizedValue ? normalizedValue : null;
+  });
 
 export const updateContactSchema = z.object({
   phone: optionalTrimmedText,

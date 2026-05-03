@@ -163,9 +163,8 @@ export function useSendChatConversationMessage(chatId: string | undefined, limit
         return;
       }
 
-      queryClient.setQueryData<ChatMessage[]>(
-        chatConversationMessagesQueryKey(chatId, limit),
-        (currentMessages = []) => appendChatReply(currentMessages, reply),
+      queryClient.setQueryData<ChatMessage[]>(chatConversationMessagesQueryKey(chatId, limit), (currentMessages = []) =>
+        appendChatReply(currentMessages, reply),
       );
 
       if (reply.chat) {
@@ -216,9 +215,8 @@ export function useSendChatConversationMessages(chatId: string | undefined, limi
         createdAt: new Date(now + index).toISOString(),
       }));
 
-      queryClient.setQueryData<ChatMessage[]>(
-        chatConversationMessagesQueryKey(chatId, limit),
-        (currentMessages = []) => mergeChatMessages(currentMessages, optimisticMessages),
+      queryClient.setQueryData<ChatMessage[]>(chatConversationMessagesQueryKey(chatId, limit), (currentMessages = []) =>
+        mergeChatMessages(currentMessages, optimisticMessages),
       );
 
       return { optimisticMessages };

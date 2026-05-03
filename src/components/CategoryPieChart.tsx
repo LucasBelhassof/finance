@@ -83,7 +83,15 @@ export default function CategoryPieChart({
               />
             }
           />
-          <Pie data={items} dataKey="total" nameKey="id" innerRadius={54} outerRadius={96} paddingAngle={3} strokeWidth={0}>
+          <Pie
+            data={items}
+            dataKey="total"
+            nameKey="id"
+            innerRadius={54}
+            outerRadius={96}
+            paddingAngle={3}
+            strokeWidth={0}
+          >
             {items.map((item) => {
               const color = resolveCategoryColorPresentation(item.color);
               const selected = selectedItemId === item.id;

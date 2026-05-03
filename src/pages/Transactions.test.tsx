@@ -68,13 +68,9 @@ vi.mock("@/components/transactions/TransactionsDateFilter", () => ({
 }));
 
 vi.mock("@/components/ui/date-picker-input", () => ({
-  DatePickerInput: ({
-    value,
-    onChange,
-  }: {
-    value: string;
-    onChange: (value: string) => void;
-  }) => <input aria-label="Data" value={value} onChange={(event) => onChange(event.target.value)} />,
+  DatePickerInput: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+    <input aria-label="Data" value={value} onChange={(event) => onChange(event.target.value)} />
+  ),
 }));
 
 vi.mock("@/components/ui/sonner", () => ({

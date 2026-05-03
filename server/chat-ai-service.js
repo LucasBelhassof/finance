@@ -292,7 +292,10 @@ export async function generateChatTitle(payload) {
 
 function extractJsonObject(text) {
   const raw = String(text ?? "").trim();
-  const withoutFence = raw.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+  const withoutFence = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
   const start = withoutFence.indexOf("{");
   const end = withoutFence.lastIndexOf("}");
 
@@ -308,7 +311,9 @@ function extractJsonObject(text) {
 }
 
 function normalizePlanItem(item, index) {
-  const title = String(item?.title ?? "").replace(/\s+/g, " ").trim();
+  const title = String(item?.title ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (!title) {
     return null;
@@ -368,21 +373,31 @@ function normalizeInvestmentBox(value) {
     return null;
   }
 
-  const name = String(value?.name ?? "").replace(/\s+/g, " ").trim();
-  const contributionMode = value?.contributionMode === "income_percentage" || value?.contribution_mode === "income_percentage"
-    ? "income_percentage"
-    : "fixed_amount";
+  const name = String(value?.name ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const contributionMode =
+    value?.contributionMode === "income_percentage" || value?.contribution_mode === "income_percentage"
+      ? "income_percentage"
+      : "fixed_amount";
   const fixedAmountRaw = value?.fixedAmount ?? value?.fixed_amount;
   const incomePercentageRaw = value?.incomePercentage ?? value?.income_percentage;
   const currentAmountRaw = value?.currentAmount ?? value?.current_amount;
   const targetAmountRaw = value?.targetAmount ?? value?.target_amount;
-  const fixedAmount = fixedAmountRaw === undefined || fixedAmountRaw === null || fixedAmountRaw === "" ? null : Number(fixedAmountRaw);
+  const fixedAmount =
+    fixedAmountRaw === undefined || fixedAmountRaw === null || fixedAmountRaw === "" ? null : Number(fixedAmountRaw);
   const incomePercentage =
     incomePercentageRaw === undefined || incomePercentageRaw === null || incomePercentageRaw === ""
       ? null
       : Number(incomePercentageRaw);
-  const currentAmount = currentAmountRaw === undefined || currentAmountRaw === null || currentAmountRaw === "" ? 0 : Number(currentAmountRaw);
-  const targetAmount = targetAmountRaw === undefined || targetAmountRaw === null || targetAmountRaw === "" ? null : Number(targetAmountRaw);
+  const currentAmount =
+    currentAmountRaw === undefined || currentAmountRaw === null || currentAmountRaw === ""
+      ? 0
+      : Number(currentAmountRaw);
+  const targetAmount =
+    targetAmountRaw === undefined || targetAmountRaw === null || targetAmountRaw === ""
+      ? null
+      : Number(targetAmountRaw);
 
   if (!name) {
     return null;
@@ -392,7 +407,10 @@ function normalizeInvestmentBox(value) {
     return null;
   }
 
-  if (contributionMode === "income_percentage" && (!Number.isFinite(incomePercentage) || incomePercentage < 0 || incomePercentage > 100)) {
+  if (
+    contributionMode === "income_percentage" &&
+    (!Number.isFinite(incomePercentage) || incomePercentage < 0 || incomePercentage > 100)
+  ) {
     return null;
   }
 
@@ -433,7 +451,10 @@ function normalizePlanGoal(value, fallback) {
   }
 
   const investmentBoxIdValue = value?.investmentBoxId ?? value?.investment_box_id;
-  const investmentBoxIds = normalizePlanGoalInvestmentIds(value?.investmentBoxIds ?? value?.investment_box_ids, investmentBoxIdValue);
+  const investmentBoxIds = normalizePlanGoalInvestmentIds(
+    value?.investmentBoxIds ?? value?.investment_box_ids,
+    investmentBoxIdValue,
+  );
   const investmentBoxes = [
     ...(Array.isArray(value?.investmentBoxes) ? value.investmentBoxes : []),
     ...(Array.isArray(value?.investment_boxes) ? value.investment_boxes : []),
@@ -449,9 +470,10 @@ function normalizePlanGoal(value, fallback) {
     targetAmount: Number.isFinite(targetAmount) && targetAmount > 0 ? Number(targetAmount.toFixed(2)) : null,
     transactionType: value?.transactionType === "income" || value?.transaction_type === "income" ? "income" : "expense",
     targetModel,
-    categoryIds: targetModel === "category" ? normalizePlanGoalCategoryIds(value?.categoryIds ?? value?.category_ids) : [],
-    investmentBoxId: targetModel === "investment_box" ? investmentBoxIds[0] ?? null : null,
-    investmentBox: targetModel === "investment_box" ? investmentBoxes[0] ?? null : null,
+    categoryIds:
+      targetModel === "category" ? normalizePlanGoalCategoryIds(value?.categoryIds ?? value?.category_ids) : [],
+    investmentBoxId: targetModel === "investment_box" ? (investmentBoxIds[0] ?? null) : null,
+    investmentBox: targetModel === "investment_box" ? (investmentBoxes[0] ?? null) : null,
     investmentBoxIds: targetModel === "investment_box" ? investmentBoxIds : [],
     investmentBoxes: targetModel === "investment_box" ? investmentBoxes : [],
     startDate,
@@ -460,7 +482,9 @@ function normalizePlanGoal(value, fallback) {
 }
 
 function buildFallbackPlanDraft(chat) {
-  const titleBase = buildFallbackTitle(chat?.title || chat?.messages?.find((message) => message.role === "user")?.content || "Planejamento financeiro");
+  const titleBase = buildFallbackTitle(
+    chat?.title || chat?.messages?.find((message) => message.role === "user")?.content || "Planejamento financeiro",
+  );
 
   return {
     title: titleBase,
@@ -510,9 +534,15 @@ function normalizePlanDraftClarifications(value = []) {
 
   return value
     .map((clarification, index) => ({
-      id: String(clarification?.id ?? clarification?.field ?? `clarification-${index}`).replace(/\s+/g, "-").slice(0, 80),
-      field: String(clarification?.field ?? "").trim().slice(0, 80),
-      question: String(clarification?.question ?? "").trim().slice(0, 240),
+      id: String(clarification?.id ?? clarification?.field ?? `clarification-${index}`)
+        .replace(/\s+/g, "-")
+        .slice(0, 80),
+      field: String(clarification?.field ?? "")
+        .trim()
+        .slice(0, 80),
+      question: String(clarification?.question ?? "")
+        .trim()
+        .slice(0, 240),
       required: clarification?.required !== false,
     }))
     .filter((clarification) => clarification.id && clarification.question);
@@ -554,7 +584,11 @@ function buildRequiredPlanDraftClarifications(draft) {
     }
   }
 
-  if (draft.goal.targetModel === "investment_box" && !draft.goal.investmentBoxIds.length && !draft.goal.investmentBoxes.length) {
+  if (
+    draft.goal.targetModel === "investment_box" &&
+    !draft.goal.investmentBoxIds.length &&
+    !draft.goal.investmentBoxes.length
+  ) {
     clarifications.push({
       id: "investment-box-reference",
       field: "goal.investmentBoxIds",
@@ -568,9 +602,7 @@ function buildRequiredPlanDraftClarifications(draft) {
 
 function normalizePlanDraft(value, fallback) {
   const title = normalizeGeneratedTitle(value?.title, fallback.title);
-  const items = Array.isArray(value?.items)
-    ? value.items.map(normalizePlanItem).filter(Boolean).slice(0, 10)
-    : [];
+  const items = Array.isArray(value?.items) ? value.items.map(normalizePlanItem).filter(Boolean).slice(0, 10) : [];
   const goal = normalizePlanGoal(value?.goal, fallback.goal);
 
   return {
@@ -655,12 +687,7 @@ export async function revisePlanDraft(payload) {
 }
 
 function buildFallbackLinkSuggestion(chat, plans) {
-  const haystack = [
-    chat?.title,
-    ...(chat?.messages ?? []).map((message) => message.content),
-  ]
-    .join(" ")
-    .toLowerCase();
+  const haystack = [chat?.title, ...(chat?.messages ?? []).map((message) => message.content)].join(" ").toLowerCase();
 
   const scoredPlans = plans
     .map((plan) => {
@@ -762,7 +789,8 @@ function buildFallbackPlanAssessment(plan) {
   const currentValue = Number(progress.currentValue ?? 0);
   const endDate = plan?.goal?.endDate ? new Date(`${plan.goal.endDate}T12:00:00Z`) : null;
   const today = new Date();
-  const daysToEnd = endDate && !Number.isNaN(endDate.getTime()) ? Math.ceil((endDate.getTime() - today.getTime()) / 86400000) : null;
+  const daysToEnd =
+    endDate && !Number.isNaN(endDate.getTime()) ? Math.ceil((endDate.getTime() - today.getTime()) / 86400000) : null;
 
   let status = "on_track";
   let priority = "medium";
@@ -782,7 +810,10 @@ function buildFallbackPlanAssessment(plan) {
   } else if ((isTransactionGoal && percentage >= 80) || (daysToEnd !== null && daysToEnd < 0 && percentage < 100)) {
     status = "attention";
     priority = "high";
-    riskSummary = daysToEnd !== null && daysToEnd < 0 ? "O periodo da meta terminou sem conclusao." : "A meta esta proxima do limite definido.";
+    riskSummary =
+      daysToEnd !== null && daysToEnd < 0
+        ? "O periodo da meta terminou sem conclusao."
+        : "A meta esta proxima do limite definido.";
     recommendation = "Revise as acoes pendentes e ajuste prioridade antes de novas movimentacoes.";
   }
 
@@ -813,15 +844,21 @@ function buildFallbackPlanAssessment(plan) {
 
 function normalizePlanAssessment(value, fallback) {
   const status = value?.status ? normalizePlanAssessmentStatus(value.status, null) : fallback.status;
-  const recommendation = value?.recommendation && typeof value.recommendation === "object" ? value.recommendation : fallback.recommendation;
+  const recommendation =
+    value?.recommendation && typeof value.recommendation === "object" ? value.recommendation : fallback.recommendation;
 
   return {
     status,
-    riskSummary: String(value?.riskSummary ?? value?.risk_summary ?? fallback.riskSummary).trim() || fallback.riskSummary,
-    suggestedPriority: normalizePriority(value?.suggestedPriority ?? value?.suggested_priority, fallback.suggestedPriority),
+    riskSummary:
+      String(value?.riskSummary ?? value?.risk_summary ?? fallback.riskSummary).trim() || fallback.riskSummary,
+    suggestedPriority: normalizePriority(
+      value?.suggestedPriority ?? value?.suggested_priority,
+      fallback.suggestedPriority,
+    ),
     adjustmentRecommendation:
-      String(value?.adjustmentRecommendation ?? value?.adjustment_recommendation ?? fallback.adjustmentRecommendation).trim() ||
-      fallback.adjustmentRecommendation,
+      String(
+        value?.adjustmentRecommendation ?? value?.adjustment_recommendation ?? fallback.adjustmentRecommendation,
+      ).trim() || fallback.adjustmentRecommendation,
     recommendation: recommendation
       ? {
           title: String(recommendation.title ?? fallback.recommendation?.title ?? "Sugestao de replanejamento").trim(),
@@ -831,7 +868,7 @@ function normalizePlanAssessment(value, fallback) {
               ? recommendation.proposedPlan
               : recommendation.proposed_plan && typeof recommendation.proposed_plan === "object"
                 ? recommendation.proposed_plan
-                : fallback.recommendation?.proposedPlan ?? {},
+                : (fallback.recommendation?.proposedPlan ?? {}),
         }
       : null,
   };
@@ -874,7 +911,9 @@ function buildFallbackChatSummary(chat) {
   const firstUserMessage = messages.find((message) => message.role === "user")?.content;
   const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")?.content;
   const base = firstUserMessage || chat?.title || "Conversa financeira";
-  const next = lastAssistantMessage ? ` Ultima orientacao registrada: ${String(lastAssistantMessage).replace(/\s+/g, " ").trim()}` : "";
+  const next = lastAssistantMessage
+    ? ` Ultima orientacao registrada: ${String(lastAssistantMessage).replace(/\s+/g, " ").trim()}`
+    : "";
 
   return `${String(base).replace(/\s+/g, " ").trim().slice(0, 240)}.${next}`.slice(0, 900);
 }
@@ -909,6 +948,10 @@ export async function generateChatSummary(payload) {
   );
 
   return {
-    summary: String(reply.content ?? "").replace(/\s+/g, " ").trim().slice(0, 1200) || fallback,
+    summary:
+      String(reply.content ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 1200) || fallback,
   };
 }

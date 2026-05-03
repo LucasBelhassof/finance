@@ -26,7 +26,12 @@ function inferColumnIndexes(cells) {
     .filter(([, amount]) => amount !== null);
   const amountIndex = amountCandidates.length > 0 ? amountCandidates[amountCandidates.length - 1][0] : -1;
   const descriptionIndex = values.findIndex(
-    (value, index) => index !== dateIndex && index !== amountIndex && value && normalizeDateInput(value) === null && normalizeAmountInput(value) === null,
+    (value, index) =>
+      index !== dateIndex &&
+      index !== amountIndex &&
+      value &&
+      normalizeDateInput(value) === null &&
+      normalizeAmountInput(value) === null,
   );
 
   return {
@@ -89,7 +94,9 @@ function normalizeTabularRows(rows, source, options = {}) {
 
     if (!finalOccurredOn && previousOccurredOn && signedAmount !== null) {
       finalOccurredOn = previousOccurredOn;
-      issues.push(buildIssue("import_inferred_date", "A data desta linha foi inferida a partir da linha anterior.", "warning"));
+      issues.push(
+        buildIssue("import_inferred_date", "A data desta linha foi inferida a partir da linha anterior.", "warning"),
+      );
     }
 
     if (!finalOccurredOn && signedAmount === null && isLikelyNoiseRow(cells)) {
@@ -102,15 +109,25 @@ function normalizeTabularRows(rows, source, options = {}) {
 
     if (!finalOccurredOn) {
       finalOccurredOn = options.fallbackOccurredOn ?? new Date().toISOString().slice(0, 10);
-      issues.push(buildIssue("import_missing_date", "Nao foi possivel identificar a data original desta linha.", "warning"));
+      issues.push(
+        buildIssue("import_missing_date", "Nao foi possivel identificar a data original desta linha.", "warning"),
+      );
     }
 
     if (!description) {
-      issues.push(buildIssue("import_missing_description", "Nao foi possivel identificar a descricao original desta linha.", "warning"));
+      issues.push(
+        buildIssue(
+          "import_missing_description",
+          "Nao foi possivel identificar a descricao original desta linha.",
+          "warning",
+        ),
+      );
     }
 
     if (signedAmount === null) {
-      issues.push(buildIssue("import_missing_amount", "Nao foi possivel identificar o valor original desta linha.", "error"));
+      issues.push(
+        buildIssue("import_missing_amount", "Nao foi possivel identificar o valor original desta linha.", "error"),
+      );
     }
 
     previousOccurredOn = finalOccurredOn ?? previousOccurredOn;

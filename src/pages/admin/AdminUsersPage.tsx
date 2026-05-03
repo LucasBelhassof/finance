@@ -44,9 +44,13 @@ export default function AdminUsersPage() {
                     <Badge variant="outline">{user.status}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.isPremium ? "default" : "outline"}>{user.isPremium ? "premium" : "free"}</Badge>
+                    <Badge variant={user.isPremium ? "default" : "outline"}>
+                      {user.isPremium ? "premium" : "free"}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{user.lastSessionAt ? new Date(user.lastSessionAt).toLocaleString("pt-BR") : "Sem sessão"}</TableCell>
+                  <TableCell>
+                    {user.lastSessionAt ? new Date(user.lastSessionAt).toLocaleString("pt-BR") : "Sem sessão"}
+                  </TableCell>
                   <TableCell>{user.transactionCount}</TableCell>
                   <TableCell>{currencyFormatter.format(user.netTotal)}</TableCell>
                 </TableRow>

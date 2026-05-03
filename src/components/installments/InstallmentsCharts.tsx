@@ -98,10 +98,21 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
         <div className="mb-4 space-y-3">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Evolucao mensal do compromisso</h2>
-            <p className="text-sm text-muted-foreground">Comparativo mensal com filtro próprio apenas para este gráfico.</p>
+            <p className="text-sm text-muted-foreground">
+              Comparativo mensal com filtro próprio apenas para este gráfico.
+            </p>
           </div>
-          <div className={shouldShowCustomPeriodInput ? "grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid grid-cols-1"}>
-            <Select value={chartPeriodPreset} onValueChange={(value) => handleChartPresetChange(value as InstallmentsChartPeriodPreset)}>
+          <div
+            className={
+              shouldShowCustomPeriodInput
+                ? "grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+                : "grid grid-cols-1"
+            }
+          >
+            <Select
+              value={chartPeriodPreset}
+              onValueChange={(value) => handleChartPresetChange(value as InstallmentsChartPeriodPreset)}
+            >
               <SelectTrigger
                 data-testid="installments-chart-period-preset-trigger"
                 className="h-11 rounded-xl border-border/60 bg-secondary/35"
@@ -148,16 +159,16 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
           <ChartContainer config={evolutionConfig} className="h-[260px] w-full">
             <AreaChart data={chartEvolution}>
               <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="month"
-                tickFormatter={formatMonthKey}
-                axisLine={false}
-                tickLine={false}
-              />
+              <XAxis dataKey="month" tickFormatter={formatMonthKey} axisLine={false} tickLine={false} />
               <YAxis hide />
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} labelFormatter={formatMonthKey} />}
+                content={
+                  <ChartTooltipContent
+                    formatter={(value) => formatCurrency(Number(value))}
+                    labelFormatter={formatMonthKey}
+                  />
+                }
               />
               <Area
                 type="monotone"
@@ -207,7 +218,14 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
                   />
                 }
               />
-              <Pie data={distributionData} dataKey="amount" nameKey="label" innerRadius={58} outerRadius={95} strokeWidth={0}>
+              <Pie
+                data={distributionData}
+                dataKey="amount"
+                nameKey="label"
+                innerRadius={58}
+                outerRadius={95}
+                strokeWidth={0}
+              >
                 {distributionData.map((item) => (
                   <Cell key={item.cardId} fill={item.fill} />
                 ))}
@@ -233,7 +251,10 @@ export default function InstallmentsCharts({ overview }: InstallmentsChartsProps
               <CartesianGrid vertical={false} />
               <XAxis dataKey="category" axisLine={false} tickLine={false} />
               <YAxis hide />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />}
+              />
               <Bar dataKey="amount" radius={[10, 10, 0, 0]} fill="var(--color-amount)" />
             </BarChart>
           </ChartContainer>

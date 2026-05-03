@@ -141,14 +141,18 @@ describe("seed-data helpers", () => {
     expect(incomes.every((transaction) => transaction.amount > 0)).toBe(true);
     expect(
       incomes.every((transaction) =>
-        [accounts.cashAccount.id, ...accounts.bankAccounts.map((account) => account.id)].includes(transaction.bankConnectionId),
+        [accounts.cashAccount.id, ...accounts.bankAccounts.map((account) => account.id)].includes(
+          transaction.bankConnectionId,
+        ),
       ),
     ).toBe(true);
 
     expect(expenses.standaloneTransactions.every((transaction) => transaction.amount < 0)).toBe(true);
     expect(
       expenses.standaloneTransactions.every((transaction) =>
-        [...accounts.bankAccounts, ...accounts.creditCards].some((account) => account.id === transaction.bankConnectionId),
+        [...accounts.bankAccounts, ...accounts.creditCards].some(
+          (account) => account.id === transaction.bankConnectionId,
+        ),
       ),
     ).toBe(true);
     expect(

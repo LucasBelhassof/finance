@@ -62,7 +62,10 @@ function hasSelectableText(text) {
 }
 
 export async function parsePdfTextBuffer(fileBuffer, options = {}) {
-  const text = typeof options.text === "string" ? options.text : await (options.extractText ?? extractPdfText)(fileBuffer, options.filePassword);
+  const text =
+    typeof options.text === "string"
+      ? options.text
+      : await (options.extractText ?? extractPdfText)(fileBuffer, options.filePassword);
 
   if (!hasSelectableText(text)) {
     throw buildNoSelectableTextError();

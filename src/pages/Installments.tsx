@@ -114,7 +114,10 @@ function readFiltersFromSearchParams(
         : defaults.installmentCountMode,
     installmentCountValue: parseNumberParam(searchParams.get(FILTER_QUERY_PARAM_KEYS.installmentCountValue)),
     sortBy:
-      sortBy === "installment_amount" || sortBy === "remaining_balance" || sortBy === "next_due_date" || sortBy === "purchase_date"
+      sortBy === "installment_amount" ||
+      sortBy === "remaining_balance" ||
+      sortBy === "next_due_date" ||
+      sortBy === "purchase_date"
         ? sortBy
         : defaults.sortBy,
     sortOrder: sortOrder === "asc" ? "asc" : defaults.sortOrder,
@@ -206,7 +209,10 @@ export default function InstallmentsPage() {
     () => resolveMonthYearRange(currentSelection.monthIndex, currentSelection.year),
     [currentSelection.monthIndex, currentSelection.year],
   );
-  const defaultFilters = useMemo(() => createDefaultFilters(defaultDateRange), [defaultDateRange.endDate, defaultDateRange.startDate]);
+  const defaultFilters = useMemo(
+    () => createDefaultFilters(defaultDateRange),
+    [defaultDateRange.endDate, defaultDateRange.startDate],
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     selectedMonthIndex,
@@ -320,7 +326,10 @@ export default function InstallmentsPage() {
             </Select>
 
             <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
-              <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                size={17}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <Input
                 value={search}
                 onChange={(event) =>
@@ -348,10 +357,7 @@ export default function InstallmentsPage() {
   );
 
   return (
-    <AppShell
-      title="Parcelamentos"
-      description="Acompanhe compras parceladas e compromissos futuros"
-    >
+    <AppShell title="Parcelamentos" description="Acompanhe compras parceladas e compromissos futuros">
       {filtersSection}
 
       {installmentsQuery.isLoading ? (
@@ -389,7 +395,8 @@ export default function InstallmentsPage() {
             <div className="glass-card rounded-2xl border border-border/40 p-6 text-center sm:p-8">
               <h2 className="text-lg font-semibold text-foreground">Nenhum parcelamento encontrado</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Ajuste o período das parcelas ou revise as transações de cartões parceladas para visualizar dados nesta tela.
+                Ajuste o período das parcelas ou revise as transações de cartões parceladas para visualizar dados nesta
+                tela.
               </p>
             </div>
           )}
@@ -398,7 +405,9 @@ export default function InstallmentsPage() {
         <div className="glass-card rounded-2xl border border-border/40 p-6 text-center sm:p-8">
           <h2 className="text-lg font-semibold text-foreground">Não foi possível carregar os parcelamentos</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {installmentsQuery.error instanceof Error ? installmentsQuery.error.message : "Tente novamente em instantes."}
+            {installmentsQuery.error instanceof Error
+              ? installmentsQuery.error.message
+              : "Tente novamente em instantes."}
           </p>
           <Button className="mt-4 rounded-xl" onClick={() => void installmentsQuery.refetch()}>
             Tentar novamente

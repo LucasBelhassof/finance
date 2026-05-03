@@ -104,7 +104,10 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <AdminLayout title="Notificações" description="Crie notificações do sistema para todos os ativos, por tipo de usuário ou para os usuários que você selecionar.">
+    <AdminLayout
+      title="Notificações"
+      description="Crie notificações do sistema para todos os ativos, por tipo de usuário ou para os usuários que você selecionar."
+    >
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
         <Card>
           <CardHeader>
@@ -158,7 +161,10 @@ export default function AdminNotificationsPage() {
             {category === "general" ? (
               <div className="space-y-2">
                 <Label>Publico</Label>
-                <Select value={audience} onValueChange={(value) => setAudience(value as (typeof audienceOptions)[number]["value"])}>
+                <Select
+                  value={audience}
+                  onValueChange={(value) => setAudience(value as (typeof audienceOptions)[number]["value"])}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

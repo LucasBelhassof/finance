@@ -49,7 +49,9 @@ export default function InstallmentsTable({ items }: InstallmentsTableProps) {
                 <td className="px-3 py-3 align-top">{formatCurrency(item.remainingBalance)}</td>
                 <td className="px-3 py-3 align-top">{formatDate(item.installmentDueDate ?? item.nextDueDate)}</td>
                 <td className="rounded-r-xl px-3 py-3 align-top">
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(item.status)}`}>
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(item.status)}`}
+                  >
                     {getStatusLabel(item.status)}
                   </span>
                 </td>

@@ -14,7 +14,10 @@ export default function AdminActivityPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {(data?.events ?? []).map((event) => (
-            <div key={String(event.id)} className="flex flex-col gap-2 rounded-lg border border-border/60 px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div
+              key={String(event.id)}
+              className="flex flex-col gap-2 rounded-lg border border-border/60 px-4 py-3 md:flex-row md:items-center md:justify-between"
+            >
               <div>
                 <p className="font-medium">{event.eventType}</p>
                 <p className="text-xs text-muted-foreground">

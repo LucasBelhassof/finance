@@ -19,7 +19,12 @@ vi.mock("@/lib/api", async () => {
 import { dashboardQueryKey } from "@/hooks/use-dashboard";
 import { housingQueryKey } from "@/hooks/use-housing";
 import { insightsQueryKey, spendingQueryKey } from "@/hooks/use-insights";
-import { transactionsQueryKey, useCommitTransactionImport, useDeleteCategory, categoriesQueryKey } from "@/hooks/use-transactions";
+import {
+  transactionsQueryKey,
+  useCommitTransactionImport,
+  useDeleteCategory,
+  categoriesQueryKey,
+} from "@/hooks/use-transactions";
 
 function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: PropsWithChildren) {

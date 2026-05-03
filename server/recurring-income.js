@@ -94,7 +94,13 @@ export function buildTransactionRowsWithRecurringProjections(rows, { projectionE
   return expandedRows;
 }
 
-export function shouldSplitRecurringTransaction({ existingOccurredOn, nextOccurredOn, existingIsRecurring, nextIsRecurring, nextAmount }) {
+export function shouldSplitRecurringTransaction({
+  existingOccurredOn,
+  nextOccurredOn,
+  existingIsRecurring,
+  nextIsRecurring,
+  nextAmount,
+}) {
   if (!existingIsRecurring) {
     return false;
   }

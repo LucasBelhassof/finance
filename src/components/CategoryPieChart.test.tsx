@@ -50,7 +50,10 @@ describe("CategoryPieChart", () => {
     fireEvent.click(button);
 
     expect(onSelectItem).toHaveBeenCalledWith("transporte");
-    expect(screen.getAllByRole("button", { name: /Filtrar por categoria Alimentacao/i })[0]).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByRole("button", { name: /Filtrar por categoria Alimentacao/i })[0]).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("shows the empty state when there is no category data", () => {

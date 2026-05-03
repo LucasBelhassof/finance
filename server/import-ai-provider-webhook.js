@@ -44,14 +44,23 @@ export async function requestWebhookImportAiSuggestionsWithTelemetry(payload) {
       usage:
         body?.usage && typeof body.usage === "object"
           ? {
-              inputTokens: Number.isFinite(Number(body.usage.inputTokens)) ? Math.max(0, Math.round(Number(body.usage.inputTokens))) : null,
-              outputTokens: Number.isFinite(Number(body.usage.outputTokens)) ? Math.max(0, Math.round(Number(body.usage.outputTokens))) : null,
-              totalTokens: Number.isFinite(Number(body.usage.totalTokens)) ? Math.max(0, Math.round(Number(body.usage.totalTokens))) : null,
-              requestCount: Number.isFinite(Number(body.usage.requestCount)) ? Math.max(0, Math.round(Number(body.usage.requestCount))) : null,
+              inputTokens: Number.isFinite(Number(body.usage.inputTokens))
+                ? Math.max(0, Math.round(Number(body.usage.inputTokens)))
+                : null,
+              outputTokens: Number.isFinite(Number(body.usage.outputTokens))
+                ? Math.max(0, Math.round(Number(body.usage.outputTokens)))
+                : null,
+              totalTokens: Number.isFinite(Number(body.usage.totalTokens))
+                ? Math.max(0, Math.round(Number(body.usage.totalTokens)))
+                : null,
+              requestCount: Number.isFinite(Number(body.usage.requestCount))
+                ? Math.max(0, Math.round(Number(body.usage.requestCount)))
+                : null,
             }
           : null,
-      estimatedCostUsd:
-        Number.isFinite(Number(body?.estimatedCostUsd)) ? Number(Number(body.estimatedCostUsd).toFixed(8)) : null,
+      estimatedCostUsd: Number.isFinite(Number(body?.estimatedCostUsd))
+        ? Number(Number(body.estimatedCostUsd).toFixed(8))
+        : null,
     };
   } catch (error) {
     if (error?.name === "AbortError") {

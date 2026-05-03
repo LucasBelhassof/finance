@@ -117,14 +117,16 @@ describe("admin routes", () => {
   it("creates notifications for admin users", async () => {
     const app = createTestApp("admin");
 
-    const response = await request(app).post("/api/admin/notifications").send({
-      title: "Comunicado",
-      message: "Sistema atualizado.",
-      target: {
-        mode: "all",
-        audience: "premium",
-      },
-    });
+    const response = await request(app)
+      .post("/api/admin/notifications")
+      .send({
+        title: "Comunicado",
+        message: "Sistema atualizado.",
+        target: {
+          mode: "all",
+          audience: "premium",
+        },
+      });
 
     expect(response.status).toBe(201);
     expect(createAdminNotificationMock).toHaveBeenCalledWith(
@@ -141,15 +143,17 @@ describe("admin routes", () => {
   it("allows sending system notifications to selected users", async () => {
     const app = createTestApp("admin");
 
-    const response = await request(app).post("/api/admin/notifications").send({
-      title: "Aviso",
-      message: "Atualize o aplicativo.",
-      category: "custom",
-      target: {
-        mode: "selected",
-        userIds: [4, 8, 12],
-      },
-    });
+    const response = await request(app)
+      .post("/api/admin/notifications")
+      .send({
+        title: "Aviso",
+        message: "Atualize o aplicativo.",
+        category: "custom",
+        target: {
+          mode: "selected",
+          userIds: [4, 8, 12],
+        },
+      });
 
     expect(response.status).toBe(201);
     expect(createAdminNotificationMock).toHaveBeenCalledWith(

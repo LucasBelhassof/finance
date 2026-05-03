@@ -52,7 +52,10 @@ const ALLOWED_CATEGORIES: NotificationCategory[] = [
 type NotificationSource = "user_self" | "admin_all" | "admin_selected" | "system";
 
 type Queryable = {
-  query: (text: string, params?: unknown[]) => Promise<{
+  query: (
+    text: string,
+    params?: unknown[],
+  ) => Promise<{
     rows: Array<Record<string, unknown>>;
     rowCount?: number | null;
   }>;
@@ -63,9 +66,7 @@ function parseNotificationCategory(value: unknown): NotificationCategory {
     return "general";
   }
 
-  return ALLOWED_CATEGORIES.includes(value as NotificationCategory)
-    ? (value as NotificationCategory)
-    : "general";
+  return ALLOWED_CATEGORIES.includes(value as NotificationCategory) ? (value as NotificationCategory) : "general";
 }
 
 function parseTriggerAt(value: unknown) {
@@ -147,9 +148,7 @@ function parseDateBoundary(value: unknown, boundary: "start" | "end") {
 
   const [, year, month, day] = match;
   const isoValue =
-    boundary === "start"
-      ? `${year}-${month}-${day}T00:00:00.000Z`
-      : `${year}-${month}-${day}T23:59:59.999Z`;
+    boundary === "start" ? `${year}-${month}-${day}T00:00:00.000Z` : `${year}-${month}-${day}T23:59:59.999Z`;
   const parsed = new Date(isoValue);
 
   if (Number.isNaN(parsed.getTime())) {
@@ -161,9 +160,7 @@ function parseDateBoundary(value: unknown, boundary: "start" | "end") {
 
 function mapNotificationRow(row: Record<string, unknown>): NotificationItem {
   const source =
-    row.source === "admin_all" || row.source === "admin_selected" || row.source === "system"
-      ? row.source
-      : "user_self";
+    row.source === "admin_all" || row.source === "admin_selected" || row.source === "system" ? row.source : "user_self";
 
   return {
     recipientId: Number(row.recipient_id),
@@ -187,15 +184,18 @@ function mapNotificationRow(row: Record<string, unknown>): NotificationItem {
   };
 }
 
-async function createNotificationBase(input: {
-  createdByUserId: number | null;
-  source: NotificationSource;
-  category: NotificationCategory;
-  title: string;
-  message: string;
-  triggerAt: string | null;
-  actionHref?: string | null;
-}, client: Queryable = db) {
+async function createNotificationBase(
+  input: {
+    createdByUserId: number | null;
+    source: NotificationSource;
+    category: NotificationCategory;
+    title: string;
+    message: string;
+    triggerAt: string | null;
+    actionHref?: string | null;
+  },
+  client: Queryable = db,
+) {
   const result = await client.query(
     `
       INSERT INTO notifications (
@@ -492,10 +492,7 @@ export async function listAdminNotificationTargets(adminUserId: number) {
       id: Number(row.id),
       name: String(row.name),
       email: row.email ? String(row.email) : "",
-      status:
-        row.status === "inactive" || row.status === "suspended"
-          ? row.status
-          : "active",
+      status: row.status === "inactive" || row.status === "suspended" ? row.status : "active",
       isPremium: Boolean(row.is_premium),
     })),
   };
@@ -538,7 +535,9 @@ export async function createAdminNotification(
   const category = parseNotificationCategory(input.category);
   const triggerAt = parseTriggerAt(input.triggerAt);
   const target =
-    typeof input.target === "object" && input.target !== null ? (input.target as { mode?: unknown; audience?: unknown; userIds?: unknown[] }) : {};
+    typeof input.target === "object" && input.target !== null
+      ? (input.target as { mode?: unknown; audience?: unknown; userIds?: unknown[] })
+      : {};
   const requestedMode = target.mode === "selected" ? "selected" : "all";
   const targetMode = category === "custom" ? "selected" : requestedMode;
   const targetAudience = parseAdminNotificationAudience(target.audience);
@@ -547,8 +546,7 @@ export async function createAdminNotification(
   let recipientUserIds: number[] = [];
 
   if (targetMode === "all") {
-    const premiumFilter =
-      targetAudience === "premium" ? true : targetAudience === "non_premium" ? false : null;
+    const premiumFilter = targetAudience === "premium" ? true : targetAudience === "non_premium" ? false : null;
     const recipientsResult = await db.query(
       `
         SELECT id

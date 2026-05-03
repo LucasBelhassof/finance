@@ -77,7 +77,9 @@ function getMonthDifference(startValue, endValue) {
     return 0;
   }
 
-  return (endDate.getUTCFullYear() - startDate.getUTCFullYear()) * 12 + (endDate.getUTCMonth() - startDate.getUTCMonth());
+  return (
+    (endDate.getUTCFullYear() - startDate.getUTCFullYear()) * 12 + (endDate.getUTCMonth() - startDate.getUTCMonth())
+  );
 }
 
 function compareNullableDates(left, right) {
@@ -152,7 +154,12 @@ function deriveNextDueDate(occurredOn, statementDueDay) {
     return null;
   }
 
-  if (statementDueDay === null || statementDueDay === undefined || !Number.isInteger(Number(statementDueDay)) || Number(statementDueDay) < 1) {
+  if (
+    statementDueDay === null ||
+    statementDueDay === undefined ||
+    !Number.isInteger(Number(statementDueDay)) ||
+    Number(statementDueDay) < 1
+  ) {
     return normalizedOccurredOn;
   }
 
@@ -226,7 +233,9 @@ function groupRows(rows) {
 
 function enrichPurchase(purchase, referenceDate) {
   const referenceMonthStart = getMonthStart(referenceDate);
-  const remainingRows = referenceMonthStart ? purchase.rows.filter((row) => row.occurredOn >= referenceMonthStart) : purchase.rows;
+  const remainingRows = referenceMonthStart
+    ? purchase.rows.filter((row) => row.occurredOn >= referenceMonthStart)
+    : purchase.rows;
   const anchorRow = remainingRows[0] ?? null;
   const remainingInstallments = Math.max(remainingRows.length, 0);
   const nextDueDate = anchorRow ? deriveNextDueDate(anchorRow.occurredOn, purchase.statementDueDay) : null;
@@ -281,7 +290,11 @@ function matchesPurchaseFilters(purchase, filters) {
     return false;
   }
 
-  if (filters.installmentCountMode === "installment_count" && filters.installmentCountValue !== null && purchase.installmentCount !== filters.installmentCountValue) {
+  if (
+    filters.installmentCountMode === "installment_count" &&
+    filters.installmentCountValue !== null &&
+    purchase.installmentCount !== filters.installmentCountValue
+  ) {
     return false;
   }
 
@@ -311,7 +324,9 @@ function deriveDisplayRowStatus(row, purchase, referenceDate) {
 }
 
 function buildDisplayItemFromRow(purchase, row, referenceDate) {
-  const remainingRowsFromDisplay = purchase.rows.filter((candidate) => (candidate.installmentNumber ?? 0) >= (row.installmentNumber ?? 0));
+  const remainingRowsFromDisplay = purchase.rows.filter(
+    (candidate) => (candidate.installmentNumber ?? 0) >= (row.installmentNumber ?? 0),
+  );
   const installmentDueDate = deriveNextDueDate(row.occurredOn, purchase.statementDueDay);
 
   return {
@@ -340,7 +355,8 @@ function buildDisplayItemFromRow(purchase, row, referenceDate) {
 
 function buildDefaultDisplayItem(purchase) {
   return {
-    transaction_id: purchase.anchorRow?.transactionId ?? purchase.rows.at(-1)?.transactionId ?? purchase.installmentPurchaseId,
+    transaction_id:
+      purchase.anchorRow?.transactionId ?? purchase.rows.at(-1)?.transactionId ?? purchase.installmentPurchaseId,
     installment_transaction_id: purchase.anchorRow?.transactionId ?? null,
     installment_purchase_id: purchase.installmentPurchaseId,
     description: purchase.description,
@@ -386,7 +402,9 @@ function buildDisplayItems(selectedPurchases, filters, referenceDate) {
     return selectedPurchases.map(buildDefaultDisplayItem);
   }
 
-  return selectedPurchases.flatMap((purchase) => purchase.periodRows.map((row) => buildDisplayItemFromRow(purchase, row, referenceDate)));
+  return selectedPurchases.flatMap((purchase) =>
+    purchase.periodRows.map((row) => buildDisplayItemFromRow(purchase, row, referenceDate)),
+  );
 }
 
 function buildProjectionMonths(baseDate, count) {
@@ -521,11 +539,15 @@ function buildTopCategories(selectedPurchases, filters, referenceDate) {
 }
 
 function buildFilterOptions(purchases, referenceDate) {
-  const cards = Array.from(new Map(purchases.map((purchase) => [String(purchase.cardId), { id: purchase.cardId, name: purchase.cardName }])).values()).sort(
-    (left, right) => left.name.localeCompare(right.name, "pt-BR"),
-  );
+  const cards = Array.from(
+    new Map(
+      purchases.map((purchase) => [String(purchase.cardId), { id: purchase.cardId, name: purchase.cardName }]),
+    ).values(),
+  ).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   const categories = Array.from(
-    new Map(purchases.map((purchase) => [String(purchase.categoryId), { id: purchase.categoryId, label: purchase.category }])).values(),
+    new Map(
+      purchases.map((purchase) => [String(purchase.categoryId), { id: purchase.categoryId, label: purchase.category }]),
+    ).values(),
   ).sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
   const installmentAmounts = purchases.map((purchase) => purchase.installmentAmount);
   const installmentCountValues = Array.from(new Set(purchases.map((purchase) => purchase.installmentCount)))
@@ -597,10 +619,18 @@ function sortItems(items, filters) {
   };
 
   const sorted = [...items].sort(compare);
-  return filters.sortOrder === "asc" && filters.sortBy !== "smart" ? sorted : filters.sortOrder === "asc" ? [...sorted].reverse() : sorted;
+  return filters.sortOrder === "asc" && filters.sortBy !== "smart"
+    ? sorted
+    : filters.sortOrder === "asc"
+      ? [...sorted].reverse()
+      : sorted;
 }
 
-export function buildInstallmentsOverviewResponse(rows, rawFilters = {}, referenceDate = new Date().toISOString().slice(0, 10)) {
+export function buildInstallmentsOverviewResponse(
+  rows,
+  rawFilters = {},
+  referenceDate = new Date().toISOString().slice(0, 10),
+) {
   const filters = normalizeOverviewFilters(rawFilters);
   const purchases = groupRows(rows);
   const selectedPurchases = buildSelectedPurchases(purchases, filters, referenceDate);
@@ -609,7 +639,9 @@ export function buildInstallmentsOverviewResponse(rows, rawFilters = {}, referen
   const monthlyCommitment = roundCurrency(
     periodActive
       ? items.filter((item) => item.status !== "paid").reduce((sum, item) => sum + item.installment_amount, 0)
-      : selectedPurchases.filter((purchase) => purchase.status !== "paid").reduce((sum, purchase) => sum + purchase.installmentAmount, 0),
+      : selectedPurchases
+          .filter((purchase) => purchase.status !== "paid")
+          .reduce((sum, purchase) => sum + purchase.installmentAmount, 0),
   );
   const remainingBalanceTotal = roundCurrency(
     selectedPurchases.reduce((sum, purchase) => {
@@ -675,7 +707,11 @@ export function buildInstallmentsOverviewResponse(rows, rawFilters = {}, referen
   };
 }
 
-export function buildInstallmentsConsistencyChecks(rows, rawFilters = {}, referenceDate = new Date().toISOString().slice(0, 10)) {
+export function buildInstallmentsConsistencyChecks(
+  rows,
+  rawFilters = {},
+  referenceDate = new Date().toISOString().slice(0, 10),
+) {
   const overview = buildInstallmentsOverviewResponse(rows, rawFilters, referenceDate);
 
   return {

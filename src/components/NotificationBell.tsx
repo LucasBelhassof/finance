@@ -25,12 +25,7 @@ export function NotificationBell() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon"
-          className="relative h-9 w-9 shrink-0 rounded-lg"
-        >
+        <Button type="button" variant="secondary" size="icon" className="relative h-9 w-9 shrink-0 rounded-lg">
           <Bell size={16} className="text-muted-foreground" />
           {unreadCount > 0 ? (
             <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-expense px-1 text-[10px] font-semibold text-black">

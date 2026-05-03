@@ -409,10 +409,7 @@ app.use((error, _request, response, _next) => {
 
   response.status(status).json({
     error: "internal_server_error",
-    message:
-      process.env.NODE_ENV === "development"
-        ? message
-        : "The backend failed while processing the request.",
+    message: process.env.NODE_ENV === "development" ? message : "The backend failed while processing the request.",
   });
 });
 

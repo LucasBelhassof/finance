@@ -50,7 +50,10 @@ export default function AdminOverviewPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {(data?.signups ?? []).slice(-10).map((item) => (
-            <div key={item.date} className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
+            <div
+              key={item.date}
+              className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3"
+            >
               <span className="text-sm text-muted-foreground">{item.date}</span>
               <span className="text-sm font-semibold">{numberFormatter.format(item.total)}</span>
             </div>

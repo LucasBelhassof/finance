@@ -105,15 +105,25 @@ function UsageTooltip({
             </div>
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>Requisicoes</span>
-              <span className="text-right font-medium text-foreground">{numberFormatter.format(item.data.requests)}</span>
+              <span className="text-right font-medium text-foreground">
+                {numberFormatter.format(item.data.requests)}
+              </span>
               <span>Tokens entrada</span>
-              <span className="text-right font-medium text-foreground">{numberFormatter.format(item.data.inputTokens)}</span>
+              <span className="text-right font-medium text-foreground">
+                {numberFormatter.format(item.data.inputTokens)}
+              </span>
               <span>Tokens saida</span>
-              <span className="text-right font-medium text-foreground">{numberFormatter.format(item.data.outputTokens)}</span>
+              <span className="text-right font-medium text-foreground">
+                {numberFormatter.format(item.data.outputTokens)}
+              </span>
               <span>Tokens totais</span>
-              <span className="text-right font-medium text-foreground">{numberFormatter.format(item.data.totalTokens)}</span>
+              <span className="text-right font-medium text-foreground">
+                {numberFormatter.format(item.data.totalTokens)}
+              </span>
               <span>Custo</span>
-              <span className="text-right font-medium text-foreground">{usdFormatter.format(item.data.estimatedCostUsd)}</span>
+              <span className="text-right font-medium text-foreground">
+                {usdFormatter.format(item.data.estimatedCostUsd)}
+              </span>
             </div>
           </div>
         ))}
@@ -124,22 +134,25 @@ function UsageTooltip({
 
 function buildChartState(data: AdminAiUsageData | undefined) {
   const rows = data?.dailyByModel ?? [];
-  const modelEntries = rows.reduce<Array<{ modelId: string; key: string; label: string; color: string }>>((accumulator, item) => {
-    const modelId = `${item.provider}::${item.model}`;
+  const modelEntries = rows.reduce<Array<{ modelId: string; key: string; label: string; color: string }>>(
+    (accumulator, item) => {
+      const modelId = `${item.provider}::${item.model}`;
 
-    if (accumulator.some((entry) => entry.modelId === modelId)) {
+      if (accumulator.some((entry) => entry.modelId === modelId)) {
+        return accumulator;
+      }
+
+      accumulator.push({
+        modelId,
+        key: `model_${accumulator.length}`,
+        label: formatModelLabel(item.provider, item.model),
+        color: chartPalette[accumulator.length % chartPalette.length],
+      });
+
       return accumulator;
-    }
-
-    accumulator.push({
-      modelId,
-      key: `model_${accumulator.length}`,
-      label: formatModelLabel(item.provider, item.model),
-      color: chartPalette[accumulator.length % chartPalette.length],
-    });
-
-    return accumulator;
-  }, []);
+    },
+    [],
+  );
 
   const entryByModelId = new Map(modelEntries.map((entry) => [entry.modelId, entry]));
 
@@ -178,7 +191,9 @@ function buildChartState(data: AdminAiUsageData | undefined) {
     groupedByDate.set(item.date, entry);
   });
 
-  const chartData = Array.from(groupedByDate.values()).sort((left, right) => String(left.date).localeCompare(String(right.date)));
+  const chartData = Array.from(groupedByDate.values()).sort((left, right) =>
+    String(left.date).localeCompare(String(right.date)),
+  );
 
   return {
     chartData,
@@ -191,7 +206,10 @@ export default function AdminAiUsagePage() {
     startValue: null,
     endValue: null,
   });
-  const { data, isLoading, isError, error } = useAdminAiUsage(appliedRange.startValue ?? undefined, appliedRange.endValue ?? undefined);
+  const { data, isLoading, isError, error } = useAdminAiUsage(
+    appliedRange.startValue ?? undefined,
+    appliedRange.endValue ?? undefined,
+  );
 
   const { chartData, modelEntries } = useMemo(() => buildChartState(data), [data]);
   const cards = useMemo(
@@ -241,7 +259,8 @@ export default function AdminAiUsagePage() {
       {hasPartialCoverage ? (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="pt-6 text-sm text-muted-foreground">
-            Parte das requisicoes deste periodo nao trouxe tokens ou custo do provider. O tooltip e os totais refletem apenas o que foi rastreado.
+            Parte das requisicoes deste periodo nao trouxe tokens ou custo do provider. O tooltip e os totais refletem
+            apenas o que foi rastreado.
           </CardContent>
         </Card>
       ) : null}
@@ -261,7 +280,8 @@ export default function AdminAiUsagePage() {
         <CardHeader className="gap-2">
           <CardTitle>Uso diario da IA</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Eixo X com os dias do periodo e eixo Y com o numero de requisicoes. Cada modelo aparece como uma linha separada.
+            Eixo X com os dias do periodo e eixo Y com o numero de requisicoes. Cada modelo aparece como uma linha
+            separada.
           </p>
         </CardHeader>
         <CardContent>
@@ -344,8 +364,8 @@ export default function AdminAiUsagePage() {
                   <Badge variant={item.failures > 0 ? "destructive" : "outline"}>{item.failures} falhas</Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {numberFormatter.format(item.requests)} requisicoes • {numberFormatter.format(item.totalTokens)} tokens •{" "}
-                  {usdFormatter.format(item.estimatedCostUsd)}
+                  {numberFormatter.format(item.requests)} requisicoes • {numberFormatter.format(item.totalTokens)}{" "}
+                  tokens • {usdFormatter.format(item.estimatedCostUsd)}
                 </p>
               </div>
             ))}
@@ -397,7 +417,9 @@ export default function AdminAiUsagePage() {
                   {formatModelLabel(item.provider ?? "", item.model ?? "")} • {item.user?.name ?? "Usuario"} •{" "}
                   {new Date(item.createdAt).toLocaleString("pt-BR")}
                 </p>
-                <p className="mt-2 text-sm text-muted-foreground">{item.errorMessage ?? "Falha sem detalhe adicional."}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {item.errorMessage ?? "Falha sem detalhe adicional."}
+                </p>
               </div>
             ))}
           </CardContent>
@@ -442,7 +464,9 @@ export default function AdminAiUsagePage() {
                     <TableCell>{numberFormatter.format(item.outputTokens)}</TableCell>
                     <TableCell>{numberFormatter.format(item.totalTokens)}</TableCell>
                     <TableCell>{usdFormatter.format(item.estimatedCostUsd)}</TableCell>
-                    <TableCell>{item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString("pt-BR") : "Sem uso"}</TableCell>
+                    <TableCell>
+                      {item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString("pt-BR") : "Sem uso"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -2,13 +2,7 @@ import { useMemo, useState } from "react";
 
 import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { BankItem, SpendingItem, TransactionItem } from "@/types/api";
 
 interface SpendingChartProps {
@@ -44,7 +38,13 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export default function SpendingChart({ transactions = [], banks = [], spendingItems = [], isLoading, isError }: SpendingChartProps) {
+export default function SpendingChart({
+  transactions = [],
+  banks = [],
+  spendingItems = [],
+  isLoading,
+  isError,
+}: SpendingChartProps) {
   const [selectedBankId, setSelectedBankId] = useState("all");
   const hasPrecomputedItems = spendingItems.length > 0;
   const chartData = useMemo<CategoryPieChartItem[]>(() => {
@@ -140,10 +140,7 @@ export default function SpendingChart({ transactions = [], banks = [], spendingI
               : "Não há despesas categorizadas para a conta selecionada."}
         </div>
       ) : (
-        <CategoryPieChart
-          items={chartData}
-          emptyMessage="Ainda não existem gastos categorizados para exibir."
-        />
+        <CategoryPieChart items={chartData} emptyMessage="Ainda não existem gastos categorizados para exibir." />
       )}
     </div>
   );

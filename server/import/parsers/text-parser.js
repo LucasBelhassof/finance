@@ -1,4 +1,10 @@
-import { buildIssue, decodeTextBuffer, isLikelyNoiseText, normalizeAmountInput, normalizeDateInput } from "./tabular-utils.js";
+import {
+  buildIssue,
+  decodeTextBuffer,
+  isLikelyNoiseText,
+  normalizeAmountInput,
+  normalizeDateInput,
+} from "./tabular-utils.js";
 
 const TEXT_PATTERNS = [
   /^(?<date>\d{1,4}[\/.-]\d{1,2}[\/.-]\d{1,4})\s+(?<description>.+?)\s+(?<amount>-?(?:R\$\s*)?[\d.,]+)$/i,
@@ -30,7 +36,13 @@ function parseTextLine(line, referenceYear) {
       confidence: match.groups.date.length <= 5 ? 0.62 : 0.82,
       issues:
         match.groups.date.length <= 5
-          ? [buildIssue("import_inferred_year", "O ano desta linha foi inferido a partir do contexto do arquivo.", "warning")]
+          ? [
+              buildIssue(
+                "import_inferred_year",
+                "O ano desta linha foi inferido a partir do contexto do arquivo.",
+                "warning",
+              ),
+            ]
           : [],
       sourceRow: { raw: line },
       raw: {

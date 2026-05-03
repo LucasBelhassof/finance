@@ -29,13 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -269,7 +263,8 @@ export default function TransactionsPage() {
     }
 
     const isCurrentTypeAvailable =
-      selectedAccountType === "all" || availableAccountTypeOptions.some((option) => option.value === selectedAccountType);
+      selectedAccountType === "all" ||
+      availableAccountTypeOptions.some((option) => option.value === selectedAccountType);
 
     if (!isCurrentTypeAvailable) {
       setSelectedAccountType("all");
@@ -278,44 +273,43 @@ export default function TransactionsPage() {
 
   const visibleTransactions = useMemo(
     () =>
-      transactions.filter(
-        (transaction) => {
-          const isSupportedAccountType =
-            transaction.account.accountType === "bank_account" ||
-            transaction.account.accountType === "credit_card" ||
-            transaction.account.accountType === "cash";
+      transactions.filter((transaction) => {
+        const isSupportedAccountType =
+          transaction.account.accountType === "bank_account" ||
+          transaction.account.accountType === "credit_card" ||
+          transaction.account.accountType === "cash";
 
-          if (transaction.housingId !== null || !isSupportedAccountType) {
-            return false;
-          }
+        if (transaction.housingId !== null || !isSupportedAccountType) {
+          return false;
+        }
 
-          if (!selectedBankAccount) {
-            return true;
-          }
+        if (!selectedBankAccount) {
+          return true;
+        }
 
-          const transactionAccountId = String(transaction.account.id);
-          const isSelectedBankTransaction = transactionAccountId === String(selectedBankAccount.id);
-          const isLinkedCardTransaction = selectedBankLinkedCardIds.has(transactionAccountId);
+        const transactionAccountId = String(transaction.account.id);
+        const isSelectedBankTransaction = transactionAccountId === String(selectedBankAccount.id);
+        const isLinkedCardTransaction = selectedBankLinkedCardIds.has(transactionAccountId);
 
-          if (selectedAccountType === "bank_account") {
-            return isSelectedBankTransaction;
-          }
+        if (selectedAccountType === "bank_account") {
+          return isSelectedBankTransaction;
+        }
 
-          if (selectedAccountType === "credit_card") {
-            return isLinkedCardTransaction;
-          }
+        if (selectedAccountType === "credit_card") {
+          return isLinkedCardTransaction;
+        }
 
-          return isSelectedBankTransaction || isLinkedCardTransaction;
-        },
-      ),
+        return isSelectedBankTransaction || isLinkedCardTransaction;
+      }),
     [selectedAccountType, selectedBankAccount, selectedBankLinkedCardIds, transactions],
   );
-  const { filteredTransactions, summaryCardsData, categoryBreakdown, breakdownTransactionType } = useFilteredTransactionsData(visibleTransactions, categories, {
-    search,
-    typeFilter,
-    categoryFilter,
-    range: dateRange,
-  });
+  const { filteredTransactions, summaryCardsData, categoryBreakdown, breakdownTransactionType } =
+    useFilteredTransactionsData(visibleTransactions, categories, {
+      search,
+      typeFilter,
+      categoryFilter,
+      range: dateRange,
+    });
   const categoriesWithBreakdown = useMemo(() => {
     const breakdownById = new Map(categoryBreakdown.map((item) => [item.id, item]));
 
@@ -332,7 +326,10 @@ export default function TransactionsPage() {
           total: breakdown?.total ?? 0,
         };
       })
-      .sort((left, right) => right.count - left.count || right.total - left.total || left.label.localeCompare(right.label, "pt-BR"));
+      .sort(
+        (left, right) =>
+          right.count - left.count || right.total - left.total || left.label.localeCompare(right.label, "pt-BR"),
+      );
   }, [breakdownTransactionType, categories, categoryBreakdown]);
 
   const deleteTarget = visibleTransactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
@@ -364,7 +361,9 @@ export default function TransactionsPage() {
       !transactionForm.bankConnectionId ||
       (categoryIsRequired && !transactionForm.categoryId)
     ) {
-      toast.error(categoryIsRequired ? "Preencha descrição, valor, conta e categoria." : "Preencha descrição, valor e conta.");
+      toast.error(
+        categoryIsRequired ? "Preencha descrição, valor, conta e categoria." : "Preencha descrição, valor e conta.",
+      );
       return;
     }
 
@@ -432,9 +431,12 @@ export default function TransactionsPage() {
         groupColor: DEFAULT_CATEGORY_COLOR,
       });
     } catch (error) {
-      toast.error(editingCategoryId ? "Não foi possível atualizar a categoria." : "Não foi possível criar a categoria.", {
-        description: getErrorMessage(error, "Tente novamente em instantes."),
-      });
+      toast.error(
+        editingCategoryId ? "Não foi possível atualizar a categoria." : "Não foi possível criar a categoria.",
+        {
+          description: getErrorMessage(error, "Tente novamente em instantes."),
+        },
+      );
     }
   };
 
@@ -522,7 +524,9 @@ export default function TransactionsPage() {
     if (!filteredTransactions.length) {
       return (
         <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-          {isError ? "Não foi possível carregar as transações agora." : "Nenhuma transação encontrada para os filtros atuais."}
+          {isError
+            ? "Não foi possível carregar as transações agora."
+            : "Nenhuma transação encontrada para os filtros atuais."}
         </div>
       );
     }
@@ -543,7 +547,9 @@ export default function TransactionsPage() {
         <TableBody>
           {filteredTransactions.map((transaction) => {
             const accentColor = transaction.amount >= 0 ? "text-income" : "text-expense";
-            const categoryColor = resolveCategoryColorPresentation(transaction.category.groupColor || transaction.category.color);
+            const categoryColor = resolveCategoryColorPresentation(
+              transaction.category.groupColor || transaction.category.color,
+            );
             const transactionCategories = categories.filter(
               (category) => category.transactionType === (transaction.amount >= 0 ? "income" : "expense"),
             );
@@ -554,11 +560,19 @@ export default function TransactionsPage() {
               <TableRow key={transaction.id}>
                 <TableCell>
                   <div className="space-y-1">
-                    <button type="button" onClick={() => openEditTransaction(transaction)} className="text-left font-medium text-foreground transition-colors hover:text-primary">
+                    <button
+                      type="button"
+                      onClick={() => openEditTransaction(transaction)}
+                      className="text-left font-medium text-foreground transition-colors hover:text-primary"
+                    >
                       {transaction.description}
                     </button>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      {transaction.isRecurring ? <span className="rounded-full bg-income/10 px-2 py-0.5 font-medium text-income">Recorrente</span> : null}
+                      {transaction.isRecurring ? (
+                        <span className="rounded-full bg-income/10 px-2 py-0.5 font-medium text-income">
+                          Recorrente
+                        </span>
+                      ) : null}
                       {transaction.isRecurringProjection ? <span>Ocorrencia gerada automaticamente</span> : null}
                       {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount ? (
                         <span className="rounded-full bg-info/10 px-2 py-0.5 font-medium text-info">
@@ -649,7 +663,12 @@ export default function TransactionsPage() {
 
   return (
     <AppShell title="Transações" description="Gerencie suas despesas e receitas">
-      <ImportTransactionsModal open={importDialogOpen} onOpenChange={setImportDialogOpen} categories={categories} banks={banks} />
+      <ImportTransactionsModal
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        categories={categories}
+        banks={banks}
+      />
 
       <AlertDialog open={Boolean(deleteTargetId)} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
         <AlertDialogContent className="border-warning/20 bg-card">
@@ -677,7 +696,10 @@ export default function TransactionsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={Boolean(deleteCategoryTargetId)} onOpenChange={(open) => !open && setDeleteCategoryTargetId(null)}>
+      <AlertDialog
+        open={Boolean(deleteCategoryTargetId)}
+        onOpenChange={(open) => !open && setDeleteCategoryTargetId(null)}
+      >
         <AlertDialogContent className="border-warning/20 bg-card">
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir categoria?</AlertDialogTitle>
@@ -766,10 +788,12 @@ export default function TransactionsPage() {
             <Select
               value={transactionForm.bankConnectionId}
               onValueChange={(value) => setTransactionForm((current) => ({ ...current, bankConnectionId: value }))}
-              >
-                <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
-                  <SelectValue placeholder={transactionForm.type === "income" ? "Conta ou caixa" : "Conta, cartão ou caixa"} />
-                </SelectTrigger>
+            >
+              <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
+                <SelectValue
+                  placeholder={transactionForm.type === "income" ? "Conta ou caixa" : "Conta, cartão ou caixa"}
+                />
+              </SelectTrigger>
               <SelectContent>
                 {transactionBanks.map((bank) => (
                   <SelectItem key={bank.id} value={String(bank.id)}>
@@ -837,7 +861,10 @@ export default function TransactionsPage() {
               <Button variant="outline" onClick={() => setTransactionDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={() => void handleTransactionSave()} disabled={createTransaction.isPending || updateTransaction.isPending}>
+              <Button
+                onClick={() => void handleTransactionSave()}
+                disabled={createTransaction.isPending || updateTransaction.isPending}
+              >
                 {createTransaction.isPending || updateTransaction.isPending ? "Salvando..." : "Salvar"}
               </Button>
             </div>
@@ -1059,7 +1086,6 @@ export default function TransactionsPage() {
             <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
               {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
             </div>
-            
           </div>
         </div>
       </div>
@@ -1077,7 +1103,9 @@ export default function TransactionsPage() {
             <p className="text-sm text-muted-foreground">Total Despesas</p>
             <MetricInfoTooltip content="Soma de todas as transações de despesa visíveis com os filtros atuais de período, busca, tipo e categoria." />
           </div>
-          <p className="mt-2 text-[2rem] font-semibold text-expense">- {formatCurrency(summaryCardsData.totalExpenses)}</p>
+          <p className="mt-2 text-[2rem] font-semibold text-expense">
+            - {formatCurrency(summaryCardsData.totalExpenses)}
+          </p>
         </div>
         <div className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="flex items-center gap-2">
@@ -1213,7 +1241,7 @@ export default function TransactionsPage() {
               >
                 Importar CSV/PDF
               </Button>
-            <Button
+              <Button
                 variant="outline"
                 className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
                 aria-label="Nova transação"
@@ -1227,7 +1255,9 @@ export default function TransactionsPage() {
           </div>
           {renderTransactionsTable()}
           <div className="flex flex-col sm:flex-row sm:justify-end">
-          <span className="text-sm text-muted-foreground sm:justify-end">{filteredTransactions.length} transações</span>
+            <span className="text-sm text-muted-foreground sm:justify-end">
+              {filteredTransactions.length} transações
+            </span>
           </div>
         </div>
 
@@ -1285,9 +1315,13 @@ export default function TransactionsPage() {
                         aria-pressed={selected}
                       >
                         <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color.solid }} />
-                        <span className="break-words text-[0.96rem] font-medium leading-snug text-foreground">{categoryItem.label}</span>
+                        <span className="break-words text-[0.96rem] font-medium leading-snug text-foreground">
+                          {categoryItem.label}
+                        </span>
                       </button>
-                      <span className="text-right text-sm tabular-nums text-muted-foreground">{categoryItem.count}</span>
+                      <span className="text-right text-sm tabular-nums text-muted-foreground">
+                        {categoryItem.count}
+                      </span>
                       <button
                         type="button"
                         onClick={() => {

@@ -96,7 +96,7 @@ export default function Sidebar() {
   const isCollapsed = state === "collapsed";
   const isExpenseManagementActive = Boolean(
     location.pathname === appRoutes.transactions ||
-      matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
+    matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
   );
   const isAdminActive = Boolean(
     location.pathname === appRoutes.admin || matchPath({ path: `${appRoutes.admin}/*`, end: false }, location.pathname),
@@ -116,7 +116,9 @@ export default function Sidebar() {
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">
             <span className="text-sm font-bold text-primary-foreground">F</span>
           </div>
-          <span className="truncate text-lg font-semibold text-foreground group-data-[collapsible=icon]:hidden">Finly</span>
+          <span className="truncate text-lg font-semibold text-foreground group-data-[collapsible=icon]:hidden">
+            Finly
+          </span>
         </div>
       </SidebarHeader>
 
@@ -125,7 +127,9 @@ export default function Sidebar() {
           {navItems.map((item) => {
             const isActive = item.end
               ? location.pathname === item.to
-              : Boolean(matchPath({ path: `${item.to}/*`, end: false }, location.pathname) || location.pathname === item.to);
+              : Boolean(
+                  matchPath({ path: `${item.to}/*`, end: false }, location.pathname) || location.pathname === item.to,
+                );
 
             return (
               <SidebarMenuItem key={item.label}>
@@ -150,9 +154,9 @@ export default function Sidebar() {
               {isAdmin ? (
                 <Collapsible asChild defaultOpen={isAdminActive}>
                   <SidebarMenuItem>
-                <CollapsibleTrigger asChild>
-                  <SidebarMenuButton
-                    isActive={isAdminActive}
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={isAdminActive}
                         tooltip="Administracao"
                         className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
                       >
@@ -243,7 +247,8 @@ export default function Sidebar() {
                     item.disabled
                       ? () => {
                           toast.info("Insights desabilitados", {
-                            description: "O recurso volta quando a regra de negocio estiver definida. Use o chat financeiro por enquanto.",
+                            description:
+                              "O recurso volta quando a regra de negocio estiver definida. Use o chat financeiro por enquanto.",
                           });
                         }
                       : undefined

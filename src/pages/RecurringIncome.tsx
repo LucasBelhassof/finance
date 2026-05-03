@@ -29,18 +29,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBanks } from "@/hooks/use-banks";
 import { useUrlPeriodFilter } from "@/hooks/use-url-period-filter";
-import { useCategories, useCreateTransaction, useDeleteTransaction, useTransactions, useUpdateTransaction } from "@/hooks/use-transactions";
+import {
+  useCategories,
+  useCreateTransaction,
+  useDeleteTransaction,
+  useTransactions,
+  useUpdateTransaction,
+} from "@/hooks/use-transactions";
 import { resolveCategoryColorPresentation } from "@/lib/category-colors";
 import {
   TRANSACTIONS_YEAR_SELECTION,
@@ -144,14 +144,17 @@ function createTrendSeries(transactions: TransactionItem[]): TrendPoint[] {
     grouped.set(key, {
       amount: (current?.amount ?? 0) + transaction.amount,
       latestOccurredOn:
-        !current || transaction.occurredOn > current.latestOccurredOn ? transaction.occurredOn : current.latestOccurredOn,
+        !current || transaction.occurredOn > current.latestOccurredOn
+          ? transaction.occurredOn
+          : current.latestOccurredOn,
     });
   });
 
   return Array.from(grouped.entries())
     .map(([key, summary]) => {
       const referenceTransaction =
-        transactions.find((transaction) => String(transaction.sourceTransactionId ?? transaction.id) === key) ?? transactions[0];
+        transactions.find((transaction) => String(transaction.sourceTransactionId ?? transaction.id) === key) ??
+        transactions[0];
 
       return {
         label: referenceTransaction?.description ?? "Receita recorrente",
@@ -269,11 +272,13 @@ export default function RecurringIncomePage() {
   );
 
   const accountOptions = useMemo(
-    () =>
-      banks.filter((bank) => bank.accountType === "bank_account" || bank.accountType === "cash"),
+    () => banks.filter((bank) => bank.accountType === "bank_account" || bank.accountType === "cash"),
     [banks],
   );
-  const incomeCategories = useMemo(() => categories.filter((category) => category.transactionType === "income"), [categories]);
+  const incomeCategories = useMemo(
+    () => categories.filter((category) => category.transactionType === "income"),
+    [categories],
+  );
   const recurringIncomes = useMemo(
     () =>
       transactions.filter(
@@ -281,8 +286,7 @@ export default function RecurringIncomePage() {
           transaction.amount > 0 &&
           transaction.isRecurring &&
           transaction.housingId === null &&
-          (transaction.account.accountType === "bank_account" ||
-            transaction.account.accountType === "cash"),
+          (transaction.account.accountType === "bank_account" || transaction.account.accountType === "cash"),
       ),
     [transactions],
   );
@@ -296,7 +300,8 @@ export default function RecurringIncomePage() {
           transaction.account.name.toLowerCase().includes(search.trim().toLowerCase());
         const matchesAccount = selectedAccountId === "all" || String(transaction.account.id) === selectedAccountId;
         const matchesCategory = selectedCategoryId === "all" || String(transaction.category.id) === selectedCategoryId;
-        const matchesDate = transaction.occurredOn >= dateRange.startDate && transaction.occurredOn <= dateRange.endDate;
+        const matchesDate =
+          transaction.occurredOn >= dateRange.startDate && transaction.occurredOn <= dateRange.endDate;
 
         return matchesSearch && matchesAccount && matchesCategory && matchesDate;
       }),
@@ -306,7 +311,9 @@ export default function RecurringIncomePage() {
   const trendSeries = useMemo(() => createTrendSeries(filteredTransactions), [filteredTransactions]);
   const isYearlyTable = selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION;
   const seriesCount = useMemo(
-    () => new Set(filteredTransactions.map((transaction) => String(transaction.sourceTransactionId ?? transaction.id))).size,
+    () =>
+      new Set(filteredTransactions.map((transaction) => String(transaction.sourceTransactionId ?? transaction.id)))
+        .size,
     [filteredTransactions],
   );
   const totalIncome = useMemo(
@@ -316,10 +323,7 @@ export default function RecurringIncomePage() {
   const averageIncome = filteredTransactions.length ? totalIncome / filteredTransactions.length : 0;
   const topIncome = filteredTransactions[0] ?? null;
   const nextOccurrences = useMemo(
-    () =>
-      [...filteredTransactions]
-        .sort((left, right) => left.occurredOn.localeCompare(right.occurredOn))
-        .slice(0, 3),
+    () => [...filteredTransactions].sort((left, right) => left.occurredOn.localeCompare(right.occurredOn)).slice(0, 3),
     [filteredTransactions],
   );
   const tableRows = useMemo<RecurringIncomeTableRow[]>(() => {
@@ -380,9 +384,7 @@ export default function RecurringIncomePage() {
     });
 
     return Array.from(grouped.values()).sort(
-      (left, right) =>
-        right.amount - left.amount ||
-        left.description.localeCompare(right.description, "pt-BR"),
+      (left, right) => right.amount - left.amount || left.description.localeCompare(right.description, "pt-BR"),
     );
   }, [dateRange.endDate, dateRange.startDate, filteredTransactions, isYearlyTable]);
   const deleteTarget = filteredTransactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
@@ -435,7 +437,13 @@ export default function RecurringIncomePage() {
   const handleSave = async () => {
     const parsedAmount = Number(form.amount.replace(",", "."));
 
-    if (!form.description.trim() || !Number.isFinite(parsedAmount) || !form.bankConnectionId || !form.categoryId || !form.occurredOn) {
+    if (
+      !form.description.trim() ||
+      !Number.isFinite(parsedAmount) ||
+      !form.bankConnectionId ||
+      !form.categoryId ||
+      !form.occurredOn
+    ) {
       toast.error("Preencha descrição, valor, conta, categoria e data.");
       return;
     }
@@ -547,7 +555,10 @@ export default function RecurringIncomePage() {
               inputMode="decimal"
               className="h-11 rounded-xl border-border/60 bg-secondary/35"
             />
-            <Select value={form.bankConnectionId} onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}>
+            <Select
+              value={form.bankConnectionId}
+              onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}
+            >
               <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
                 <SelectValue placeholder="Conta ou caixa" />
               </SelectTrigger>
@@ -559,7 +570,10 @@ export default function RecurringIncomePage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={form.categoryId} onValueChange={(value) => setForm((current) => ({ ...current, categoryId: value }))}>
+            <Select
+              value={form.categoryId}
+              onValueChange={(value) => setForm((current) => ({ ...current, categoryId: value }))}
+            >
               <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
@@ -597,7 +611,10 @@ export default function RecurringIncomePage() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={() => void handleSave()} disabled={createTransaction.isPending || updateTransaction.isPending}>
+              <Button
+                onClick={() => void handleSave()}
+                disabled={createTransaction.isPending || updateTransaction.isPending}
+              >
                 {createTransaction.isPending || updateTransaction.isPending ? "Salvando..." : "Salvar"}
               </Button>
             </div>
@@ -654,7 +671,10 @@ export default function RecurringIncomePage() {
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative flex-1">
-              <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                size={17}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -662,7 +682,10 @@ export default function RecurringIncomePage() {
                 className="h-11 rounded-xl border-border/60 bg-secondary/35 pl-11"
               />
             </div>
-            <Button className="w-full rounded-xl bg-income text-background hover:bg-income/90 xl:w-auto" onClick={openCreate}>
+            <Button
+              className="w-full rounded-xl bg-income text-background hover:bg-income/90 xl:w-auto"
+              onClick={openCreate}
+            >
               <Plus size={14} />
               Nova recorrencia
             </Button>
@@ -731,23 +754,32 @@ export default function RecurringIncomePage() {
           </div>
           <p className="text-[2rem] font-semibold text-foreground">{nextOccurrences.length}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {nextOccurrences[0] ? `${nextOccurrences[0].description} em ${nextOccurrences[0].occurredOn.split("-").reverse().join("/")}` : "Sem novas ocorrências no período"}
+            {nextOccurrences[0]
+              ? `${nextOccurrences[0].description} em ${nextOccurrences[0].occurredOn.split("-").reverse().join("/")}`
+              : "Sem novas ocorrências no período"}
           </p>
         </div>
       </section>
 
-      <section data-tour-id="recurring-income-chart" className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+      <section
+        data-tour-id="recurring-income-chart"
+        className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]"
+      >
         <div className="glass-card rounded-[28px] border border-border/40 p-5">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-foreground">Evolucao das receitas recorrentes</h2>
-              <p className="text-sm text-muted-foreground">Leitura visual por receita recorrente dentro dos filtros aplicados.</p>
+              <p className="text-sm text-muted-foreground">
+                Leitura visual por receita recorrente dentro dos filtros aplicados.
+              </p>
             </div>
           </div>
 
           {!trendSeries.length ? (
             <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-              {isError ? "Não foi possível carregar as receitas recorrentes agora." : "Nenhuma receita recorrente encontrada para os filtros atuais."}
+              {isError
+                ? "Não foi possível carregar as receitas recorrentes agora."
+                : "Nenhuma receita recorrente encontrada para os filtros atuais."}
             </div>
           ) : (
             <div className="h-[320px]">
@@ -761,7 +793,9 @@ export default function RecurringIncomePage() {
                     axisLine={false}
                   />
                   <YAxis dataKey="label" type="category" tickLine={false} axisLine={false} width={96} />
-                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+                  <ChartTooltip
+                    content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />}
+                  />
                   <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 14, 14, 4]} />
                 </BarChart>
               </ChartContainer>
@@ -798,7 +832,9 @@ export default function RecurringIncomePage() {
 
         {!tableRows.length ? (
           <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-            {isError ? "Não foi possível carregar a tabela agora." : "Nenhuma receita recorrente encontrada para os filtros atuais."}
+            {isError
+              ? "Não foi possível carregar a tabela agora."
+              : "Nenhuma receita recorrente encontrada para os filtros atuais."}
           </div>
         ) : (
           <Table className="min-w-[940px]">
@@ -824,14 +860,16 @@ export default function RecurringIncomePage() {
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium text-foreground">{row.description}</span>
-                          <span className="rounded-full bg-income/10 px-2 py-0.5 text-[11px] font-medium text-income">Recorrente</span>
+                          <span className="rounded-full bg-income/10 px-2 py-0.5 text-[11px] font-medium text-income">
+                            Recorrente
+                          </span>
                           {!isYearlyTable && row.representativeTransaction.isRecurringProjection ? (
-                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Ocorrencia futura</span>
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                              Ocorrencia futura
+                            </span>
                           ) : null}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Serie #{row.sourceTransactionId}
-                        </p>
+                        <p className="text-xs text-muted-foreground">Serie #{row.sourceTransactionId}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -843,7 +881,11 @@ export default function RecurringIncomePage() {
                     <TableCell>{row.occurredOnLabel}</TableCell>
                     <TableCell>{row.seriesLabel}</TableCell>
                     <TableCell className="text-center text-sm text-muted-foreground">
-                      {isYearlyTable ? `${row.occurrenceCount}x` : row.representativeTransaction.isRecurringProjection ? "Projecao" : "Base"}
+                      {isYearlyTable
+                        ? `${row.occurrenceCount}x`
+                        : row.representativeTransaction.isRecurringProjection
+                          ? "Projecao"
+                          : "Base"}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-income">{formatCurrency(row.amount)}</TableCell>
                     <TableCell>

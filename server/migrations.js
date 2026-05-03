@@ -40,10 +40,7 @@ export async function runMigrations(pool) {
   try {
     await ensureMigrationsTable(client);
 
-    const [migrationFiles, appliedMigrations] = await Promise.all([
-      getMigrationFiles(),
-      getAppliedMigrations(client),
-    ]);
+    const [migrationFiles, appliedMigrations] = await Promise.all([getMigrationFiles(), getAppliedMigrations(client)]);
 
     for (const filename of migrationFiles) {
       if (appliedMigrations.has(filename)) {

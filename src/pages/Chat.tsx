@@ -48,13 +48,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -156,8 +150,11 @@ export default function ChatPage() {
   const [renameTitle, setRenameTitle] = useState("");
   const [deletingChat, setDeletingChat] = useState<ChatConversation | null>(null);
   const activeChat = chats.find((chat) => chat.id === chatId);
-  const { data: searchResults = [], isLoading: isSearching, isError: isSearchError } =
-    useSearchChatConversations(debouncedSearchTerm);
+  const {
+    data: searchResults = [],
+    isLoading: isSearching,
+    isError: isSearchError,
+  } = useSearchChatConversations(debouncedSearchTerm);
 
   const nonEmptySearch = debouncedSearchTerm.trim();
   const pinnedChats = useMemo(() => chats.filter((chat) => chat.pinned), [chats]);
@@ -626,7 +623,11 @@ export default function ChatPage() {
   const renderChatNavigation = (onSelect?: () => void) => (
     <>
       <div className="space-y-2">
-        <Button className="w-full justify-start" onClick={() => void handleCreateChat()} disabled={createChat.isPending}>
+        <Button
+          className="w-full justify-start"
+          onClick={() => void handleCreateChat()}
+          disabled={createChat.isPending}
+        >
           <Plus size={16} />
           Novo chat
         </Button>
@@ -663,7 +664,11 @@ export default function ChatPage() {
 
         <CollapsibleContent className="min-h-0 flex-1">
           <div className="mt-2 flex max-h-[calc(100vh-18rem)] min-h-0 flex-col gap-2 overflow-y-auto pr-1 scrollbar-thin">
-            {isLoading ? <div className="rounded-lg bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">Carregando chats...</div> : null}
+            {isLoading ? (
+              <div className="rounded-lg bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">
+                Carregando chats...
+              </div>
+            ) : null}
 
             {isError ? (
               <div className="rounded-lg border border-border/30 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
@@ -695,7 +700,9 @@ export default function ChatPage() {
               <SheetTitle>Menu do chat</SheetTitle>
               <SheetDescription>Acesse atalhos, planejamentos e conversas recentes.</SheetDescription>
             </SheetHeader>
-            <div className="flex min-h-0 flex-1 flex-col p-4">{renderChatNavigation(() => setMobileSidebarOpen(false))}</div>
+            <div className="flex min-h-0 flex-1 flex-col p-4">
+              {renderChatNavigation(() => setMobileSidebarOpen(false))}
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -714,12 +721,12 @@ export default function ChatPage() {
                 type="button"
                 variant="outline"
                 size="icon"
-              className="mt-0.5 h-10 w-10 shrink-0 rounded-lg border-border/60 lg:hidden"
-              onClick={() => setMobileSidebarOpen(true)}
-              aria-label="Abrir barra lateral do chat"
-            >
-              <MessageSquare size={18} />
-            </Button>
+                className="mt-0.5 h-10 w-10 shrink-0 rounded-lg border-border/60 lg:hidden"
+                onClick={() => setMobileSidebarOpen(true)}
+                aria-label="Abrir barra lateral do chat"
+              >
+                <MessageSquare size={18} />
+              </Button>
               <div className="min-w-0">
                 <h2 className="truncate text-base font-semibold text-foreground">
                   {activeChat?.title ?? (chatId ? "Chat nao encontrado" : "Selecione ou crie um chat")}
@@ -742,7 +749,10 @@ export default function ChatPage() {
             ) : null}
           </div>
 
-          <div data-tour-id="chat-conversation" className="h-[calc(100vh-15.5rem)] min-h-[28rem] sm:h-[calc(100vh-14.5rem)]">
+          <div
+            data-tour-id="chat-conversation"
+            className="h-[calc(100vh-15.5rem)] min-h-[28rem] sm:h-[calc(100vh-14.5rem)]"
+          >
             {chatId && activeChat ? (
               <AiChat
                 chatId={chatId}
@@ -859,7 +869,8 @@ export default function ChatPage() {
 
               {!plans.length ? (
                 <div className="rounded-lg border border-border/30 bg-secondary/30 p-3 text-sm text-muted-foreground">
-                  Nenhum planejamento encontrado. Use a IA para criar um novo a partir deste chat ou abra a pagina de planejamentos.
+                  Nenhum planejamento encontrado. Use a IA para criar um novo a partir deste chat ou abra a pagina de
+                  planejamentos.
                 </div>
               ) : null}
             </div>
@@ -878,7 +889,10 @@ export default function ChatPage() {
             >
               {planningInProgress || createPlanDraftSession.isPending ? "Gerando..." : "Usar IA"}
             </Button>
-            <Button onClick={handleMoveToSelectedPlan} disabled={!planningChat || !selectedPlanId || linkChatToPlan.isPending}>
+            <Button
+              onClick={handleMoveToSelectedPlan}
+              disabled={!planningChat || !selectedPlanId || linkChatToPlan.isPending}
+            >
               Vincular
             </Button>
           </DialogFooter>
@@ -890,7 +904,9 @@ export default function ChatPage() {
           <DialogHeader>
             <DialogTitle>Revisar planejamento</DialogTitle>
             <DialogDescription>
-              {draftChat ? `Rascunho pendente gerado a partir de "${draftChat.title}".` : "Rascunho pendente gerado pela IA."}
+              {draftChat
+                ? `Rascunho pendente gerado a partir de "${draftChat.title}".`
+                : "Rascunho pendente gerado pela IA."}
             </DialogDescription>
           </DialogHeader>
 
@@ -919,14 +935,18 @@ export default function ChatPage() {
                         <div
                           key={`${message.role}-${index}`}
                           className={`rounded-lg px-3 py-2 text-sm ${
-                            message.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-background text-muted-foreground"
+                            message.role === "user"
+                              ? "ml-auto bg-primary text-primary-foreground"
+                              : "bg-background text-muted-foreground"
                           } max-w-[85%]`}
                         >
                           {message.content}
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-muted-foreground">Peça ajustes antes de confirmar, sem gravar no historico do chat.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Peça ajustes antes de confirmar, sem gravar no historico do chat.
+                      </p>
                     )}
                   </div>
 
@@ -951,10 +971,18 @@ export default function ChatPage() {
           ) : null}
 
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={handleDismissDraft} disabled={dismissPlanDraftSession.isPending || confirmPlanDraftSession.isPending}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleDismissDraft}
+              disabled={dismissPlanDraftSession.isPending || confirmPlanDraftSession.isPending}
+            >
               Recusar
             </Button>
-            <Button onClick={handleConfirmDraft} disabled={!draftForm || planningInProgress || confirmPlanDraftSession.isPending}>
+            <Button
+              onClick={handleConfirmDraft}
+              disabled={!draftForm || planningInProgress || confirmPlanDraftSession.isPending}
+            >
               Confirmar plano
             </Button>
           </DialogFooter>

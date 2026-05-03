@@ -212,20 +212,22 @@ export default function InvestmentsPage() {
   const [form, setForm] = useState<InvestmentFormState>(buildEmptyForm());
   const [deletingInvestment, setDeletingInvestment] = useState<InvestmentItem | null>(null);
 
-  const manualPlans = useMemo(
-    () => plans.filter((plan) => plan.source === "manual"),
-    [plans],
-  );
+  const manualPlans = useMemo(() => plans.filter((plan) => plan.source === "manual"), [plans]);
 
   const linkedManualPlansByInvestmentId = useMemo(() => {
     const map = new Map<string, Array<{ id: string; title: string }>>();
 
     for (const plan of manualPlans) {
-      if (plan.goal.targetModel !== "investment_box" || (!plan.goal.investmentBoxId && !plan.goal.investmentBoxIds.length)) {
+      if (
+        plan.goal.targetModel !== "investment_box" ||
+        (!plan.goal.investmentBoxId && !plan.goal.investmentBoxIds.length)
+      ) {
         continue;
       }
 
-      const investmentIds = plan.goal.investmentBoxIds.length ? plan.goal.investmentBoxIds : [plan.goal.investmentBoxId];
+      const investmentIds = plan.goal.investmentBoxIds.length
+        ? plan.goal.investmentBoxIds
+        : [plan.goal.investmentBoxId];
 
       for (const investmentId of investmentIds) {
         if (!investmentId) {
@@ -328,10 +330,7 @@ export default function InvestmentsPage() {
     }
   };
 
-  const updateManualItem = (
-    index: number,
-    item: Partial<InvestmentFormState["manualPlanItems"][number]>,
-  ) => {
+  const updateManualItem = (index: number, item: Partial<InvestmentFormState["manualPlanItems"][number]>) => {
     setForm((current) => ({
       ...current,
       manualPlanItems: current.manualPlanItems.map((currentItem, currentIndex) =>
@@ -404,7 +403,9 @@ export default function InvestmentsPage() {
           <PiggyBank size={18} className="text-primary" />
           <div>
             <h2 className="text-lg font-semibold text-foreground">Caixinhas cadastradas</h2>
-            <p className="text-sm text-muted-foreground">Essas caixinhas podem ser usadas manualmente ou vinculadas pela IA em um planejamento.</p>
+            <p className="text-sm text-muted-foreground">
+              Essas caixinhas podem ser usadas manualmente ou vinculadas pela IA em um planejamento.
+            </p>
           </div>
         </div>
 
@@ -454,7 +455,13 @@ export default function InvestmentsPage() {
                   </TableCell>
                   <TableCell>{investment.formattedCurrentAmount}</TableCell>
                   <TableCell>{investment.formattedTargetAmount ?? "Sem meta"}</TableCell>
-                  <TableCell>{investment.status === "paused" ? "Pausada" : investment.status === "archived" ? "Arquivada" : "Ativa"}</TableCell>
+                  <TableCell>
+                    {investment.status === "paused"
+                      ? "Pausada"
+                      : investment.status === "archived"
+                        ? "Arquivada"
+                        : "Ativa"}
+                  </TableCell>
                   <TableCell>{investment.bank?.name ?? "Nao vinculada"}</TableCell>
                   <TableCell>
                     {(() => {
@@ -476,7 +483,12 @@ export default function InvestmentsPage() {
                       <Button type="button" variant="ghost" size="icon" onClick={() => openEditDialog(investment)}>
                         <Pencil size={16} />
                       </Button>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => setDeletingInvestment(investment)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeletingInvestment(investment)}
+                      >
                         <Trash2 size={16} />
                       </Button>
                     </div>
@@ -500,7 +512,10 @@ export default function InvestmentsPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Nome</label>
-              <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+              <Input
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              />
             </div>
 
             <div className="space-y-2">
@@ -546,7 +561,8 @@ export default function InvestmentsPage() {
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
-                      [current.contributionMode === "income_percentage" ? "incomePercentage" : "fixedAmount"]: event.target.value,
+                      [current.contributionMode === "income_percentage" ? "incomePercentage" : "fixedAmount"]:
+                        event.target.value,
                     }))
                   }
                   placeholder={form.contributionMode === "income_percentage" ? "Ex.: 15" : "Ex.: 500,00"}
@@ -577,7 +593,10 @@ export default function InvestmentsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Status</label>
-                <Select value={form.status} onValueChange={(value: InvestmentStatus) => setForm((current) => ({ ...current, status: value }))}>
+                <Select
+                  value={form.status}
+                  onValueChange={(value: InvestmentStatus) => setForm((current) => ({ ...current, status: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -590,7 +609,10 @@ export default function InvestmentsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Conta vinculada</label>
-                <Select value={form.bankConnectionId} onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}>
+                <Select
+                  value={form.bankConnectionId}
+                  onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -609,11 +631,18 @@ export default function InvestmentsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Cor</label>
-                <Input value={form.color} onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))} placeholder="#0ea5e9" />
+                <Input
+                  value={form.color}
+                  onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))}
+                  placeholder="#0ea5e9"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Observações</label>
-                <Input value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
+                <Input
+                  value={form.notes}
+                  onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+                />
               </div>
             </div>
 
@@ -758,7 +787,10 @@ export default function InvestmentsPage() {
 
                           <div className="space-y-3">
                             {form.manualPlanItems.map((item, index) => (
-                              <div key={`manual-plan-item-${index}`} className="space-y-3 rounded-md border border-border/40 bg-background p-3">
+                              <div
+                                key={`manual-plan-item-${index}`}
+                                className="space-y-3 rounded-md border border-border/40 bg-background p-3"
+                              >
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <Input
                                     placeholder="Titulo do item"

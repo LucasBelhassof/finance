@@ -100,7 +100,9 @@ export default function AiInsights({
     return <AiInsightsSkeleton />;
   }
 
-  const recommendedActions = [...new Map(insights.filter((item) => item.action?.href).map((item) => [item.action?.kind, item.action])).values()];
+  const recommendedActions = [
+    ...new Map(insights.filter((item) => item.action?.href).map((item) => [item.action?.kind, item.action])).values(),
+  ];
 
   return (
     <div className="glass-card animate-fade-in p-4 sm:p-5">
@@ -126,13 +128,17 @@ export default function AiInsights({
                 className="rounded-xl border border-border/30 bg-secondary/50 p-3.5 transition-colors hover:bg-secondary/80"
               >
                 <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.bgColor}`}>
+                  <div
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.bgColor}`}
+                  >
                     <Icon size={15} className={item.iconColor} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <h4 className="text-sm font-medium text-foreground">{item.title}</h4>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${item.tagColor}`}>{item.tag}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${item.tagColor}`}>
+                        {item.tag}
+                      </span>
                       <Badge variant="outline" className={getPriorityClasses(item.priority)}>
                         Prioridade {item.priorityLabel}
                       </Badge>

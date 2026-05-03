@@ -52,29 +52,29 @@ export function resolvePresetRange(preset: TransactionsDateFilterPreset, now = n
   const today = getLocalDateKey(now);
 
   switch (preset) {
-    case "week":
-      {
-        const startOfWeek = getStartOfWeek(now);
+    case "week": {
+      const startOfWeek = getStartOfWeek(now);
 
-        return {
-          startDate: getLocalDateKey(startOfWeek),
-          endDate: getLocalDateKey(createLocalDate(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6)),
-        };
-      }
+      return {
+        startDate: getLocalDateKey(startOfWeek),
+        endDate: getLocalDateKey(
+          createLocalDate(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6),
+        ),
+      };
+    }
     case "fifteen_days":
       return {
         startDate: today,
         endDate: shiftDateKey(today, 14),
       };
-    case "month":
-      {
-        const lastDayOfMonth = createLocalDate(now.getFullYear(), now.getMonth() + 1, 0);
+    case "month": {
+      const lastDayOfMonth = createLocalDate(now.getFullYear(), now.getMonth() + 1, 0);
 
-        return {
-          startDate: getLocalDateKey(createLocalDate(now.getFullYear(), now.getMonth(), 1)),
-          endDate: getLocalDateKey(lastDayOfMonth),
-        };
-      }
+      return {
+        startDate: getLocalDateKey(createLocalDate(now.getFullYear(), now.getMonth(), 1)),
+        endDate: getLocalDateKey(lastDayOfMonth),
+      };
+    }
     case "year":
       return {
         startDate: getLocalDateKey(createLocalDate(now.getFullYear(), 0, 1)),

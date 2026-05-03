@@ -61,9 +61,7 @@ describe("transaction import helpers", () => {
       "06/04/2026;iFood;-67,90",
       "05/04/2026;Salario;6500,00",
     ].join("\n");
-    const existingFingerprints = new Set([
-      buildImportSeedKey(1, "2026-04-06", -67.9, "ifood"),
-    ]);
+    const existingFingerprints = new Set([buildImportSeedKey(1, "2026-04-06", -67.9, "ifood")]);
 
     const preview = await createImportPreview({
       categories,
@@ -318,7 +316,11 @@ describe("transaction import helpers", () => {
     });
 
     expect(entries).toHaveLength(3);
-    expect(entries.map((entry) => entry.description)).toEqual(["Compra Loja 1/3", "Compra Loja 2/3", "Compra Loja 3/3"]);
+    expect(entries.map((entry) => entry.description)).toEqual([
+      "Compra Loja 1/3",
+      "Compra Loja 2/3",
+      "Compra Loja 3/3",
+    ]);
     expect(entries.map((entry) => entry.occurredOn)).toEqual(["2026-03-15", "2026-04-15", "2026-05-15"]);
     expect(entries.every((entry) => entry.amount === -120)).toBe(true);
   });
@@ -470,11 +472,9 @@ describe("transaction import helpers", () => {
   });
 
   it("keeps rows with local rule matches out of AI enrichment", async () => {
-    const csv = [
-      "Data;Descricao;Valor",
-      "06/04/2026;iFood;-67,90",
-      "06/04/2026;Transferencia recebida;396,00",
-    ].join("\n");
+    const csv = ["Data;Descricao;Valor", "06/04/2026;iFood;-67,90", "06/04/2026;Transferencia recebida;396,00"].join(
+      "\n",
+    );
 
     const preview = await createImportPreview({
       categories,
@@ -554,10 +554,7 @@ describe("transaction import helpers", () => {
   });
 
   it("caches AI suggestions inside the preview session", async () => {
-    const csv = [
-      "Data;Descricao;Valor",
-      "06/04/2026;Transferencia recebida;396,00",
-    ].join("\n");
+    const csv = ["Data;Descricao;Valor", "06/04/2026;Transferencia recebida;396,00"].join("\n");
     const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),

@@ -1,14 +1,4 @@
-import {
-  BellRing,
-  Crown,
-  Lightbulb,
-  LogOut,
-  Mail,
-  Rocket,
-  Settings,
-  ShieldCheck,
-  UserCircle2,
-} from "lucide-react";
+import { BellRing, Crown, Lightbulb, LogOut, Mail, Rocket, Settings, ShieldCheck, UserCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -365,7 +355,10 @@ export default function ProfilePage() {
     <AppShell title="Perfil" description="Dados da conta, segurança e preferências pessoais">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_360px]">
         <div className="space-y-6">
-          <section data-tour-id="profile-identity" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-6">
+          <section
+            data-tour-id="profile-identity"
+            className="glass-card rounded-2xl border border-border/40 p-4 sm:p-6"
+          >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
                 <UserCircle2 size={32} />
@@ -377,7 +370,9 @@ export default function ProfilePage() {
                   <Badge className={planMeta.className}>{planMeta.label}</Badge>
                 </div>
                 <p className="mt-1 break-words text-sm text-muted-foreground">{userEmail}</p>
-                <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">ID do usuário: {userId}</p>
+                <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  ID do usuário: {userId}
+                </p>
               </div>
             </div>
 
@@ -392,7 +387,9 @@ export default function ProfilePage() {
               </div>
               <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
                 <p className="text-sm text-muted-foreground">Email verificado</p>
-                <p className="mt-2 text-lg font-semibold text-foreground">{user?.emailVerified ? "Verificado" : "Pendente"}</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">
+                  {user?.emailVerified ? "Verificado" : "Pendente"}
+                </p>
               </div>
               <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
                 <p className="text-sm text-muted-foreground">Assinatura</p>
@@ -406,7 +403,9 @@ export default function ProfilePage() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-foreground">Conta</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Tour do produto, plano atual e sinais operacionais da conta.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tour do produto, plano atual e sinais operacionais da conta.
+                </p>
               </div>
               <Badge className={onboardingMeta.className}>{onboardingMeta.label}</Badge>
             </div>
@@ -448,7 +447,9 @@ export default function ProfilePage() {
                   <div className="relative overflow-hidden rounded-xl border border-border/40 bg-secondary/20 p-4">
                     <div className={!isPremiumUser ? "pointer-events-none select-none blur-sm" : undefined}>
                       <p className="text-sm text-muted-foreground">Vencimento do plano</p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">Dia {subscriptionSummary.dueDayLabel}</p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        Dia {subscriptionSummary.dueDayLabel}
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">{subscriptionSummary.dueDescription}</p>
                     </div>
                     {!isPremiumUser ? (
@@ -463,7 +464,9 @@ export default function ProfilePage() {
                       <p className="text-sm text-muted-foreground">Insights</p>
                       <p className="mt-2 text-2xl font-semibold text-foreground">{insightsCount}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {isPremiumUser ? "Insights disponiveis para a conta atual." : "Recurso liberado apenas para assinantes premium."}
+                        {isPremiumUser
+                          ? "Insights disponiveis para a conta atual."
+                          : "Recurso liberado apenas para assinantes premium."}
                       </p>
                     </div>
                     {!isPremiumUser ? (
@@ -477,7 +480,9 @@ export default function ProfilePage() {
                 <div className="relative overflow-hidden rounded-xl border border-border/40 bg-secondary/20 p-4">
                   <div className={!isPremiumUser ? "pointer-events-none select-none blur-sm" : undefined}>
                     <p className="text-sm text-muted-foreground">Mes de referencia</p>
-                    <p className="mt-2 text-lg font-semibold capitalize text-foreground">{subscriptionSummary.referenceMonthLabel}</p>
+                    <p className="mt-2 text-lg font-semibold capitalize text-foreground">
+                      {subscriptionSummary.referenceMonthLabel}
+                    </p>
                     <p className="mt-1 text-xs text-muted-foreground">{subscriptionSummary.paymentDescription}</p>
                     <p className="mt-2 text-xs text-muted-foreground">{subscriptionSummary.renewalDescription}</p>
                   </div>
@@ -536,9 +541,10 @@ export default function ProfilePage() {
         </div>
 
         <div className="space-y-6">
-
-
-          <section data-tour-id="profile-shortcuts" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
+          <section
+            data-tour-id="profile-shortcuts"
+            className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5"
+          >
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-foreground">Atalhos</h3>
             </div>

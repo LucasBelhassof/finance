@@ -56,7 +56,13 @@ import {
   getCurrentMonthSelection,
   resolveMonthYearRange,
 } from "@/lib/transactions-date-filter";
-import type { CategoryItem, CreateHousingInput, HousingExpenseType, HousingItem, UpdateHousingInput } from "@/types/api";
+import type {
+  CategoryItem,
+  CreateHousingInput,
+  HousingExpenseType,
+  HousingItem,
+  UpdateHousingInput,
+} from "@/types/api";
 
 type HousingFormState = {
   description: string;
@@ -102,7 +108,10 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
-function buildEmptyForm(selectedMonthIndex = getCurrentMonthSelection().monthIndex, selectedYear = getCurrentMonthSelection().year): HousingFormState {
+function buildEmptyForm(
+  selectedMonthIndex = getCurrentMonthSelection().monthIndex,
+  selectedYear = getCurrentMonthSelection().year,
+): HousingFormState {
   const monthIndex = selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? new Date().getMonth() : selectedMonthIndex;
 
   return {
@@ -141,7 +150,9 @@ function getExpenseTypeColor(type: HousingExpenseType) {
 
 function resolveHousingCategoryId(categories: CategoryItem[], type: HousingExpenseType) {
   const preferredSlug = type === "electricity" ? "energia" : "moradia";
-  const preferred = categories.find((category) => category.transactionType === "expense" && category.slug === preferredSlug);
+  const preferred = categories.find(
+    (category) => category.transactionType === "expense" && category.slug === preferredSlug,
+  );
 
   if (preferred) {
     return preferred.id;
@@ -363,14 +374,16 @@ export default function HousingPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [form, setForm] = useState<HousingFormState>(() => buildEmptyForm(currentSelection.monthIndex, currentSelection.year));
+  const [form, setForm] = useState<HousingFormState>(() =>
+    buildEmptyForm(currentSelection.monthIndex, currentSelection.year),
+  );
 
   const transactionAccounts = useMemo(() => banks.filter((bank) => bank.accountType !== "credit_card"), [banks]);
-  const allOccurrences = useMemo(() => buildHousingOccurrences(expenses, dateRange.endDate), [dateRange.endDate, expenses]);
-  const seriesById = useMemo(
-    () => new Map(expenses.map((expense) => [String(expense.id), expense])),
-    [expenses],
+  const allOccurrences = useMemo(
+    () => buildHousingOccurrences(expenses, dateRange.endDate),
+    [dateRange.endDate, expenses],
   );
+  const seriesById = useMemo(() => new Map(expenses.map((expense) => [String(expense.id), expense])), [expenses]);
   const filteredOccurrences = useMemo(
     () =>
       allOccurrences.filter((occurrence) => {
@@ -627,7 +640,9 @@ export default function HousingPage() {
         <DialogContent className="max-w-[520px] border-border/70 bg-card p-6">
           <DialogHeader>
             <DialogTitle>{editingExpense ? "Editar despesa recorrente" : "Nova despesa recorrente"}</DialogTitle>
-            <DialogDescription>Cadastre aluguel, financiamento, luz, agua, condominio e outras despesas fixas.</DialogDescription>
+            <DialogDescription>
+              Cadastre aluguel, financiamento, luz, agua, condominio e outras despesas fixas.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -684,7 +699,10 @@ export default function HousingPage() {
               />
             ) : null}
 
-            <Select value={form.bankConnectionId} onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}>
+            <Select
+              value={form.bankConnectionId}
+              onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}
+            >
               <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
                 <SelectValue placeholder="Conta ou banco da transação" />
               </SelectTrigger>
@@ -751,7 +769,7 @@ export default function HousingPage() {
             />
 
             <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1">
+              <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:flex-1">
                 <SelectValue placeholder="Todas as contas" />
               </SelectTrigger>
               <SelectContent>
@@ -781,7 +799,10 @@ export default function HousingPage() {
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative flex-1">
-              <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                size={17}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -871,13 +892,16 @@ export default function HousingPage() {
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-foreground">Evolucao das despesas</h2>
             <p className="text-sm text-muted-foreground">
-              Leitura visual por {selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? "mês" : "dia"} das cobranças filtradas.
+              Leitura visual por {selectedMonthIndex === TRANSACTIONS_YEAR_SELECTION ? "mês" : "dia"} das cobranças
+              filtradas.
             </p>
           </div>
 
           {!trendSeries.length ? (
             <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-              {housingError ? "Não foi possível carregar as despesas de habitação." : "Nenhuma despesa encontrada para os filtros atuais."}
+              {housingError
+                ? "Não foi possível carregar as despesas de habitação."
+                : "Nenhuma despesa encontrada para os filtros atuais."}
             </div>
           ) : (
             <div className="h-[320px]">
@@ -885,8 +909,15 @@ export default function HousingPage() {
                 <BarChart data={trendSeries} margin={{ top: 8, right: 12, left: 12, bottom: 4 }}>
                   <CartesianGrid vertical={false} strokeDasharray="4 8" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-                  <YAxis tickFormatter={(value) => formatCurrency(Number(value)).replace("R$", "").trim()} tickLine={false} axisLine={false} width={72} />
-                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(Number(value)).replace("R$", "").trim()}
+                    tickLine={false}
+                    axisLine={false}
+                    width={72}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />}
+                  />
                   <Bar dataKey="amount" fill="var(--color-amount)" radius={[14, 14, 4, 4]} />
                 </BarChart>
               </ChartContainer>
@@ -897,7 +928,9 @@ export default function HousingPage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-5">
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-foreground">Distribuição por tipo</h2>
-            <p className="text-sm text-muted-foreground">Entenda quais despesas pesam mais na sua estrutura de habitação.</p>
+            <p className="text-sm text-muted-foreground">
+              Entenda quais despesas pesam mais na sua estrutura de habitação.
+            </p>
           </div>
           <CategoryPieChart
             items={expenseTypeBreakdown}
@@ -912,14 +945,18 @@ export default function HousingPage() {
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Tabela de despesas recorrentes</h2>
-            <p className="text-sm text-muted-foreground">Gerencie as séries de habitação, revise vencimentos e atualize as recorrências.</p>
+            <p className="text-sm text-muted-foreground">
+              Gerencie as séries de habitação, revise vencimentos e atualize as recorrências.
+            </p>
           </div>
           <div className="text-sm text-muted-foreground">{filteredSeries.length} linhas</div>
         </div>
 
         {!filteredSeries.length ? (
           <div className="rounded-2xl border border-border/30 bg-secondary/20 p-6 text-sm text-muted-foreground">
-            {housingError ? "Não foi possível carregar a tabela de habitação." : "Nenhuma despesa encontrada para os filtros atuais."}
+            {housingError
+              ? "Não foi possível carregar a tabela de habitação."
+              : "Nenhuma despesa encontrada para os filtros atuais."}
           </div>
         ) : (
           <Table className="min-w-[980px]">
@@ -965,7 +1002,9 @@ export default function HousingPage() {
                       <div className="space-y-1">
                         <div className="font-medium text-foreground">{rows.length} no período</div>
                         <div className="text-xs text-muted-foreground">
-                          {expense.installmentCount ? `${rows.length}/${expense.installmentCount} visiveis no recorte` : "Cobrança mensal recorrente"}
+                          {expense.installmentCount
+                            ? `${rows.length}/${expense.installmentCount} visiveis no recorte`
+                            : "Cobrança mensal recorrente"}
                         </div>
                       </div>
                     </TableCell>

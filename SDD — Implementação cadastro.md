@@ -71,6 +71,7 @@ Antes de decidir a arquitetura, considere explicitamente as melhores práticas a
 - melhores padrões visuais para telas de auth
 
 Ao decidir, priorize:
+
 - OWASP
 - documentação oficial do Express
 - documentação oficial das libs sugeridas
@@ -83,6 +84,7 @@ Ao decidir, priorize:
 Planeje a solução assumindo estas decisões como padrão:
 
 ## Frontend
+
 - React
 - Vite
 - TypeScript
@@ -93,6 +95,7 @@ Planeje a solução assumindo estas decisões como padrão:
 - shadcn/ui
 
 ## Backend
+
 - Express
 - TypeScript
 - validação de payload
@@ -103,6 +106,7 @@ Planeje a solução assumindo estas decisões como padrão:
 - cookies HttpOnly para refresh token
 
 ## Sessão
+
 - access token curto
 - access token mantido em memória no frontend
 - refresh token em cookie HttpOnly, Secure e SameSite
@@ -111,6 +115,7 @@ Planeje a solução assumindo estas decisões como padrão:
 - “lembrar login” controlando maior duração da sessão, nunca salvando senha
 
 ## Cadastro
+
 - signup público
 - checagem de duplicidade por e-mail
 - resposta de signup com mesmo shape de login
@@ -119,11 +124,13 @@ Planeje a solução assumindo estas decisões como padrão:
 - aplicação deve suportar empty state real
 
 ## E-mail
+
 - modelar estado de e-mail não verificado
 - preparar extensão futura para verificação de e-mail
 - não bloquear primeira entrega por isso
 
 ## Segurança
+
 - proteção contra brute force
 - proteção contra enumeração
 - mensagens de erro seguras
@@ -138,6 +145,7 @@ Planeje a solução assumindo estas decisões como padrão:
 Quero uma tela de cadastro e um conjunto de telas de auth com padrão premium de mercado.
 
 A experiência deve transmitir:
+
 - modernidade
 - clareza
 - confiança
@@ -145,6 +153,7 @@ A experiência deve transmitir:
 - alto nível de acabamento
 
 ## Requisitos visuais
+
 - layout moderno tipo SaaS
 - card central refinado
 - fundo elegante e sutil
@@ -160,6 +169,7 @@ A experiência deve transmitir:
 - excelente versão desktop
 
 ## Elementos da tela de cadastro
+
 - logo/branding
 - título
 - subtítulo
@@ -175,6 +185,7 @@ A experiência deve transmitir:
 - opcional: bloco visual secundário no desktop
 
 ## Regras de UX
+
 - pedir o mínimo de dados necessário
 - evitar ruído visual
 - estados de erro claros
@@ -182,7 +193,7 @@ A experiência deve transmitir:
 - acessibilidade real
 - teclado funcionando bem
 - labels corretos
-- aria-* quando necessário
+- aria-\* quando necessário
 - contraste adequado
 - responsividade impecável
 
@@ -195,21 +206,29 @@ Sua resposta deve ser um **SDD completo**, seguindo exatamente esta estrutura.
 ---
 
 ## 1. Resumo Executivo
+
 Explique:
+
 - o que será implementado
 - por que essa abordagem foi escolhida
 - impacto na arquitetura
 
 ## 2. Objetivos
+
 ### Objetivos Funcionais
+
 ### Objetivos Não Funcionais
 
 ## 3. Arquitetura do Sistema
+
 ### Frontend
+
 ### Backend
 
 ## 4. Modelagem de Dados
+
 Defina:
+
 - entidades
 - campos
 - constraints
@@ -218,7 +237,9 @@ Defina:
 - sessão e refresh token
 
 ## 5. Fluxos do Sistema
+
 Descreva detalhadamente:
+
 - fluxo de signup
 - fluxo de login
 - fluxo de refresh
@@ -229,7 +250,9 @@ Descreva detalhadamente:
 - fluxo de primeiro acesso com conta vazia
 
 ## 6. Endpoints / Contratos de API
+
 Defina para cada endpoint:
+
 - método
 - rota
 - request
@@ -237,6 +260,7 @@ Defina para cada endpoint:
 - erros possíveis
 
 Inclua no mínimo:
+
 - POST /api/auth/signup
 - POST /api/auth/login
 - POST /api/auth/refresh
@@ -246,7 +270,9 @@ Inclua no mínimo:
 - GET /api/auth/me
 
 ## 7. Segurança
+
 Incluir:
+
 - validação de payload
 - rate limit
 - hash seguro de senha
@@ -259,7 +285,9 @@ Incluir:
 - logs de auditoria recomendados
 
 ## 8. Componentes Frontend
+
 Defina:
+
 - LoginPage
 - SignupPage
 - ForgotPasswordPage
@@ -273,49 +301,55 @@ Defina:
 - services de auth
 
 ## 9. Estrutura de Arquivos
+
 Separar backend e frontend.
 
 ### Backend
+
 Estrutura sugerida:
 src/
-  modules/
-    auth/
-      controllers/
-      services/
-      repositories/
-      routes/
-      schemas/
-      dtos/
-      utils/
-  middlewares/
-  shared/
-  app.ts
-  server.ts
+modules/
+auth/
+controllers/
+services/
+repositories/
+routes/
+schemas/
+dtos/
+utils/
+middlewares/
+shared/
+app.ts
+server.ts
 
 ### Frontend
+
 Estrutura sugerida:
 src/
-  app/
-  modules/
-    auth/
-      pages/
-      components/
-      hooks/
-      services/
-      schemas/
-      types/
-      utils/
-  shared/
-    components/
-    lib/
-    hooks/
-    styles/
+app/
+modules/
+auth/
+pages/
+components/
+hooks/
+services/
+schemas/
+types/
+utils/
+shared/
+components/
+lib/
+hooks/
+styles/
 
 ## 10. Arquivos Impactados
+
 Liste os arquivos que precisariam ser criados ou alterados.
 
 ## 11. Plano de Implementação
+
 Divida em fases:
+
 - Fase 1 — Modelagem
 - Fase 2 — Backend
 - Fase 3 — Frontend
@@ -324,7 +358,9 @@ Divida em fases:
 - Fase 6 — Polimento visual e acessibilidade
 
 ## 12. Verificação
+
 Liste testes necessários:
+
 - cadastro válido
 - e-mail duplicado
 - sessão criada após signup
@@ -337,10 +373,13 @@ Liste testes necessários:
 - responsividade
 
 ## 13. Decisões Arquiteturais
+
 Liste decisões finais tomadas e justifique.
 
 ## 14. Extensões Futuras
+
 Sugerir:
+
 - verificação de e-mail
 - MFA
 - login social

@@ -33,14 +33,25 @@ export function createPdfParseOptions(buffer, filePassword) {
 export function createPdfPasswordError(filePassword) {
   return new ImportBadRequestError(
     filePassword ? "import_pdf_password_invalid" : "import_pdf_password_required",
-    filePassword ? "Senha do PDF incorreta. Verifique e tente novamente." : "Informe a senha do PDF para gerar a previa.",
+    filePassword
+      ? "Senha do PDF incorreta. Verifique e tente novamente."
+      : "Informe a senha do PDF para gerar a previa.",
     { requiresPassword: true },
   );
 }
 
 const headerAliases = {
   date: ["data", "data lancamento", "data lançamento", "data movimento", "dt lancamento", "dt lançamento", "date"],
-  description: ["descricao", "descrição", "historico", "histórico", "lançamento", "lancamento", "detalhes", "descricao movimento"],
+  description: [
+    "descricao",
+    "descrição",
+    "historico",
+    "histórico",
+    "lançamento",
+    "lancamento",
+    "detalhes",
+    "descricao movimento",
+  ],
   amount: ["valor", "amount", "valor rs", "valor r$", "valor (r$)", "valor da transacao", "valor da transação"],
   debit: ["debito", "débito", "saidas", "saída", "saida", "valor debito", "valor débito"],
   credit: ["credito", "crédito", "entradas", "entrada", "valor credito", "valor crédito"],
@@ -99,13 +110,62 @@ const matchKeyNoiseTokens = new Set([
 ]);
 
 const importRules = [
-  { id: "salary", priority: 100, matchType: "contains", patterns: ["salario", "salary", "folha pag"], categoryKey: "salary", typeOverride: "income" },
-  { id: "freelance", priority: 95, matchType: "contains", patterns: ["freelance", "projeto freelance"], categoryKey: "freelance", typeOverride: "income" },
-  { id: "market", priority: 75, matchType: "contains", patterns: ["mercado", "supermercado", "pao de acucar", "pão de açucar", "feira"], categoryKey: "grocery", typeOverride: "expense" },
-  { id: "transport", priority: 70, matchType: "contains", patterns: ["uber", "99app", "taxi", "combustivel", "combustível", "posto"], categoryKey: "transport", typeOverride: "expense" },
-  { id: "housing", priority: 60, matchType: "contains", patterns: ["aluguel", "condominio", "condomínio", "internet residencial"], categoryKey: "housing", typeOverride: "expense" },
-  { id: "utilities", priority: 55, matchType: "contains", patterns: ["energia", "conta de luz", "enel"], categoryKey: "utilities", typeOverride: "expense" },
-  { id: "health", priority: 50, matchType: "contains", patterns: ["farmacia", "farmácia", "academia", "hospital", "clinica", "clínica"], categoryKey: "health", typeOverride: "expense" },
+  {
+    id: "salary",
+    priority: 100,
+    matchType: "contains",
+    patterns: ["salario", "salary", "folha pag"],
+    categoryKey: "salary",
+    typeOverride: "income",
+  },
+  {
+    id: "freelance",
+    priority: 95,
+    matchType: "contains",
+    patterns: ["freelance", "projeto freelance"],
+    categoryKey: "freelance",
+    typeOverride: "income",
+  },
+  {
+    id: "market",
+    priority: 75,
+    matchType: "contains",
+    patterns: ["mercado", "supermercado", "pao de acucar", "pão de açucar", "feira"],
+    categoryKey: "grocery",
+    typeOverride: "expense",
+  },
+  {
+    id: "transport",
+    priority: 70,
+    matchType: "contains",
+    patterns: ["uber", "99app", "taxi", "combustivel", "combustível", "posto"],
+    categoryKey: "transport",
+    typeOverride: "expense",
+  },
+  {
+    id: "housing",
+    priority: 60,
+    matchType: "contains",
+    patterns: ["aluguel", "condominio", "condomínio", "internet residencial"],
+    categoryKey: "housing",
+    typeOverride: "expense",
+  },
+  {
+    id: "utilities",
+    priority: 55,
+    matchType: "contains",
+    patterns: ["energia", "conta de luz", "enel"],
+    categoryKey: "utilities",
+    typeOverride: "expense",
+  },
+  {
+    id: "health",
+    priority: 50,
+    matchType: "contains",
+    patterns: ["farmacia", "farmácia", "academia", "hospital", "clinica", "clínica"],
+    categoryKey: "health",
+    typeOverride: "expense",
+  },
 ];
 
 function cleanupExpiredPreviewSessions() {
@@ -199,7 +259,11 @@ function decodeCsvBuffer(buffer) {
 }
 
 function isPdfUpload(contentType, filename) {
-  return String(contentType ?? "").toLowerCase().includes("pdf") || /\.pdf$/i.test(String(filename ?? ""));
+  return (
+    String(contentType ?? "")
+      .toLowerCase()
+      .includes("pdf") || /\.pdf$/i.test(String(filename ?? ""))
+  );
 }
 
 function titleCaseWords(value) {
@@ -285,10 +349,7 @@ export function extractInstallmentMetadata(description) {
     };
   }
 
-  const patterns = [
-    /\bparcela\s+(\d{1,2})\s*(?:de|\/)\s*(\d{1,2})\b/i,
-    /\b(\d{1,2})\/(\d{1,2})\b/,
-  ];
+  const patterns = [/\bparcela\s+(\d{1,2})\s*(?:de|\/)\s*(\d{1,2})\b/i, /\b(\d{1,2})\/(\d{1,2})\b/];
 
   for (const pattern of patterns) {
     const match = normalizedDescription.match(pattern);
@@ -383,7 +444,14 @@ export function buildInstallmentPurchaseSeedKey(
 export function buildInstallmentTransactionSeedKey(userId, installmentPurchaseSeedKey, installmentNumber) {
   return crypto
     .createHash("sha256")
-    .update([String(userId), String(installmentPurchaseSeedKey), String(installmentNumber), "installment_transaction_v1"].join("|"))
+    .update(
+      [
+        String(userId),
+        String(installmentPurchaseSeedKey),
+        String(installmentNumber),
+        "installment_transaction_v1",
+      ].join("|"),
+    )
     .digest("hex");
 }
 
@@ -407,7 +475,9 @@ export function extractImportFileMetadata(filename) {
     const year = Number(fullDateMatch[2]);
     const month = Number(fullDateMatch[3]);
     const day = Number(fullDateMatch[4]);
-    const statementDueDate = parseOccurredOnInput(`${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+    const statementDueDate = parseOccurredOnInput(
+      `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    );
 
     return {
       originalFilename: rawFilename,
@@ -498,7 +568,8 @@ function addCardContextToDescription(rows) {
 
   return rows.map((row) => ({
     ...row,
-    description: distinctCards.size > 1 && row.cardSuffix ? `Cartao ${row.cardSuffix} - ${row.description}` : row.description,
+    description:
+      distinctCards.size > 1 && row.cardSuffix ? `Cartao ${row.cardSuffix} - ${row.description}` : row.description,
   }));
 }
 
@@ -584,7 +655,11 @@ export function detectPdfIssuer(text, filename) {
     return "inter";
   }
 
-  if (normalizedFilename.includes("itau") || normalizedText.includes("itaucartoes") || normalizedText.includes("itau")) {
+  if (
+    normalizedFilename.includes("itau") ||
+    normalizedText.includes("itaucartoes") ||
+    normalizedText.includes("itau")
+  ) {
     return "itau";
   }
 
@@ -861,9 +936,9 @@ function splitCsvRows(text, delimiter) {
     const character = text[index];
     const next = text[index + 1];
 
-    if (character === "\"") {
-      if (quoted && next === "\"") {
-        current += "\"";
+    if (character === '"') {
+      if (quoted && next === '"') {
+        current += '"';
         index += 1;
         continue;
       }
@@ -1248,11 +1323,7 @@ function buildPreviewItem({
   try {
     if (typeof headerIndexes.amount === "number") {
       const parsed = parseAmountInput(rowValues[headerIndexes.amount]);
-      type = importLayout === "credit_card_statement"
-        ? "expense"
-        : parsed < 0
-          ? "expense"
-          : "income";
+      type = importLayout === "credit_card_statement" ? "expense" : parsed < 0 ? "expense" : "income";
       absoluteAmount = Math.abs(parsed);
     } else {
       const debitValue = String(rowValues[headerIndexes.debit] ?? "").trim();
@@ -1417,11 +1488,12 @@ function buildHistoricalCategorizationMatches(rows) {
       continue;
     }
 
-    const type = row.transaction_type === "income" || row.transaction_type === "expense"
-      ? row.transaction_type
-      : Number(row.amount) >= 0
-        ? "income"
-        : "expense";
+    const type =
+      row.transaction_type === "income" || row.transaction_type === "expense"
+        ? row.transaction_type
+        : Number(row.amount) >= 0
+          ? "income"
+          : "expense";
     const comboKey = `${type}:${row.category_id}`;
     const entry = grouped.get(matchKey) ?? new Map();
     const current = entry.get(comboKey) ?? { type, categoryId: row.category_id, count: 0, latestOccurredOn: "" };
@@ -1451,9 +1523,11 @@ function buildHistoricalCategorizationMatches(rows) {
 }
 
 function getDefaultExpenseCategory(categories) {
-  return categories.find(
-    (item) => item.transactionType === "expense" && String(item.slug ?? "") === DEFAULT_EXPENSE_CATEGORY_SLUG,
-  ) ?? null;
+  return (
+    categories.find(
+      (item) => item.transactionType === "expense" && String(item.slug ?? "") === DEFAULT_EXPENSE_CATEGORY_SLUG,
+    ) ?? null
+  );
 }
 
 function buildRecurringRuleMatches(rows) {
@@ -1746,13 +1820,7 @@ export function normalizeAiCategorizationResult(raw, allowedCategoryMap) {
   };
 }
 
-export async function enrichPreviewSessionWithAi({
-  session,
-  categories,
-  rowIndexes,
-  maxRows,
-  suggestCategories,
-}) {
+export async function enrichPreviewSessionWithAi({ session, categories, rowIndexes, maxRows, suggestCategories }) {
   const requestedIndexes = normalizeRowIndexes(rowIndexes, session, maxRows);
   const targetItems = session.items.filter((item) => requestedIndexes.includes(item.rowIndex));
   const pendingItems = [];
@@ -2121,16 +2189,17 @@ export function buildImportedTransactionEntries({ normalizedLine, previewItem })
       ? Number(previewItem.generatedInstallmentCount)
       : hasInstallmentMetadata
         ? Number(previewItem.installmentCount)
-      : 1;
-  const installmentStartOffset =
-    hasInstallmentMetadata ? 1 - Number(previewItem.installmentIndex) : 0;
+        : 1;
+  const installmentStartOffset = hasInstallmentMetadata ? 1 - Number(previewItem.installmentIndex) : 0;
 
   return Array.from({ length: generatedInstallmentCount }, (_, index) => ({
     description:
-      hasInstallmentMetadata &&
-      previewItem?.purchaseDescriptionBase &&
-      Number.isInteger(previewItem.installmentCount)
-        ? formatInstallmentDescription(previewItem.purchaseDescriptionBase, index + 1, Number(previewItem.installmentCount))
+      hasInstallmentMetadata && previewItem?.purchaseDescriptionBase && Number.isInteger(previewItem.installmentCount)
+        ? formatInstallmentDescription(
+            previewItem.purchaseDescriptionBase,
+            index + 1,
+            Number(previewItem.installmentCount),
+          )
         : normalizedLine.description,
     descriptionBase:
       previewItem?.purchaseDescriptionBase && previewItem?.normalizedPurchaseDescriptionBase
@@ -2146,7 +2215,9 @@ export function buildImportedTransactionEntries({ normalizedLine, previewItem })
     purchaseOccurredOn: previewItem?.purchaseOccurredOn ?? normalizedLine.normalizedOccurredOn,
     type: normalizedLine.type,
     installmentCount:
-      hasInstallmentMetadata && Number.isInteger(previewItem.installmentCount) ? Number(previewItem.installmentCount) : null,
+      hasInstallmentMetadata && Number.isInteger(previewItem.installmentCount)
+        ? Number(previewItem.installmentCount)
+        : null,
     installmentNumber: hasInstallmentMetadata ? index + 1 : null,
   }));
 }

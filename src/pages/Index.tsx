@@ -9,10 +9,7 @@ import SpendingChart from "@/components/SpendingChart";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { useUrlPeriodFilter } from "@/hooks/use-url-period-filter";
 import { resolveDayPeriodGreeting } from "@/lib/greeting";
-import {
-  getCurrentMonthSelection,
-  resolveMonthYearRange,
-} from "@/lib/transactions-date-filter";
+import { getCurrentMonthSelection, resolveMonthYearRange } from "@/lib/transactions-date-filter";
 
 export default function Index() {
   const currentSelection = getCurrentMonthSelection();

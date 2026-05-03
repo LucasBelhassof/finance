@@ -308,7 +308,10 @@ function normalizeItem(rawItem) {
     };
   }
 
-  if (status === "suggested" && (suggestedType === null || suggestedType === undefined || !categoryKey || typeof categoryKey !== "string")) {
+  if (
+    status === "suggested" &&
+    (suggestedType === null || suggestedType === undefined || !categoryKey || typeof categoryKey !== "string")
+  ) {
     return {
       rowIndex,
       suggestedType: null,

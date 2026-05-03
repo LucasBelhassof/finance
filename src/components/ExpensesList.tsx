@@ -60,7 +60,9 @@ export default function ExpensesList({ transactions = [], isLoading, isError }: 
         <div className="space-y-1">
           {transactions.map((transaction) => {
             const Icon = transaction.category.icon;
-            const categoryColor = resolveCategoryColorPresentation(transaction.category.color || transaction.category.groupColor);
+            const categoryColor = resolveCategoryColorPresentation(
+              transaction.category.color || transaction.category.groupColor,
+            );
 
             return (
               <Link

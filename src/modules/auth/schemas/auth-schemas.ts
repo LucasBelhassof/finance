@@ -10,7 +10,10 @@ export const signupFormSchema = z
   .object({
     name: z.string().trim().min(1, "Informe seu nome.").max(100, "O nome pode ter no maximo 100 caracteres."),
     email: z.string().trim().email("Informe um e-mail valido."),
-    password: z.string().min(8, "A senha precisa ter pelo menos 8 caracteres.").max(72, "A senha pode ter no maximo 72 caracteres."),
+    password: z
+      .string()
+      .min(8, "A senha precisa ter pelo menos 8 caracteres.")
+      .max(72, "A senha pode ter no maximo 72 caracteres."),
     confirmPassword: z.string().min(1, "Confirme sua senha."),
     rememberMe: z.boolean().default(false),
   })
@@ -48,7 +51,10 @@ export const settingsAccountFormSchema = z
 export const settingsPasswordFormSchema = z
   .object({
     currentPassword: z.string().min(1, "Informe a senha atual."),
-    newPassword: z.string().min(8, "A nova senha precisa ter pelo menos 8 caracteres.").max(72, "A senha pode ter no maximo 72 caracteres."),
+    newPassword: z
+      .string()
+      .min(8, "A nova senha precisa ter pelo menos 8 caracteres.")
+      .max(72, "A senha pode ter no maximo 72 caracteres."),
     confirmPassword: z.string().min(8, "Confirme a nova senha."),
   })
   .refine((value) => value.newPassword === value.confirmPassword, {
@@ -132,13 +138,13 @@ export const settingsContactFormSchema = z
   .superRefine((value, context) => {
     const hasAnyAddressField = Boolean(
       value.addressStreet ||
-        value.addressNumber ||
-        value.addressComplement ||
-        value.addressNeighborhood ||
-        value.addressCity ||
-        value.addressState ||
-        value.addressPostalCode ||
-        value.addressCountry,
+      value.addressNumber ||
+      value.addressComplement ||
+      value.addressNeighborhood ||
+      value.addressCity ||
+      value.addressState ||
+      value.addressPostalCode ||
+      value.addressCountry,
     );
 
     if (!hasAnyAddressField) {

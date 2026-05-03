@@ -32,22 +32,24 @@ type ImportTransactionCardProps = {
   onOpenCreateCategory: () => void;
 };
 
-
 function StatusDot({ row, compact }: { row: ImportTransactionCardRow; compact?: boolean }) {
   const configs = {
-    ignored:  { dot: "bg-muted-foreground", label: "Ignorado",  labelClass: "text-muted-foreground" },
-    error:    { dot: "bg-destructive",      label: "Erro",       labelClass: "text-destructive" },
-    duplicate:{ dot: "bg-orange-400",       label: "Duplicata",  labelClass: "text-orange-400" },
-    review:   { dot: "bg-warning",          label: "Revisar",    labelClass: "text-warning" },
-    ok:       { dot: "bg-green-400",        label: "Pronto",     labelClass: "text-green-400" },
+    ignored: { dot: "bg-muted-foreground", label: "Ignorado", labelClass: "text-muted-foreground" },
+    error: { dot: "bg-destructive", label: "Erro", labelClass: "text-destructive" },
+    duplicate: { dot: "bg-orange-400", label: "Duplicata", labelClass: "text-orange-400" },
+    review: { dot: "bg-warning", label: "Revisar", labelClass: "text-warning" },
+    ok: { dot: "bg-green-400", label: "Pronto", labelClass: "text-green-400" },
   };
 
-  const cfg =
-    row.isIgnored   ? configs.ignored :
-    row.hasError    ? configs.error :
-    row.isDuplicate ? configs.duplicate :
-    row.needsReview ? configs.review :
-    configs.ok;
+  const cfg = row.isIgnored
+    ? configs.ignored
+    : row.hasError
+      ? configs.error
+      : row.isDuplicate
+        ? configs.duplicate
+        : row.needsReview
+          ? configs.review
+          : configs.ok;
 
   return (
     <span className="flex items-center gap-1.5 whitespace-nowrap">
@@ -84,11 +86,7 @@ export default function ImportTransactionCard({
 
   const typeLabel = draft.type === "income" ? "Receita" : draft.type === "expense" ? "Despesa" : "?";
   const amountClass =
-    draft.type === "income"
-      ? "text-green-400"
-      : draft.type === "expense"
-        ? "text-red-400"
-        : "text-foreground";
+    draft.type === "income" ? "text-green-400" : draft.type === "expense" ? "text-red-400" : "text-foreground";
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -121,17 +119,21 @@ export default function ImportTransactionCard({
           <CollapsibleTrigger asChild>
             <button type="button" className="group min-w-0 flex-1 cursor-pointer text-left">
               <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
-                {draft.description ? (draft.description.length > 20 ? `${draft.description.slice(0, 20)}…` : draft.description) : "—"}
+                {draft.description
+                  ? draft.description.length > 20
+                    ? `${draft.description.slice(0, 20)}…`
+                    : draft.description
+                  : "—"}
               </p>
               <p className="hidden truncate text-xs text-muted-foreground sm:block">
-                {[bankName, categoryName].filter(Boolean).join(" · ") || <span className="italic">conta e categoria não definidas</span>}
+                {[bankName, categoryName].filter(Boolean).join(" · ") || (
+                  <span className="italic">conta e categoria não definidas</span>
+                )}
               </p>
             </button>
           </CollapsibleTrigger>
 
-          <span className={cn("shrink-0 text-sm font-semibold tabular-nums", amountClass)}>
-            {draft.amount || "—"}
-          </span>
+          <span className={cn("shrink-0 text-sm font-semibold tabular-nums", amountClass)}>{draft.amount || "—"}</span>
 
           <Badge
             variant="outline"
@@ -151,9 +153,7 @@ export default function ImportTransactionCard({
               className="shrink-0 text-muted-foreground hover:text-foreground"
               aria-label={isOpen ? "Recolher linha" : "Expandir linha"}
             >
-              <ChevronDown
-                className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")}
-              />
+              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
             </button>
           </CollapsibleTrigger>
         </div>
@@ -208,17 +208,13 @@ export default function ImportTransactionCard({
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Categoria</p>
                 <Select
                   value={categoryValue || undefined}
-                  onValueChange={(value) =>
-                    onChange({ categoryId: value === "__uncategorized__" ? "" : value })
-                  }
+                  onValueChange={(value) => onChange({ categoryId: value === "__uncategorized__" ? "" : value })}
                 >
                   <SelectTrigger className="h-9 rounded-xl border-border/50 bg-secondary/30">
                     <SelectValue placeholder={draft.type === "income" ? "Categoria obrigatória" : "Categoria"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {draft.type === "expense" ? (
-                      <SelectItem value="__uncategorized__">Compras</SelectItem>
-                    ) : null}
+                    {draft.type === "expense" ? <SelectItem value="__uncategorized__">Compras</SelectItem> : null}
                     {filteredCategories.map((category) => (
                       <SelectItem key={category.id} value={String(category.id)}>
                         {category.label}
@@ -226,7 +222,13 @@ export default function ImportTransactionCard({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="link" size="sm" className="h-6 px-0 text-xs" onClick={onOpenCreateCategory}>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-6 px-0 text-xs"
+                  onClick={onOpenCreateCategory}
+                >
                   + Nova categoria
                 </Button>
               </div>
@@ -257,7 +259,9 @@ export default function ImportTransactionCard({
                     {issue.message}
                   </p>
                 ))}
-                {item.externalId ? <p className="text-xs text-muted-foreground">ID externo: {item.externalId}</p> : null}
+                {item.externalId ? (
+                  <p className="text-xs text-muted-foreground">ID externo: {item.externalId}</p>
+                ) : null}
               </div>
             ) : null}
 

@@ -79,10 +79,7 @@ vi.mock("@/components/ui/date-picker-input", () => ({
     endValue: string | null;
     onChange: (range: { startValue: string | null; endValue: string | null }) => void;
   }) => (
-    <button
-      type="button"
-      onClick={() => onChange({ startValue: "2026-06-01", endValue: "2026-06-30" })}
-    >
+    <button type="button" onClick={() => onChange({ startValue: "2026-06-01", endValue: "2026-06-30" })}>
       {startValue && endValue ? `${startValue}:${endValue}` : "mock-range-picker"}
     </button>
   ),

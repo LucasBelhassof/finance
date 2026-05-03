@@ -81,10 +81,22 @@ describe("Sidebar", () => {
 
     expect(expenseManagementButton).toBeInTheDocument();
     expect(getClosestElement<HTMLAnchorElement>(/^trans/i, "a")).toHaveAttribute("href", appRoutes.transactions);
-    expect(getClosestElement<HTMLAnchorElement>(/^receitas recorrentes/i, "a")).toHaveAttribute("href", appRoutes.expenseManagementRecurringIncome);
-    expect(getClosestElement<HTMLAnchorElement>(/^parcel/i, "a")).toHaveAttribute("href", appRoutes.expenseManagementInstallments);
-    expect(getClosestElement<HTMLAnchorElement>(/^hab/i, "a")).toHaveAttribute("href", appRoutes.expenseManagementHousing);
-    expect(getClosestElement<HTMLAnchorElement>(/métricas|metricas/i, "a")).toHaveAttribute("href", appRoutes.expenseManagementMetrics);
+    expect(getClosestElement<HTMLAnchorElement>(/^receitas recorrentes/i, "a")).toHaveAttribute(
+      "href",
+      appRoutes.expenseManagementRecurringIncome,
+    );
+    expect(getClosestElement<HTMLAnchorElement>(/^parcel/i, "a")).toHaveAttribute(
+      "href",
+      appRoutes.expenseManagementInstallments,
+    );
+    expect(getClosestElement<HTMLAnchorElement>(/^hab/i, "a")).toHaveAttribute(
+      "href",
+      appRoutes.expenseManagementHousing,
+    );
+    expect(getClosestElement<HTMLAnchorElement>(/métricas|metricas/i, "a")).toHaveAttribute(
+      "href",
+      appRoutes.expenseManagementMetrics,
+    );
   });
 
   it("opens and marks expense management active on nested routes", () => {
@@ -105,8 +117,12 @@ describe("Sidebar", () => {
 
     renderSidebar(appRoutes.adminOverview);
 
-    const adminOverviewLink = screen.getAllByRole("link").find((link) => link.getAttribute("href") === appRoutes.adminOverview);
-    const adminAiUsageLink = screen.getAllByRole("link").find((link) => link.getAttribute("href") === appRoutes.adminAiUsage);
+    const adminOverviewLink = screen
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("href") === appRoutes.adminOverview);
+    const adminAiUsageLink = screen
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("href") === appRoutes.adminAiUsage);
 
     expect(adminOverviewLink).toBeTruthy();
     expect(adminAiUsageLink).toBeTruthy();

@@ -1,4 +1,16 @@
-import { Check, CheckCircle2, ChevronLeft, Link2, Loader2, MessageSquareText, Pencil, Sparkles, Trash2, Unlink, X } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  Link2,
+  Loader2,
+  MessageSquareText,
+  Pencil,
+  Sparkles,
+  Trash2,
+  Unlink,
+  X,
+} from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -27,13 +39,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useChatConversationMessages, useChatConversations } from "@/hooks/use-chat";
@@ -137,7 +143,13 @@ function ChatSummaryPanel({
         <div className="mt-5 rounded-lg border border-border/40 bg-secondary/20 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h4 className="text-sm font-semibold text-foreground">Resumo textual salvo</h4>
-            <Button type="button" variant="secondary" size="sm" onClick={onGenerateSummary} disabled={isGeneratingSummary}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onGenerateSummary}
+              disabled={isGeneratingSummary}
+            >
               {isGeneratingSummary ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
               Gerar resumo
             </Button>
@@ -159,7 +171,10 @@ function ChatSummaryPanel({
             {summary.questions.length ? (
               <div className="mt-3 space-y-2">
                 {summary.questions.map((question, index) => (
-                  <p key={`${question}-${index}`} className="rounded-md bg-background/70 p-3 text-sm text-muted-foreground">
+                  <p
+                    key={`${question}-${index}`}
+                    className="rounded-md bg-background/70 p-3 text-sm text-muted-foreground"
+                  >
                     {question}
                   </p>
                 ))}
@@ -174,7 +189,10 @@ function ChatSummaryPanel({
             {summary.answers.length ? (
               <div className="mt-3 space-y-2">
                 {summary.answers.map((answer, index) => (
-                  <p key={`${answer}-${index}`} className="rounded-md bg-background/70 p-3 text-sm text-muted-foreground">
+                  <p
+                    key={`${answer}-${index}`}
+                    className="rounded-md bg-background/70 p-3 text-sm text-muted-foreground"
+                  >
                     {answer}
                   </p>
                 ))}
@@ -198,9 +216,7 @@ function ChatSummaryPanel({
               <div
                 key={message.id}
                 className={`rounded-lg border p-3 ${
-                  message.role === "user"
-                    ? "border-primary/30 bg-primary/10"
-                    : "border-border/40 bg-secondary/20"
+                  message.role === "user" ? "border-primary/30 bg-primary/10" : "border-border/40 bg-secondary/20"
                 }`}
               >
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -237,7 +253,11 @@ export default function PlanDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [unlinkingChat, setUnlinkingChat] = useState<ChatConversation | null>(null);
   const [editingItemId, setEditingItemId] = useState<number | string | null>(null);
-  const [editingItemForm, setEditingItemForm] = useState<{ title: string; description: string; priority: PlanPriority } | null>(null);
+  const [editingItemForm, setEditingItemForm] = useState<{
+    title: string;
+    description: string;
+    priority: PlanPriority;
+  } | null>(null);
   const [activeChatId, setActiveChatId] = useState("");
   const activeChat = plan?.chats.find((chat) => chat.id === activeChatId) ?? plan?.chats[0] ?? null;
   const { data: activeMessages = [], isLoading: isLoadingMessages } = useChatConversationMessages(activeChat?.id, 100);
@@ -388,7 +408,9 @@ export default function PlanDetailPage() {
   };
 
   const handleCreatedInvestment = (investment: InvestmentItem) => {
-    setPlanForm((currentForm) => (currentForm ? applyCreatedInvestmentToPlanForm(currentForm, investment) : currentForm));
+    setPlanForm((currentForm) =>
+      currentForm ? applyCreatedInvestmentToPlanForm(currentForm, investment) : currentForm,
+    );
   };
 
   const handleUpdatePlanItems = async (nextItems: PlanItem[]) => {
@@ -494,9 +516,7 @@ export default function PlanDetailPage() {
   if (isError || !plan) {
     return (
       <AppShell title="Planejamento" description="Nao foi possivel carregar este planejamento">
-        <div className="glass-card p-6 text-sm text-muted-foreground">
-          Planejamento nao encontrado ou indisponivel.
-        </div>
+        <div className="glass-card p-6 text-sm text-muted-foreground">Planejamento nao encontrado ou indisponivel.</div>
       </AppShell>
     );
   }
@@ -573,7 +593,10 @@ export default function PlanDetailPage() {
                 {recommendations
                   .filter((item) => item.status === "pending")
                   .map((recommendation) => (
-                    <div key={String(recommendation.id)} className="rounded-lg border border-border/40 bg-secondary/20 p-4">
+                    <div
+                      key={String(recommendation.id)}
+                      className="rounded-lg border border-border/40 bg-secondary/20 p-4"
+                    >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-sm font-semibold text-foreground">{recommendation.title}</p>
@@ -617,7 +640,9 @@ export default function PlanDetailPage() {
                                 <Input
                                   value={editingItemForm.title}
                                   onChange={(event) =>
-                                    setEditingItemForm((current) => (current ? { ...current, title: event.target.value } : current))
+                                    setEditingItemForm((current) =>
+                                      current ? { ...current, title: event.target.value } : current,
+                                    )
                                   }
                                   placeholder="Titulo da meta"
                                   className="min-w-0 flex-1"
@@ -648,7 +673,9 @@ export default function PlanDetailPage() {
                               <Textarea
                                 value={editingItemForm.description}
                                 onChange={(event) =>
-                                  setEditingItemForm((current) => (current ? { ...current, description: event.target.value } : current))
+                                  setEditingItemForm((current) =>
+                                    current ? { ...current, description: event.target.value } : current,
+                                  )
                                 }
                                 placeholder="Detalhes opcionais"
                                 rows={4}
@@ -661,7 +688,9 @@ export default function PlanDetailPage() {
                               <Badge variant="outline" className="mt-1">
                                 Prioridade {getPriorityLabel(item.priority)}
                               </Badge>
-                              {item.description ? <p className="mt-1 text-sm text-muted-foreground">{item.description}</p> : null}
+                              {item.description ? (
+                                <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                              ) : null}
                             </>
                           )}
                         </div>
@@ -676,7 +705,11 @@ export default function PlanDetailPage() {
                               onClick={() => handleSaveItem(item.id)}
                               disabled={updatePlan.isPending}
                             >
-                              {updatePlan.isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                              {updatePlan.isPending ? (
+                                <Loader2 size={15} className="animate-spin" />
+                              ) : (
+                                <Check size={15} />
+                              )}
                               Salvar
                             </Button>
                             <Button
@@ -821,7 +854,10 @@ export default function PlanDetailPage() {
             <DialogTitle>Vincular chat</DialogTitle>
             <DialogDescription>Escolha um chat para anexar ao planejamento.</DialogDescription>
           </DialogHeader>
-          <Select value={linkChatId || EMPTY_SELECT_VALUE} onValueChange={(value) => setLinkChatId(value === EMPTY_SELECT_VALUE ? "" : value)}>
+          <Select
+            value={linkChatId || EMPTY_SELECT_VALUE}
+            onValueChange={(value) => setLinkChatId(value === EMPTY_SELECT_VALUE ? "" : value)}
+          >
             <SelectTrigger className={MODAL_SELECT_TRIGGER_CLASSNAME}>
               <SelectValue placeholder="Selecione um chat" />
             </SelectTrigger>
@@ -875,9 +911,7 @@ export default function PlanDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmUnlinkChat}>
-              Desvincular chat
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmUnlinkChat}>Desvincular chat</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -85,9 +85,12 @@ export function normalizeInvestmentCoreForm(form: InvestmentCoreFormState): Crea
     name: form.name.trim(),
     description: form.description.trim(),
     contributionMode: form.contributionMode,
-    fixedAmount: form.contributionMode === "fixed_amount" ? Number(parseDecimalInput(form.fixedAmount).toFixed(2)) : null,
+    fixedAmount:
+      form.contributionMode === "fixed_amount" ? Number(parseDecimalInput(form.fixedAmount).toFixed(2)) : null,
     incomePercentage:
-      form.contributionMode === "income_percentage" ? Number(parseDecimalInput(form.incomePercentage).toFixed(2)) : null,
+      form.contributionMode === "income_percentage"
+        ? Number(parseDecimalInput(form.incomePercentage).toFixed(2))
+        : null,
     currentAmount: Number(parseDecimalInput(form.currentAmount || "0").toFixed(2)),
     targetAmount: form.targetAmount.trim() ? Number(parseDecimalInput(form.targetAmount).toFixed(2)) : null,
     status: form.status,

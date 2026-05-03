@@ -23,13 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
@@ -334,7 +328,9 @@ export default function AccountsPage() {
                 setForm((current) => ({
                   ...current,
                   name: event.target.value,
-                  color: hasManualColorSelection ? current.color : getSuggestedAccountColor(event.target.value, current.accountType),
+                  color: hasManualColorSelection
+                    ? current.color
+                    : getSuggestedAccountColor(event.target.value, current.accountType),
                 }))
               }
               placeholder="Nome da conta ou cartão"
@@ -428,19 +424,25 @@ export default function AccountsPage() {
                       <span>Notificar fatura fechada</span>
                       <Switch
                         checked={form.notifyInvoiceClosed}
-                        onCheckedChange={(checked) => setForm((current) => ({ ...current, notifyInvoiceClosed: checked }))}
+                        onCheckedChange={(checked) =>
+                          setForm((current) => ({ ...current, notifyInvoiceClosed: checked }))
+                        }
                       />
                     </label>
                     <label className="flex items-center justify-between gap-4 text-sm text-foreground">
                       <span>Notificar vencimento próximo</span>
                       <Switch
                         checked={form.notifyInvoiceDueSoon}
-                        onCheckedChange={(checked) => setForm((current) => ({ ...current, notifyInvoiceDueSoon: checked }))}
+                        onCheckedChange={(checked) =>
+                          setForm((current) => ({ ...current, notifyInvoiceDueSoon: checked }))
+                        }
                       />
                     </label>
                     <Input
                       value={form.invoiceDueReminderDays}
-                      onChange={(event) => setForm((current) => ({ ...current, invoiceDueReminderDays: event.target.value }))}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, invoiceDueReminderDays: event.target.value }))
+                      }
                       placeholder="Dias antes do vencimento"
                       inputMode="numeric"
                       className="h-11 rounded-xl border-border/60 bg-background/60"
@@ -480,7 +482,10 @@ export default function AccountsPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => void handleSave()} disabled={createBankConnection.isPending || updateBankConnection.isPending}>
+            <Button
+              onClick={() => void handleSave()}
+              disabled={createBankConnection.isPending || updateBankConnection.isPending}
+            >
               {createBankConnection.isPending || updateBankConnection.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
@@ -491,10 +496,17 @@ export default function AccountsPage() {
         <Button variant="outline" className="w-full sm:w-auto" onClick={() => openCreateDialog("bank_account")}>
           Nova conta
         </Button>
-        <Button variant="outline" className="w-full sm:w-auto" onClick={() => openCreateDialog("credit_card")} disabled={!hasBankAccounts}>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => openCreateDialog("credit_card")}
+          disabled={!hasBankAccounts}
+        >
           Novo cartão
         </Button>
-        <Button className="w-full sm:w-auto" onClick={() => openCreateDialog("cash")}>Caixa / Dinheiro</Button>
+        <Button className="w-full sm:w-auto" onClick={() => openCreateDialog("cash")}>
+          Caixa / Dinheiro
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -517,7 +529,9 @@ export default function AccountsPage() {
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-[1.35rem] font-semibold text-foreground sm:text-[1.6rem]">Estrutura financeira</h2>
-              <p className="text-sm text-muted-foreground">Uma conta bancária pode concentrar vários cartões vinculados.</p>
+              <p className="text-sm text-muted-foreground">
+                Uma conta bancária pode concentrar vários cartões vinculados.
+              </p>
             </div>
           </div>
 
@@ -531,7 +545,12 @@ export default function AccountsPage() {
                 <div key={account.id} className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-3">
-                      <div className={cn("mt-1 flex h-10 w-10 items-center justify-center rounded-xl text-foreground", account.color)}>
+                      <div
+                        className={cn(
+                          "mt-1 flex h-10 w-10 items-center justify-center rounded-xl text-foreground",
+                          account.color,
+                        )}
+                      >
                         <AccountTypeIcon accountType="bank_account" />
                       </div>
                       <div className="min-w-0">
@@ -551,25 +570,42 @@ export default function AccountsPage() {
                   {cards.length ? (
                     <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
                       {cards.map((card) => (
-                        <div key={card.id} className="flex flex-col gap-3 rounded-xl border border-border/30 bg-card/50 p-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div
+                          key={card.id}
+                          className="flex flex-col gap-3 rounded-xl border border-border/30 bg-card/50 p-3 sm:flex-row sm:items-start sm:justify-between"
+                        >
                           <div className="flex items-start gap-3">
-                            <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg text-foreground", card.color)}>
+                            <div
+                              className={cn(
+                                "flex h-9 w-9 items-center justify-center rounded-lg text-foreground",
+                                card.color,
+                              )}
+                            >
                               <AccountTypeIcon accountType="credit_card" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-foreground">{card.name}</p>
-                                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">Cartão</span>
+                                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">
+                                  Cartão
+                                </span>
                               </div>
                               <p className="text-sm text-muted-foreground">
                                 Fecha dia {card.statementCloseDay ?? "--"} - vence dia {card.statementDueDay ?? "--"}
                               </p>
                               {card.formattedCreditLimit ? (
-                                <p className="text-sm text-muted-foreground">Limite total {card.formattedCreditLimit}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Limite total {card.formattedCreditLimit}
+                                </p>
                               ) : null}
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" className="self-end sm:self-auto" onClick={() => openEditDialog(card)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="self-end sm:self-auto"
+                            onClick={() => openEditDialog(card)}
+                          >
                             <Pencil size={15} />
                           </Button>
                         </div>
@@ -590,19 +626,34 @@ export default function AccountsPage() {
                   </div>
                   <div className="space-y-3">
                     {cashAccounts.map((cash) => (
-                      <div key={cash.id} className="flex flex-col gap-3 rounded-xl border border-border/30 bg-card/50 p-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div
+                        key={cash.id}
+                        className="flex flex-col gap-3 rounded-xl border border-border/30 bg-card/50 p-3 sm:flex-row sm:items-start sm:justify-between"
+                      >
                         <div className="flex items-start gap-3">
-                          <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg text-foreground", cash.color)}>
+                          <div
+                            className={cn(
+                              "flex h-9 w-9 items-center justify-center rounded-lg text-foreground",
+                              cash.color,
+                            )}
+                          >
                             <AccountTypeIcon accountType="cash" />
                           </div>
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="font-medium text-foreground">{cash.name}</p>
-                              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-500">Caixa</span>
+                              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-500">
+                                Caixa
+                              </span>
                             </div>
                           </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="self-end sm:self-auto" onClick={() => openEditDialog(cash)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="self-end sm:self-auto"
+                          onClick={() => openEditDialog(cash)}
+                        >
                           <Pencil size={15} />
                         </Button>
                       </div>
@@ -616,8 +667,7 @@ export default function AccountsPage() {
 
         <div data-tour-id="accounts-support" className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
           <h3 className="text-[1.3rem] font-semibold text-foreground"></h3>
-          <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-          </div>
+          <div className="mt-4 space-y-3 text-sm text-muted-foreground"></div>
         </div>
       </div>
     </AppShell>

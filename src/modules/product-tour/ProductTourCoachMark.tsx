@@ -123,9 +123,7 @@ export function ProductTourCoachMark({
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-              Tour do produto
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Tour do produto</p>
             <h2 className="mt-2 text-lg font-semibold text-foreground">{step.title}</h2>
           </div>
 

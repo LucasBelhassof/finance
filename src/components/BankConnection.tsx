@@ -125,7 +125,10 @@ export default function BankConnection({
         ) : (
           <div className="space-y-2.5">
             {bankAccounts.map((bank) => (
-              <div key={bank.id} className="flex flex-col gap-3 rounded-lg bg-secondary/40 p-2.5 sm:flex-row sm:items-center">
+              <div
+                key={bank.id}
+                className="flex flex-col gap-3 rounded-lg bg-secondary/40 p-2.5 sm:flex-row sm:items-center"
+              >
                 <div className="flex items-start gap-3 sm:flex-1 sm:items-center">
                   <AccountAvatar bank={bank} />
                   <div className="min-w-0 flex-1">
@@ -136,7 +139,10 @@ export default function BankConnection({
                     <p className="text-xs font-medium text-foreground">{bank.formattedBalance}</p>
                   </div>
                 </div>
-                <Link to={appRoutes.accounts} className="w-full text-right text-xs text-primary hover:underline sm:w-auto">
+                <Link
+                  to={appRoutes.accounts}
+                  className="w-full text-right text-xs text-primary hover:underline sm:w-auto"
+                >
                   Gerenciar
                 </Link>
               </div>

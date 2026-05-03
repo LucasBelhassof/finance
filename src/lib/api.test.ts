@@ -179,21 +179,21 @@ describe("api mappers", () => {
 
   it("maps chat payloads and reply payloads", () => {
     const messages = mapChatMessagesResponse({
-        messages: [
-          {
-            id: 1,
-            role: "assistant",
-            content: "Oi",
-            provider: "gemini",
-            model: "gemini-2.5-flash",
-            inputTokens: 120,
-            outputTokens: 35,
-            totalTokens: 155,
-            requestCount: 1,
-            estimatedCostUsd: 0.0001,
-            createdAt: "2026-04-06T10:00:00.000Z",
-          },
-        ],
+      messages: [
+        {
+          id: 1,
+          role: "assistant",
+          content: "Oi",
+          provider: "gemini",
+          model: "gemini-2.5-flash",
+          inputTokens: 120,
+          outputTokens: 35,
+          totalTokens: 155,
+          requestCount: 1,
+          estimatedCostUsd: 0.0001,
+          createdAt: "2026-04-06T10:00:00.000Z",
+        },
+      ],
     });
 
     const reply = mapChatReplyResponse({
@@ -203,40 +203,40 @@ describe("api mappers", () => {
         content: "Como economizar?",
         createdAt: "2026-04-06T10:01:00.000Z",
       },
-        assistantMessage: {
-          id: 3,
-          role: "assistant",
-          content: "Comece pelo delivery.",
-          provider: "openai",
-          model: "gpt-4o-mini",
-          inputTokens: 150,
-          outputTokens: 42,
-          totalTokens: 192,
-          requestCount: 1,
-          estimatedCostUsd: 0.0002,
-          createdAt: "2026-04-06T10:01:01.000Z",
-        },
-      });
+      assistantMessage: {
+        id: 3,
+        role: "assistant",
+        content: "Comece pelo delivery.",
+        provider: "openai",
+        model: "gpt-4o-mini",
+        inputTokens: 150,
+        outputTokens: 42,
+        totalTokens: 192,
+        requestCount: 1,
+        estimatedCostUsd: 0.0002,
+        createdAt: "2026-04-06T10:01:01.000Z",
+      },
+    });
 
     expect(messages[0]).toEqual({
-        id: 1,
-        role: "assistant",
-        content: "Oi",
-        provider: "gemini",
-        model: "gemini-2.5-flash",
-        inputTokens: 120,
-        outputTokens: 35,
-        totalTokens: 155,
-        requestCount: 1,
-        estimatedCostUsd: 0.0001,
-        planDraftAction: null,
-        createdAt: "2026-04-06T10:00:00.000Z",
-      });
+      id: 1,
+      role: "assistant",
+      content: "Oi",
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      inputTokens: 120,
+      outputTokens: 35,
+      totalTokens: 155,
+      requestCount: 1,
+      estimatedCostUsd: 0.0001,
+      planDraftAction: null,
+      createdAt: "2026-04-06T10:00:00.000Z",
+    });
     expect(reply.userMessage.role).toBe("user");
-      expect(reply.userMessages).toHaveLength(1);
-      expect(reply.assistantMessage.role).toBe("assistant");
-      expect(reply.assistantMessage.content).toBe("Comece pelo delivery.");
-      expect(reply.assistantMessage.totalTokens).toBe(192);
+    expect(reply.userMessages).toHaveLength(1);
+    expect(reply.assistantMessage.role).toBe("assistant");
+    expect(reply.assistantMessage.content).toBe("Comece pelo delivery.");
+    expect(reply.assistantMessage.totalTokens).toBe(192);
   });
 
   it("posts plan draft revisions without persisting chat messages", async () => {
@@ -695,7 +695,9 @@ describe("api mappers", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/installments/overview?categoryId=2&search=visa&purchaseStart=2026-04-01&purchaseEnd=2026-04-30"),
+      expect.stringContaining(
+        "/api/installments/overview?categoryId=2&search=visa&purchaseStart=2026-04-01&purchaseEnd=2026-04-30",
+      ),
       expect.objectContaining({
         credentials: "include",
       }),

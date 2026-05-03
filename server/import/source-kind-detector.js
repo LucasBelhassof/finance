@@ -27,9 +27,12 @@ export function inferSourceKind(rows = [], metadata = {}) {
   const hasBalance = rows.some((row) => row.balanceAfter !== null && row.balanceAfter !== undefined);
   const hasInstallment = /\b\d{1,2}\/\d{1,2}\b/.test(serializedRows) || /parcela/.test(serializedRows);
   const hasBankTerms = /(pix|ted|doc|saque|transferencia|deposito|boleto)/.test(serializedRows);
-  const hasCardTerms = /(fatura|cartao|credito|compra|anuidade|limite)/.test(`${serializedRows} ${filename} ${issuerName}`);
+  const hasCardTerms = /(fatura|cartao|credito|compra|anuidade|limite)/.test(
+    `${serializedRows} ${filename} ${issuerName}`,
+  );
 
-  const creditScore = Number(hasInstallment) * 3 + Number(hasCardTerms) * 2 + Number(negativeRows > 0 && positiveRows === 0);
+  const creditScore =
+    Number(hasInstallment) * 3 + Number(hasCardTerms) * 2 + Number(negativeRows > 0 && positiveRows === 0);
   const bankScore = Number(hasBankTerms) * 2 + Number(hasBalance) * 2 + Number(positiveRows > 0 && negativeRows > 0);
 
   if (creditScore >= bankScore + 2) {

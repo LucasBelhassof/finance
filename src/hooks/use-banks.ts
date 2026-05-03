@@ -20,9 +20,13 @@ function upsertBank(items: BankItem[], bank: BankItem) {
   nextItems.push(bank);
 
   return nextItems.sort((left, right) => {
-    const parentDiff = String(left.parentBankConnectionId ?? left.id).localeCompare(String(right.parentBankConnectionId ?? right.id), undefined, {
-      numeric: true,
-    });
+    const parentDiff = String(left.parentBankConnectionId ?? left.id).localeCompare(
+      String(right.parentBankConnectionId ?? right.id),
+      undefined,
+      {
+        numeric: true,
+      },
+    );
 
     if (parentDiff !== 0) {
       return parentDiff;

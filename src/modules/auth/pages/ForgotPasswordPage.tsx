@@ -94,7 +94,11 @@ export default function ForgotPasswordPage() {
                 )}
               />
 
-              <Button className="h-12 w-full rounded-xl text-sm font-semibold" disabled={forgotPasswordMutation.isPending} type="submit">
+              <Button
+                className="h-12 w-full rounded-xl text-sm font-semibold"
+                disabled={forgotPasswordMutation.isPending}
+                type="submit"
+              >
                 {forgotPasswordMutation.isPending ? <LoaderCircle className="animate-spin" size={16} /> : null}
                 Gerar link de reset
               </Button>

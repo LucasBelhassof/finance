@@ -30,7 +30,10 @@ export interface InvoiceSettingsInput {
 }
 
 type Queryable = {
-  query: (text: string, params?: unknown[]) => Promise<{
+  query: (
+    text: string,
+    params?: unknown[],
+  ) => Promise<{
     rows: Array<Record<string, unknown>>;
     rowCount?: number | null;
   }>;
@@ -263,9 +266,7 @@ async function listPaidInvoiceKeys(userId: number, client: Queryable = db): Prom
     [userId],
   );
 
-  const keys = result.rows.map(
-    (row) => `${row.bank_connection_id}:${String(row.invoice_period_end).slice(0, 10)}`,
-  );
+  const keys = result.rows.map((row) => `${row.bank_connection_id}:${String(row.invoice_period_end).slice(0, 10)}`);
 
   return new Set(keys);
 }
@@ -407,17 +408,20 @@ export function buildInvoicesResponse(
   allCards: CreditCardRow[] = [],
 ) {
   const filters = normalizeFilters(rawFilters);
-  const grouped = new Map<string, {
-    card: CreditCardRow;
-    periodStart: string;
-    periodEnd: string;
-    closingDate: string;
-    dueDate: string;
-    referenceMonth: string;
-    referenceMonthLabel: string;
-    status: InvoiceStatus;
-    rows: TransactionRow[];
-  }>();
+  const grouped = new Map<
+    string,
+    {
+      card: CreditCardRow;
+      periodStart: string;
+      periodEnd: string;
+      closingDate: string;
+      dueDate: string;
+      referenceMonth: string;
+      referenceMonthLabel: string;
+      status: InvoiceStatus;
+      rows: TransactionRow[];
+    }
+  >();
 
   rows.forEach((row) => {
     const period = resolveInvoicePeriodForTransaction(row.occurredOn, row.statementCloseDay, row.statementDueDay);
@@ -710,7 +714,10 @@ export async function updateInvoiceSettingsForCard(userId: number, cardId: numbe
   return mapCreditCardRow(result.rows[0]);
 }
 
-function buildInvoiceNotificationCopy(invoice: ReturnType<typeof buildInvoicesResponse>["invoices"][number], eventType: InvoiceNotificationEventType) {
+function buildInvoiceNotificationCopy(
+  invoice: ReturnType<typeof buildInvoicesResponse>["invoices"][number],
+  eventType: InvoiceNotificationEventType,
+) {
   if (eventType === "invoice_due_soon") {
     return {
       title: `Fatura vence em breve: ${invoice.card.name}`,

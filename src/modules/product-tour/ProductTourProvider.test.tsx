@@ -173,14 +173,17 @@ describe("ProductTourProvider", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
+    await waitFor(
+      () => {
         expect(updateProductTourProgressMock).toHaveBeenCalledWith(
           expect.objectContaining({
             currentStep: 1,
             skippedSteps: ["dashboard_summary"],
           }),
         );
-    }, { timeout: 3000 });
+      },
+      { timeout: 3000 },
+    );
   }, 10000);
 
   it("closes after finishing the last pending step of the current route", async () => {

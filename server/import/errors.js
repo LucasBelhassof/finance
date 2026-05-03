@@ -11,7 +11,9 @@ export class ImportHttpError extends Error {
 export function createImportPdfPasswordError(filePassword) {
   return new ImportHttpError(
     filePassword ? "import_pdf_password_invalid" : "import_pdf_password_required",
-    filePassword ? "Senha do PDF incorreta. Verifique e tente novamente." : "Informe a senha do PDF para gerar a previa.",
+    filePassword
+      ? "Senha do PDF incorreta. Verifique e tente novamente."
+      : "Informe a senha do PDF para gerar a previa.",
     { requiresPassword: true },
   );
 }

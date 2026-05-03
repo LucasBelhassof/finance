@@ -45,8 +45,8 @@ export default function InstallmentsFilters({
   const amountRange = overview?.filterOptions.installmentAmountRange;
   const installmentCountOptions =
     filters.installmentCountMode === "remaining_installments"
-      ? overview?.filterOptions.remainingInstallmentValues ?? []
-      : overview?.filterOptions.installmentCountValues ?? [];
+      ? (overview?.filterOptions.remainingInstallmentValues ?? [])
+      : (overview?.filterOptions.installmentCountValues ?? []);
   const shouldShowInstallmentCountValueSelect = filters.installmentCountMode !== "all";
   const activeAdvancedCount = countActiveAdvancedFilters(filters);
 
@@ -116,7 +116,10 @@ export default function InstallmentsFilters({
                   <SelectItem value="purchase_date">Data da compra</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filters.sortOrder} onValueChange={(value) => update("sortOrder", value as InstallmentSortOrder)}>
+              <Select
+                value={filters.sortOrder}
+                onValueChange={(value) => update("sortOrder", value as InstallmentSortOrder)}
+              >
                 <SelectTrigger className="h-11 rounded-xl border-border/60 bg-secondary/35">
                   <SelectValue placeholder="Desc" />
                 </SelectTrigger>
@@ -130,7 +133,13 @@ export default function InstallmentsFilters({
 
           <label className="space-y-1 text-sm text-muted-foreground sm:col-span-2 xl:col-span-1">
             <span>Quantidade de parcelas</span>
-            <div className={shouldShowInstallmentCountValueSelect ? "grid grid-cols-[minmax(0,1fr)_110px] gap-2" : "grid grid-cols-1"}>
+            <div
+              className={
+                shouldShowInstallmentCountValueSelect
+                  ? "grid grid-cols-[minmax(0,1fr)_110px] gap-2"
+                  : "grid grid-cols-1"
+              }
+            >
               <Select
                 value={filters.installmentCountMode}
                 onValueChange={(value) => {

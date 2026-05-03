@@ -8,13 +8,7 @@ import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import TransactionsDateFilter from "@/components/transactions/TransactionsDateFilter";
 import TransactionsMonthYearFilter from "@/components/transactions/TransactionsMonthYearFilter";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useBanks } from "@/hooks/use-banks";
 import { useTransactions } from "@/hooks/use-transactions";
@@ -167,7 +161,8 @@ function createAccountBreakdown(transactions: TransactionItem[], banks: BankItem
   });
 
   return Array.from(grouped.values()).sort(
-    (left, right) => right.total - left.total || right.count - left.count || left.label.localeCompare(right.label, "pt-BR"),
+    (left, right) =>
+      right.total - left.total || right.count - left.count || left.label.localeCompare(right.label, "pt-BR"),
   );
 }
 
@@ -247,7 +242,8 @@ export default function ExpenseMetricsPage() {
         const matchesAccount = selectedAccountId === "all" || String(transaction.account.id) === selectedAccountId;
         const matchesType =
           typeFilter === "all" || (typeFilter === "income" ? transaction.amount > 0 : transaction.amount < 0);
-        const matchesDate = transaction.occurredOn >= dateRange.startDate && transaction.occurredOn <= dateRange.endDate;
+        const matchesDate =
+          transaction.occurredOn >= dateRange.startDate && transaction.occurredOn <= dateRange.endDate;
 
         return matchesAccount && matchesType && matchesDate;
       }),
@@ -283,7 +279,11 @@ export default function ExpenseMetricsPage() {
     const categoryBreakdown = createCategoryBreakdown(expenseTransactions);
     const accountBreakdown = createAccountBreakdown(expenseTransactions, banks);
     const trendSource =
-      typeFilter === "income" ? incomeTransactions : typeFilter === "expense" ? expenseTransactions : filteredTransactions;
+      typeFilter === "income"
+        ? incomeTransactions
+        : typeFilter === "expense"
+          ? expenseTransactions
+          : filteredTransactions;
     const trendSeries = createTrendSeries(trendSource, datePreset);
     const topCategory = categoryBreakdown[0] ?? null;
     const concentrationRatio = topCategory && totalExpenses > 0 ? topCategory.total / totalExpenses : 0;
@@ -308,7 +308,8 @@ export default function ExpenseMetricsPage() {
     () => ({
       amount: {
         label: typeFilter === "income" ? "Receitas" : "Movimentacao",
-        color: typeFilter === "income" ? "hsl(var(--income))" : typeFilter === "expense" ? "#ef4444" : "hsl(var(--primary))",
+        color:
+          typeFilter === "income" ? "hsl(var(--income))" : typeFilter === "expense" ? "#ef4444" : "hsl(var(--primary))",
       },
       incomeAmount: {
         label: "Receitas",
@@ -337,7 +338,8 @@ export default function ExpenseMetricsPage() {
   const accountOptions = useMemo(
     () =>
       banks.filter(
-        (bank) => bank.accountType === "bank_account" || bank.accountType === "credit_card" || bank.accountType === "cash",
+        (bank) =>
+          bank.accountType === "bank_account" || bank.accountType === "credit_card" || bank.accountType === "cash",
       ),
     [banks],
   );
@@ -394,7 +396,6 @@ export default function ExpenseMetricsPage() {
         </div>
 
         <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center justify-between">
-          
           <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
             {dateRange.startDate.split("-").reverse().join("/")} - {dateRange.endDate.split("-").reverse().join("/")}
           </div>
@@ -406,7 +407,9 @@ export default function ExpenseMetricsPage() {
                 onClick={() => setTypeFilter(filter.value)}
                 className={cn(
                   "min-h-11 rounded-2xl px-4 py-2.5 text-sm transition-colors sm:min-h-0",
-                  typeFilter === filter.value ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground hover:text-foreground",
+                  typeFilter === filter.value
+                    ? "bg-primary/15 text-primary"
+                    : "bg-secondary/50 text-muted-foreground hover:text-foreground",
                 )}
               >
                 {filter.label}
@@ -428,9 +431,7 @@ export default function ExpenseMetricsPage() {
             </div>
           </div>
           <p className="text-[2rem] font-semibold text-foreground">{formatCurrency(metrics.totalExpenses)}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {expenseTransactions.length} lançamentos filtrados
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{expenseTransactions.length} lançamentos filtrados</p>
         </div>
 
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
@@ -439,7 +440,12 @@ export default function ExpenseMetricsPage() {
               <span className="text-sm text-muted-foreground">Saldo filtrado</span>
               <MetricInfoTooltip content="Resultado das receitas menos as despesas considerando apenas as movimentações dentro dos filtros atuais." />
             </div>
-            <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", metrics.balance >= 0 ? "bg-income/10 text-income" : "bg-expense/10 text-expense")}>
+            <div
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-2xl",
+                metrics.balance >= 0 ? "bg-income/10 text-income" : "bg-expense/10 text-expense",
+              )}
+            >
               {metrics.balance >= 0 ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
             </div>
           </div>
@@ -480,7 +486,10 @@ export default function ExpenseMetricsPage() {
         </div>
       </section>
 
-      <section data-tour-id="expense-metrics-trend" className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
+      <section
+        data-tour-id="expense-metrics-trend"
+        className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]"
+      >
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -507,7 +516,10 @@ export default function ExpenseMetricsPage() {
               <div className="rounded-2xl bg-secondary/50 px-3 py-2 text-right">
                 <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pico</div>
                 <div className="text-sm font-medium text-foreground">
-                  {chartData.length ? chartData.reduce((highest, item) => (item.amount > highest.amount ? item : highest)).formattedAmount : "--"}
+                  {chartData.length
+                    ? chartData.reduce((highest, item) => (item.amount > highest.amount ? item : highest))
+                        .formattedAmount
+                    : "--"}
                 </div>
               </div>
             </div>
@@ -519,9 +531,20 @@ export default function ExpenseMetricsPage() {
             </div>
           ) : (
             <ChartContainer config={trendConfig} className="h-[220px] w-full sm:h-[300px]">
-              <BarChart data={chartData} margin={isMobile ? { top: 8, right: 4, left: -20, bottom: 0 } : { top: 8, right: 12, left: -12, bottom: 0 }}>
+              <BarChart
+                data={chartData}
+                margin={
+                  isMobile ? { top: 8, right: 4, left: -20, bottom: 0 } : { top: 8, right: 12, left: -12, bottom: 0 }
+                }
+              >
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={isMobile ? 12 : 24} tick={{ fontSize: isMobile ? 10 : 12 }} />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={isMobile ? 12 : 24}
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                />
                 <YAxis
                   hide={isMobile}
                   tickLine={false}
@@ -563,11 +586,26 @@ export default function ExpenseMetricsPage() {
                 />
                 {typeFilter === "all" ? (
                   <>
-                    <Bar dataKey="incomeAmount" radius={[12, 12, 4, 4]} fill="var(--color-incomeAmount)" maxBarSize={isMobile ? 18 : 28} />
-                    <Bar dataKey="expenseAmount" radius={[12, 12, 4, 4]} fill="var(--color-expenseAmount)" maxBarSize={isMobile ? 18 : 28} />
+                    <Bar
+                      dataKey="incomeAmount"
+                      radius={[12, 12, 4, 4]}
+                      fill="var(--color-incomeAmount)"
+                      maxBarSize={isMobile ? 18 : 28}
+                    />
+                    <Bar
+                      dataKey="expenseAmount"
+                      radius={[12, 12, 4, 4]}
+                      fill="var(--color-expenseAmount)"
+                      maxBarSize={isMobile ? 18 : 28}
+                    />
                   </>
                 ) : (
-                  <Bar dataKey="amount" radius={[12, 12, 4, 4]} fill="var(--color-amount)" maxBarSize={isMobile ? 24 : 40} />
+                  <Bar
+                    dataKey="amount"
+                    radius={[12, 12, 4, 4]}
+                    fill="var(--color-amount)"
+                    maxBarSize={isMobile ? 24 : 40}
+                  />
                 )}
               </BarChart>
             </ChartContainer>
@@ -577,7 +615,9 @@ export default function ExpenseMetricsPage() {
         <div className="glass-card rounded-[28px] border border-border/40 p-4 sm:p-5">
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-foreground">Concentração por categoria</h2>
-            <p className="text-sm text-muted-foreground">Despesas agrupadas por famílias para expor dependência e dispersão</p>
+            <p className="text-sm text-muted-foreground">
+              Despesas agrupadas por famílias para expor dependência e dispersão
+            </p>
           </div>
 
           <CategoryPieChart
@@ -669,7 +709,9 @@ export default function ExpenseMetricsPage() {
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-foreground">Leituras rápidas</h2>
-              <p className="text-sm text-muted-foreground">Sinais sintéticos para revisar recorrência, concentração e relevância</p>
+              <p className="text-sm text-muted-foreground">
+                Sinais sintéticos para revisar recorrência, concentração e relevância
+              </p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Wallet size={18} />
@@ -691,13 +733,17 @@ export default function ExpenseMetricsPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Conta mais pressionada</p>
               <p className="mt-2 text-lg font-semibold text-foreground">{topAccount?.label ?? "Sem dados"}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {topAccount ? `${formatCurrency(topAccount.total)} em ${topAccount.count} lançamentos` : "Sem volume relevante por conta."}
+                {topAccount
+                  ? `${formatCurrency(topAccount.total)} em ${topAccount.count} lançamentos`
+                  : "Sem volume relevante por conta."}
               </p>
             </div>
 
             <div className="rounded-2xl border border-border/30 bg-secondary/20 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Maior despesa individual</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{metrics.largestExpense?.description ?? "Sem dados"}</p>
+              <p className="mt-2 text-lg font-semibold text-foreground">
+                {metrics.largestExpense?.description ?? "Sem dados"}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {metrics.largestExpense
                   ? `${formatCurrency(Math.abs(metrics.largestExpense.amount))} em ${metrics.largestExpense.occurredOn.split("-").reverse().join("/")}`
@@ -711,7 +757,9 @@ export default function ExpenseMetricsPage() {
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-foreground">Ranking por conta</h2>
-              <p className="text-sm text-muted-foreground">Distribuicao do volume de despesas por origem de pagamento</p>
+              <p className="text-sm text-muted-foreground">
+                Distribuicao do volume de despesas por origem de pagamento
+              </p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-info/10 text-info">
               <Landmark size={18} />
@@ -743,7 +791,9 @@ export default function ExpenseMetricsPage() {
                     <div className="h-2 overflow-hidden rounded-full bg-secondary/70">
                       <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
                     </div>
-                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">{share}% das despesas filtradas</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      {share}% das despesas filtradas
+                    </p>
                   </div>
                 );
               })}
@@ -751,7 +801,6 @@ export default function ExpenseMetricsPage() {
           )}
         </div>
       </section>
-
     </AppShell>
   );
 }

@@ -18,7 +18,17 @@ const NOISE_TOKENS = [
 ];
 
 export const HEADER_ALIASES = {
-  date: ["data", "date", "posted on", "postedon", "occurred on", "dt", "dt lancamento", "data movimento", "data lancamento"],
+  date: [
+    "data",
+    "date",
+    "posted on",
+    "postedon",
+    "occurred on",
+    "dt",
+    "dt lancamento",
+    "data movimento",
+    "data lancamento",
+  ],
   description: [
     "descricao",
     "description",
@@ -157,7 +167,15 @@ export function normalizeDateInput(value, options = {}) {
       year = rawYear < 100 ? 2000 + rawYear : rawYear;
     }
 
-    if (Number.isInteger(day) && Number.isInteger(month) && Number.isInteger(year) && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+    if (
+      Number.isInteger(day) &&
+      Number.isInteger(month) &&
+      Number.isInteger(year) &&
+      month >= 1 &&
+      month <= 12 &&
+      day >= 1 &&
+      day <= 31
+    ) {
       return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
   }
@@ -299,7 +317,10 @@ export function isLikelyNoiseText(value) {
 }
 
 export function isLikelyNoiseRow(cells) {
-  const joined = cells.map((cell) => String(cell ?? "").trim()).filter(Boolean).join(" ");
+  const joined = cells
+    .map((cell) => String(cell ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
 
   if (!joined) {
     return true;

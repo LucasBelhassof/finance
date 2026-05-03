@@ -43,7 +43,9 @@ export default function InstallmentsSummaryCards({ overview }: InstallmentsSumma
             <p className="text-sm text-muted-foreground">{card.label}</p>
             <MetricInfoTooltip content={card.explanation} />
           </div>
-          <p className={`mt-2 break-words text-[1.65rem] font-semibold sm:text-[1.9rem] ${card.accent}`}>{card.value}</p>
+          <p className={`mt-2 break-words text-[1.65rem] font-semibold sm:text-[1.9rem] ${card.accent}`}>
+            {card.value}
+          </p>
         </div>
       ))}
     </div>

@@ -115,10 +115,7 @@ export default function NotificationsPage() {
 
   const notifications = data?.notifications ?? [];
   const selectedNotification = useMemo(
-    () =>
-      notifications.find((item) => String(item.recipientId) === String(recipientId)) ??
-      notifications[0] ??
-      null,
+    () => notifications.find((item) => String(item.recipientId) === String(recipientId)) ?? notifications[0] ?? null,
     [notifications, recipientId],
   );
 
@@ -133,7 +130,11 @@ export default function NotificationsPage() {
       return;
     }
 
-    if (recipientId && !notifications.some((item) => String(item.recipientId) === String(recipientId)) && notifications[0]) {
+    if (
+      recipientId &&
+      !notifications.some((item) => String(item.recipientId) === String(recipientId)) &&
+      notifications[0]
+    ) {
       navigate(`${appRoutes.notifications}/${notifications[0].recipientId}`, { replace: true });
     }
   }, [navigate, notifications, recipientId]);
@@ -212,7 +213,9 @@ export default function NotificationsPage() {
     try {
       const result = await markAllRead.mutateAsync();
       toast.success(
-        result.updatedCount > 0 ? `${result.updatedCount} notificações marcadas como lidas.` : "Não havia notificações pendentes.",
+        result.updatedCount > 0
+          ? `${result.updatedCount} notificações marcadas como lidas.`
+          : "Não havia notificações pendentes.",
       );
     } catch (error) {
       toast.error("Não foi possível marcar todas como lidas.", {
@@ -234,7 +237,10 @@ export default function NotificationsPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <div className="space-y-2">
                   <Label>Status</Label>
-                  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as NotificationStatusFilter)}>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) => setStatusFilter(value as NotificationStatusFilter)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -250,7 +256,10 @@ export default function NotificationsPage() {
 
                 <div className="space-y-2">
                   <Label>Origem</Label>
-                  <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as NotificationSourceFilter)}>
+                  <Select
+                    value={sourceFilter}
+                    onValueChange={(value) => setSourceFilter(value as NotificationSourceFilter)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -330,7 +339,11 @@ export default function NotificationsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
-                          {!item.isRead ? <Badge variant="destructive">Nova</Badge> : <Badge variant="outline">Lida</Badge>}
+                          {!item.isRead ? (
+                            <Badge variant="destructive">Nova</Badge>
+                          ) : (
+                            <Badge variant="outline">Lida</Badge>
+                          )}
                           <Badge variant="secondary">{item.source === "user_self" ? "Usuário" : "Sistema"}</Badge>
                         </div>
                         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.message}</p>
@@ -342,7 +355,9 @@ export default function NotificationsPage() {
               })}
 
               {!isLoading && notifications.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma notificação encontrada para os filtros selecionados.</p>
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma notificação encontrada para os filtros selecionados.
+                </p>
               ) : null}
             </CardContent>
           </Card>
@@ -411,7 +426,9 @@ export default function NotificationsPage() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-xl bg-secondary/25 p-3">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Data da notificação</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{formatNotificationDate(selectedNotification)}</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">
+                      {formatNotificationDate(selectedNotification)}
+                    </p>
                   </div>
                   <div className="rounded-xl bg-secondary/25 p-3">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Criada por</p>
@@ -428,7 +445,9 @@ export default function NotificationsPage() {
                   <div className="rounded-xl bg-secondary/25 p-3">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Leitura em</p>
                     <p className="mt-2 text-sm font-medium text-foreground">
-                      {selectedNotification.readAt ? new Date(selectedNotification.readAt).toLocaleString("pt-BR") : "Ainda não lida"}
+                      {selectedNotification.readAt
+                        ? new Date(selectedNotification.readAt).toLocaleString("pt-BR")
+                        : "Ainda não lida"}
                     </p>
                   </div>
                 </div>

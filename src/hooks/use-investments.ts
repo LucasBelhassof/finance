@@ -29,7 +29,9 @@ export function useCreateInvestment() {
   return useMutation({
     mutationFn: (input: CreateInvestmentInput) => postInvestment(input),
     onSuccess: (investment) => {
-      queryClient.setQueryData<InvestmentItem[]>(investmentsQueryKey, (items = []) => upsertInvestment(items, investment));
+      queryClient.setQueryData<InvestmentItem[]>(investmentsQueryKey, (items = []) =>
+        upsertInvestment(items, investment),
+      );
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
     },
@@ -42,7 +44,9 @@ export function useUpdateInvestment() {
   return useMutation({
     mutationFn: (input: UpdateInvestmentInput) => patchInvestment(input),
     onSuccess: (investment) => {
-      queryClient.setQueryData<InvestmentItem[]>(investmentsQueryKey, (items = []) => upsertInvestment(items, investment));
+      queryClient.setQueryData<InvestmentItem[]>(investmentsQueryKey, (items = []) =>
+        upsertInvestment(items, investment),
+      );
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
     },

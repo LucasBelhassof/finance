@@ -95,9 +95,7 @@ export function resolveUrlPeriodFilterState(
   }
 
   const hasValidExplicitRange =
-    isValidDateKey(parsedStartDate) &&
-    isValidDateKey(parsedEndDate) &&
-    parsedStartDate <= parsedEndDate;
+    isValidDateKey(parsedStartDate) && isValidDateKey(parsedEndDate) && parsedStartDate <= parsedEndDate;
 
   if (parsedPreset === "custom" && !hasValidExplicitRange) {
     return defaults;
@@ -115,18 +113,19 @@ export function resolveUrlPeriodFilterState(
         : "month"
       : defaults.datePreset;
 
-  const dateRange = datePreset === "custom"
-    ? hasValidExplicitRange
-      ? {
-        startDate: parsedStartDate,
-        endDate: parsedEndDate,
-      }
-      : defaults.dateRange
-    : hasMonthOrYearInUrl
-      ? resolveMonthYearRange(selectedMonthIndex, selectedYear)
-      : presetIsValid
-        ? resolvePresetRange(parsedPreset, now)
-        : defaults.dateRange;
+  const dateRange =
+    datePreset === "custom"
+      ? hasValidExplicitRange
+        ? {
+            startDate: parsedStartDate,
+            endDate: parsedEndDate,
+          }
+        : defaults.dateRange
+      : hasMonthOrYearInUrl
+        ? resolveMonthYearRange(selectedMonthIndex, selectedYear)
+        : presetIsValid
+          ? resolvePresetRange(parsedPreset, now)
+          : defaults.dateRange;
 
   return {
     selectedMonthIndex,
@@ -140,8 +139,7 @@ export function useUrlPeriodFilter(defaults: UrlPeriodFilterDefaults) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const state = useMemo(
-    () =>
-      resolveUrlPeriodFilterState(searchParams, defaults),
+    () => resolveUrlPeriodFilterState(searchParams, defaults),
     [
       defaults.datePreset,
       defaults.dateRange.endDate,

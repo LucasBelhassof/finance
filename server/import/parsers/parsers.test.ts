@@ -69,8 +69,14 @@ describe("universal import parsers", () => {
 
   it("parses XLSX and chooses the most likely transaction sheet", () => {
     const buffer = buildWorkbookBuffer({
-      Summary: [["Resumo", "Valor"], ["Total", "100"]],
-      Transactions: [["Data", "Descricao", "Valor"], ["06/04/2026", "Mercado", "-120,50"]],
+      Summary: [
+        ["Resumo", "Valor"],
+        ["Total", "100"],
+      ],
+      Transactions: [
+        ["Data", "Descricao", "Valor"],
+        ["06/04/2026", "Mercado", "-120,50"],
+      ],
     });
     const rows = parseSpreadsheetBuffer(buffer);
 

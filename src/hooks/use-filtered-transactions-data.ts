@@ -25,7 +25,10 @@ export type CategoryBreakdownItem = {
   percentage: number;
 };
 
-function resolveBreakdownTransactionType(categories: CategoryItem[], filters: TransactionsDerivedFilters): "income" | "expense" {
+function resolveBreakdownTransactionType(
+  categories: CategoryItem[],
+  filters: TransactionsDerivedFilters,
+): "income" | "expense" {
   if (filters.typeFilter === "income") {
     return "income";
   }
@@ -167,6 +170,14 @@ export function useFilteredTransactionsData(
 ) {
   return useMemo(
     () => getFilteredTransactionsData(transactions, categories, filters),
-    [categories, filters.categoryFilter, filters.range.endDate, filters.range.startDate, filters.search, filters.typeFilter, transactions],
+    [
+      categories,
+      filters.categoryFilter,
+      filters.range.endDate,
+      filters.range.startDate,
+      filters.search,
+      filters.typeFilter,
+      transactions,
+    ],
   );
 }

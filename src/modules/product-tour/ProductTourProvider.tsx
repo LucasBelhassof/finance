@@ -500,14 +500,16 @@ export function ProductTourProvider({ children }: { children: ReactNode }) {
         <ProductTourCoachMark
           canGoBack={previousRouteStepIndex !== -1}
           currentStepIndex={activeRouteStepIndex === -1 ? 0 : activeRouteStepIndex}
-          isLastStep={findPendingStepIndexForRoute(
-            normalizeProgress({
-              ...progress,
-              completedSteps: [...progress.completedSteps, activeStep.id],
-              skippedSteps: progress.skippedSteps.filter((step) => step !== activeStep.id),
-            }),
-            location.pathname,
-          ) === -1}
+          isLastStep={
+            findPendingStepIndexForRoute(
+              normalizeProgress({
+                ...progress,
+                completedSteps: [...progress.completedSteps, activeStep.id],
+                skippedSteps: progress.skippedSteps.filter((step) => step !== activeStep.id),
+              }),
+              location.pathname,
+            ) === -1
+          }
           onBack={() => void goToPreviousStep()}
           onClose={() => void closeTour()}
           onNext={() => void goToNextStep()}

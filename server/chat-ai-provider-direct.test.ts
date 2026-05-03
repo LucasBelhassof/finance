@@ -284,7 +284,8 @@ describe("chat-ai-provider-direct", () => {
     );
 
     await expect(requestDirectChatReplyByProvider(payload, "openai")).resolves.toEqual({
-      content: "Plano de viagem: reserve 20% da renda mensal e reduza gastos variaveis para acumular a meta ate dezembro.",
+      content:
+        "Plano de viagem: reserve 20% da renda mensal e reduza gastos variaveis para acumular a meta ate dezembro.",
       provider: "openai",
       model: "gpt-4o-mini",
       usage: {

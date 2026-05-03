@@ -40,12 +40,18 @@ vi.mock("@/components/ui/select", () => ({
     value: string;
     onValueChange: (value: string) => void;
   }) => (
-    <select aria-label="Escolher conversa do chat financeiro" value={value} onChange={(event) => onValueChange(event.target.value)}>
+    <select
+      aria-label="Escolher conversa do chat financeiro"
+      value={value}
+      onChange={(event) => onValueChange(event.target.value)}
+    >
       {children}
     </select>
   ),
   SelectContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  SelectItem: ({ children, value }: { children: ReactNode; value: string }) => <option value={value}>{children}</option>,
+  SelectItem: ({ children, value }: { children: ReactNode; value: string }) => (
+    <option value={value}>{children}</option>
+  ),
   SelectTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
   SelectValue: ({ placeholder }: { placeholder?: string }) => <>{placeholder}</>,
 }));

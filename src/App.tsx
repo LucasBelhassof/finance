@@ -69,42 +69,237 @@ const App = () => (
               </Route>
 
               <Route element={<ProtectedRoute />}>
-                <Route path={appRoutes.onboarding} element={<Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense>} />
-                <Route path={appRoutes.dashboard} element={<Suspense fallback={<PageLoader />}><Index /></Suspense>} />
-                <Route path={appRoutes.transactions} element={<Suspense fallback={<PageLoader />}><TransactionsPage /></Suspense>} />
-                <Route path={appRoutes.expenseManagementRecurringIncome} element={<Suspense fallback={<PageLoader />}><RecurringIncomePage /></Suspense>} />
-                <Route path={appRoutes.expenseManagementInvoices} element={<Suspense fallback={<PageLoader />}><CreditCardInvoicesPage /></Suspense>} />
-                <Route path={appRoutes.installments} element={<Navigate to={appRoutes.expenseManagementInstallments} replace />} />
-                <Route path={appRoutes.expenseManagementInstallments} element={<Suspense fallback={<PageLoader />}><InstallmentsPage /></Suspense>} />
-                <Route path={appRoutes.expenseManagementFinancing} element={<Navigate to={appRoutes.expenseManagementHousing} replace />} />
-                <Route path={appRoutes.expenseManagementHousing} element={<Suspense fallback={<PageLoader />}><HousingPage /></Suspense>} />
-                <Route path={appRoutes.expenseManagementMetrics} element={<Suspense fallback={<PageLoader />}><ExpenseMetricsPage /></Suspense>} />
-                <Route path={appRoutes.chat} element={<Suspense fallback={<PageLoader />}><ChatPage /></Suspense>} />
-                <Route path={appRoutes.chatConversation} element={<Suspense fallback={<PageLoader />}><ChatPage /></Suspense>} />
-                <Route path={appRoutes.plans} element={<Suspense fallback={<PageLoader />}><PlansPage /></Suspense>} />
-                <Route path={appRoutes.planDetail} element={<Suspense fallback={<PageLoader />}><PlanDetailPage /></Suspense>} />
-                <Route path={appRoutes.insights} element={<Suspense fallback={<PageLoader />}><InsightsPage /></Suspense>} />
-                <Route path={appRoutes.savingsGoal} element={<Suspense fallback={<PageLoader />}><InvestmentsPage /></Suspense>} />
+                <Route
+                  path={appRoutes.onboarding}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <OnboardingPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.dashboard}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <Index />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.transactions}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <TransactionsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.expenseManagementRecurringIncome}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <RecurringIncomePage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.expenseManagementInvoices}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <CreditCardInvoicesPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.installments}
+                  element={<Navigate to={appRoutes.expenseManagementInstallments} replace />}
+                />
+                <Route
+                  path={appRoutes.expenseManagementInstallments}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <InstallmentsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.expenseManagementFinancing}
+                  element={<Navigate to={appRoutes.expenseManagementHousing} replace />}
+                />
+                <Route
+                  path={appRoutes.expenseManagementHousing}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <HousingPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.expenseManagementMetrics}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ExpenseMetricsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.chat}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ChatPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.chatConversation}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ChatPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.plans}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <PlansPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.planDetail}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <PlanDetailPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.insights}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <InsightsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.savingsGoal}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <InvestmentsPage />
+                    </Suspense>
+                  }
+                />
                 <Route path={appRoutes.legacyInvestments} element={<Navigate to={appRoutes.savingsGoal} replace />} />
-                <Route path={appRoutes.notifications} element={<Suspense fallback={<PageLoader />}><NotificationsPage /></Suspense>} />
-                <Route path={`${appRoutes.notifications}/:recipientId`} element={<Suspense fallback={<PageLoader />}><NotificationsPage /></Suspense>} />
-                <Route path={appRoutes.accounts} element={<Suspense fallback={<PageLoader />}><AccountsPage /></Suspense>} />
-                <Route path={appRoutes.profile} element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
-                <Route path={appRoutes.settings} element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+                <Route
+                  path={appRoutes.notifications}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <NotificationsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={`${appRoutes.notifications}/:recipientId`}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <NotificationsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.accounts}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AccountsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.profile}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ProfilePage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.settings}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <SettingsPage />
+                    </Suspense>
+                  }
+                />
               </Route>
 
               <Route element={<AdminRoute />}>
                 <Route path={appRoutes.admin} element={<Navigate to={appRoutes.adminOverview} replace />} />
-                <Route path={appRoutes.adminOverview} element={<Suspense fallback={<PageLoader />}><AdminOverviewPage /></Suspense>} />
-                <Route path={appRoutes.adminUsers} element={<Suspense fallback={<PageLoader />}><AdminUsersPage /></Suspense>} />
-                <Route path={appRoutes.adminFinancialMetrics} element={<Suspense fallback={<PageLoader />}><AdminFinancialMetricsPage /></Suspense>} />
-                <Route path={appRoutes.adminAiUsage} element={<Suspense fallback={<PageLoader />}><AdminAiUsagePage /></Suspense>} />
-                <Route path={appRoutes.adminSubscriptions} element={<Suspense fallback={<PageLoader />}><AdminSubscriptionsPage /></Suspense>} />
-                <Route path={appRoutes.adminActivity} element={<Suspense fallback={<PageLoader />}><AdminActivityPage /></Suspense>} />
-                <Route path={appRoutes.adminNotifications} element={<Suspense fallback={<PageLoader />}><AdminNotificationsPage /></Suspense>} />
+                <Route
+                  path={appRoutes.adminOverview}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminOverviewPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.adminUsers}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminUsersPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.adminFinancialMetrics}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminFinancialMetricsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.adminAiUsage}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminAiUsagePage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.adminSubscriptions}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminSubscriptionsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.adminActivity}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminActivityPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path={appRoutes.adminNotifications}
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminNotificationsPage />
+                    </Suspense>
+                  }
+                />
               </Route>
 
-              <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
+              <Route
+                path="*"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <NotFound />
+                  </Suspense>
+                }
+              />
             </Routes>
           </ProductTourProvider>
         </AuthProvider>

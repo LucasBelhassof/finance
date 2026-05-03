@@ -36,7 +36,9 @@ export default function AdminSubscriptionsPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">MRR estimado</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">{currencyFormatter.format(data?.summary.estimatedMrr ?? 0)}</CardContent>
+          <CardContent className="text-2xl font-semibold">
+            {currencyFormatter.format(data?.summary.estimatedMrr ?? 0)}
+          </CardContent>
         </Card>
       </div>
 
@@ -46,7 +48,10 @@ export default function AdminSubscriptionsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {(data?.evolution ?? []).map((item) => (
-            <div key={item.month} className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
+            <div
+              key={item.month}
+              className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3"
+            >
               <span className="font-medium">{item.month}</span>
               <span className="text-sm text-muted-foreground">{item.premiumActivations} ativações</span>
             </div>

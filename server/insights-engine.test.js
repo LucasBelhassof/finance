@@ -44,10 +44,38 @@ describe("insights engine", () => {
     const snapshot = buildMonthlySpendingSnapshot({
       balances: [2000],
       transactions: [
-        expense({ id: 1, amount: 900, occurredOn: "2026-04-10", description: "Mercado", groupSlug: "alimentacao", groupLabel: "Alimentacao" }),
-        expense({ id: 2, amount: 600, occurredOn: "2026-04-15", description: "Restaurante", groupSlug: "alimentacao", groupLabel: "Alimentacao" }),
-        expense({ id: 3, amount: 500, occurredOn: "2026-03-10", description: "Mercado", groupSlug: "alimentacao", groupLabel: "Alimentacao" }),
-        expense({ id: 4, amount: 400, occurredOn: "2026-03-20", description: "Farmacia", groupSlug: "saude", groupLabel: "Saude" }),
+        expense({
+          id: 1,
+          amount: 900,
+          occurredOn: "2026-04-10",
+          description: "Mercado",
+          groupSlug: "alimentacao",
+          groupLabel: "Alimentacao",
+        }),
+        expense({
+          id: 2,
+          amount: 600,
+          occurredOn: "2026-04-15",
+          description: "Restaurante",
+          groupSlug: "alimentacao",
+          groupLabel: "Alimentacao",
+        }),
+        expense({
+          id: 3,
+          amount: 500,
+          occurredOn: "2026-03-10",
+          description: "Mercado",
+          groupSlug: "alimentacao",
+          groupLabel: "Alimentacao",
+        }),
+        expense({
+          id: 4,
+          amount: 400,
+          occurredOn: "2026-03-20",
+          description: "Farmacia",
+          groupSlug: "saude",
+          groupLabel: "Saude",
+        }),
       ],
     });
 
@@ -65,9 +93,30 @@ describe("insights engine", () => {
       buildMonthlySpendingSnapshot({
         balances: [3000],
         transactions: [
-          expense({ id: 1, amount: 1000, occurredOn: "2026-04-08", description: "Aluguel", groupSlug: "moradia", groupLabel: "Moradia" }),
-          expense({ id: 2, amount: 220, occurredOn: "2026-04-11", description: "Mercado", groupSlug: "alimentacao", groupLabel: "Alimentacao" }),
-          expense({ id: 3, amount: 150, occurredOn: "2026-04-18", description: "Uber", groupSlug: "transporte", groupLabel: "Transporte" }),
+          expense({
+            id: 1,
+            amount: 1000,
+            occurredOn: "2026-04-08",
+            description: "Aluguel",
+            groupSlug: "moradia",
+            groupLabel: "Moradia",
+          }),
+          expense({
+            id: 2,
+            amount: 220,
+            occurredOn: "2026-04-11",
+            description: "Mercado",
+            groupSlug: "alimentacao",
+            groupLabel: "Alimentacao",
+          }),
+          expense({
+            id: 3,
+            amount: 150,
+            occurredOn: "2026-04-18",
+            description: "Uber",
+            groupSlug: "transporte",
+            groupLabel: "Transporte",
+          }),
         ],
       }),
     );
@@ -84,9 +133,30 @@ describe("insights engine", () => {
     const snapshot = buildMonthlySpendingSnapshot({
       balances: [2500],
       transactions: [
-        expense({ id: 1, amount: 39.9, occurredOn: "2026-02-05", description: "Spotify Premium", groupSlug: "lazer", groupLabel: "Lazer" }),
-        expense({ id: 2, amount: 39.9, occurredOn: "2026-03-05", description: "Spotify Premium", groupSlug: "lazer", groupLabel: "Lazer" }),
-        expense({ id: 3, amount: 39.9, occurredOn: "2026-04-05", description: "Spotify Premium", groupSlug: "lazer", groupLabel: "Lazer" }),
+        expense({
+          id: 1,
+          amount: 39.9,
+          occurredOn: "2026-02-05",
+          description: "Spotify Premium",
+          groupSlug: "lazer",
+          groupLabel: "Lazer",
+        }),
+        expense({
+          id: 2,
+          amount: 39.9,
+          occurredOn: "2026-03-05",
+          description: "Spotify Premium",
+          groupSlug: "lazer",
+          groupLabel: "Lazer",
+        }),
+        expense({
+          id: 3,
+          amount: 39.9,
+          occurredOn: "2026-04-05",
+          description: "Spotify Premium",
+          groupSlug: "lazer",
+          groupLabel: "Lazer",
+        }),
       ],
     });
 
@@ -122,7 +192,14 @@ describe("insights engine", () => {
           groupLabel: "Tecnologia",
           installmentPurchaseId: 99,
         }),
-        expense({ id: 3, amount: 180, occurredOn: "2026-04-10", description: "Mercado", groupSlug: "alimentacao", groupLabel: "Alimentacao" }),
+        expense({
+          id: 3,
+          amount: 180,
+          occurredOn: "2026-04-10",
+          description: "Mercado",
+          groupSlug: "alimentacao",
+          groupLabel: "Alimentacao",
+        }),
       ],
     });
 
@@ -152,9 +229,30 @@ describe("insights engine", () => {
       {
         balances: [900],
         transactions: [
-          expense({ id: 1, amount: 1100, occurredOn: "2026-04-05", description: "Aluguel", groupSlug: "moradia", groupLabel: "Moradia" }),
-          expense({ id: 2, amount: 160, occurredOn: "2026-04-09", description: "Uber", groupSlug: "transporte", groupLabel: "Transporte" }),
-          expense({ id: 3, amount: 120, occurredOn: "2026-04-14", description: "Mercado", groupSlug: "alimentacao", groupLabel: "Alimentacao" }),
+          expense({
+            id: 1,
+            amount: 1100,
+            occurredOn: "2026-04-05",
+            description: "Aluguel",
+            groupSlug: "moradia",
+            groupLabel: "Moradia",
+          }),
+          expense({
+            id: 2,
+            amount: 160,
+            occurredOn: "2026-04-09",
+            description: "Uber",
+            groupSlug: "transporte",
+            groupLabel: "Transporte",
+          }),
+          expense({
+            id: 3,
+            amount: 120,
+            occurredOn: "2026-04-14",
+            description: "Mercado",
+            groupSlug: "alimentacao",
+            groupLabel: "Alimentacao",
+          }),
         ],
       },
       { limit: 6 },

@@ -16,7 +16,10 @@ export function PasswordField(props: PasswordFieldProps) {
       <Input
         {...rest}
         type={visible ? "text" : "password"}
-        className={cn("h-12 rounded-2xl border-white/8 bg-[#101924] pr-12 text-sm text-slate-100 placeholder:text-slate-500", className)}
+        className={cn(
+          "h-12 rounded-2xl border-white/8 bg-[#101924] pr-12 text-sm text-slate-100 placeholder:text-slate-500",
+          className,
+        )}
       />
       <Button
         type="button"

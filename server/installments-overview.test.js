@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildInstallmentsConsistencyChecks, buildInstallmentsOverviewResponse, deriveNextDueDate } from "./installments-overview.js";
+import {
+  buildInstallmentsConsistencyChecks,
+  buildInstallmentsOverviewResponse,
+  deriveNextDueDate,
+} from "./installments-overview.js";
 
 const baseRows = [
   {
@@ -290,7 +294,9 @@ describe("installments overview helpers", () => {
 
     expect(byCategoryAndStatus.items.length).toBeGreaterThan(0);
     expect(new Set(byCategoryAndStatus.items.map((item) => item.installment_purchase_id))).toEqual(new Set([11]));
-    expect(byCategoryAndStatus.items.every((item) => item.category === "Educacao" && item.status === "paid")).toBe(true);
+    expect(byCategoryAndStatus.items.every((item) => item.category === "Educacao" && item.status === "paid")).toBe(
+      true,
+    );
     expect(byCategoryAndStatus.monthly_commitment).toBe(0);
   });
 
@@ -302,8 +308,11 @@ describe("installments overview helpers", () => {
     expect(deriveNextDueDate("2026-04-20", 15)).toBe("2026-05-15");
     expect(roundedItem?.total_amount).toBeCloseTo(360.99, 2);
     expect(roundedItem?.installment_due_date).toBe("2026-04-03");
-    expect(Math.abs((roundedItem?.installment_amount ?? 0) * (roundedItem?.installment_count ?? 0) - (roundedItem?.total_amount ?? 0))).toBeLessThanOrEqual(
-      0.01,
-    );
+    expect(
+      Math.abs(
+        (roundedItem?.installment_amount ?? 0) * (roundedItem?.installment_count ?? 0) -
+          (roundedItem?.total_amount ?? 0),
+      ),
+    ).toBeLessThanOrEqual(0.01);
   });
 });

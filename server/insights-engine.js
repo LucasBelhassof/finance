@@ -228,7 +228,7 @@ export function buildMonthlySpendingSnapshot({ transactions = [], balances = [],
   const latestTransactionDate = normalizedTransactions[0]?.occurredOn ?? null;
   const resolvedReferenceDate = referenceDate
     ? toDateOnly(referenceDate)
-    : latestTransactionDate ?? new Date().toISOString().slice(0, 10);
+    : (latestTransactionDate ?? new Date().toISOString().slice(0, 10));
   const currentMonthStart = startOfMonth(resolvedReferenceDate);
   const previousMonthStart = addMonths(currentMonthStart, -1);
   const nextMonthStart = addMonths(currentMonthStart, 1);
@@ -247,8 +247,12 @@ export function buildMonthlySpendingSnapshot({ transactions = [], balances = [],
   const historicalExpenses = normalizedTransactions.filter(
     (transaction) => transaction.occurredOn >= historicalCutoff && transaction.occurredOn < currentMonthStart,
   );
-  const currentMonthTotal = roundCurrency(currentMonthExpenses.reduce((sum, transaction) => sum + transaction.amount, 0));
-  const previousMonthTotal = roundCurrency(previousMonthExpenses.reduce((sum, transaction) => sum + transaction.amount, 0));
+  const currentMonthTotal = roundCurrency(
+    currentMonthExpenses.reduce((sum, transaction) => sum + transaction.amount, 0),
+  );
+  const previousMonthTotal = roundCurrency(
+    previousMonthExpenses.reduce((sum, transaction) => sum + transaction.amount, 0),
+  );
   const recent14DayTotal = roundCurrency(recent14DayExpenses.reduce((sum, transaction) => sum + transaction.amount, 0));
   const totalBalance = roundCurrency(balances.reduce((sum, value) => sum + toNumber(value), 0));
   const categorySummaries = buildCategorySummaries(currentMonthExpenses, currentMonthTotal);
@@ -256,7 +260,9 @@ export function buildMonthlySpendingSnapshot({ transactions = [], balances = [],
   const previousCategorySummaries = buildCategorySummaries(previousMonthExpenses, previousMonthTotal);
   const previousTopCategory = previousCategorySummaries[0] ?? null;
   const installmentTransactions = currentMonthExpenses.filter((transaction) => transaction.isInstallment);
-  const installmentTotal = roundCurrency(installmentTransactions.reduce((sum, transaction) => sum + transaction.amount, 0));
+  const installmentTotal = roundCurrency(
+    installmentTransactions.reduce((sum, transaction) => sum + transaction.amount, 0),
+  );
   const recurringCharges = buildRecurringCharges(
     normalizedTransactions.filter((transaction) => transaction.occurredOn >= historicalCutoff),
   );
@@ -282,7 +288,9 @@ export function buildMonthlySpendingSnapshot({ transactions = [], balances = [],
       share: currentMonthTotal > 0 ? installmentTotal / currentMonthTotal : 0,
       transactionsCount: installmentTransactions.length,
       purchaseCount: new Set(
-        installmentTransactions.map((transaction) => transaction.installmentPurchaseId).filter((value) => value !== null && value !== undefined),
+        installmentTransactions
+          .map((transaction) => transaction.installmentPurchaseId)
+          .filter((value) => value !== null && value !== undefined),
       ).size,
     },
     recurringCharges,
@@ -569,7 +577,9 @@ function dedupeInsights(insights) {
 
 export function rankInsights(insights, limit = 4) {
   return dedupeInsights(
-    [...insights].sort((left, right) => scoreInsight(right) - scoreInsight(left) || left.title.localeCompare(right.title, "pt-BR")),
+    [...insights].sort(
+      (left, right) => scoreInsight(right) - scoreInsight(left) || left.title.localeCompare(right.title, "pt-BR"),
+    ),
   ).slice(0, limit);
 }
 

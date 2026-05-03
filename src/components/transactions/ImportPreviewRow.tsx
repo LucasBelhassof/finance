@@ -75,10 +75,18 @@ function RowStatusBadge({ row }: { row: ImportPreviewTableRow }) {
   );
 }
 
-export default function ImportPreviewRow({ banks, categories, row, onChange, onOpenCreateCategory }: ImportPreviewRowProps) {
+export default function ImportPreviewRow({
+  banks,
+  categories,
+  row,
+  onChange,
+  onOpenCreateCategory,
+}: ImportPreviewRowProps) {
   const { draft, item } = row;
   const sourceKind = draft.sourceKind ?? item.sourceKind;
-  const filteredCategories = categories.filter((category) => draft.type !== "unknown" && category.transactionType === draft.type);
+  const filteredCategories = categories.filter(
+    (category) => draft.type !== "unknown" && category.transactionType === draft.type,
+  );
   const bankOptions = buildBankOptions(banks, sourceKind);
   const categoryValue = String(draft.categoryId ?? "");
   const allIssues = [
@@ -138,7 +146,10 @@ export default function ImportPreviewRow({ banks, categories, row, onChange, onO
           />
           {firstIssue ? (
             <p
-              className={cn("truncate text-xs", firstIssue.kind === "error" ? "text-destructive" : "text-muted-foreground")}
+              className={cn(
+                "truncate text-xs",
+                firstIssue.kind === "error" ? "text-destructive" : "text-muted-foreground",
+              )}
               title={allIssues.map((i) => i.message).join(" • ")}
             >
               {firstIssue.message}

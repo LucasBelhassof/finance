@@ -356,7 +356,7 @@ export async function createSeedBankConnections(client, userId) {
   );
 
   for (const spec of Object.values(ACCOUNT_SPECS)) {
-    const parentId = spec.parentSlug ? insertedBySlug.get(spec.parentSlug) ?? null : null;
+    const parentId = spec.parentSlug ? (insertedBySlug.get(spec.parentSlug) ?? null) : null;
     const result = await client.query(
       `
         INSERT INTO bank_connections (
@@ -393,13 +393,13 @@ export async function createSeedBankConnections(client, userId) {
         spec.slug,
         spec.name,
         spec.accountType,
-          spec.connected,
-          spec.color,
-          spec.currentBalance,
-          spec.creditLimit,
-          spec.sortOrder,
-          parentId,
-          spec.statementCloseDay,
+        spec.connected,
+        spec.color,
+        spec.currentBalance,
+        spec.creditLimit,
+        spec.sortOrder,
+        parentId,
+        spec.statementCloseDay,
         spec.statementDueDay,
       ],
     );
@@ -468,9 +468,7 @@ async function listCategoriesByType(client, transactionType) {
 
 export function selectSeedCategoriesBySlug(categories, preferredSlugs) {
   const categoriesBySlug = new Map(categories.map((category) => [category.slug, category]));
-  const selectedCategories = preferredSlugs
-    .map((slug) => categoriesBySlug.get(slug))
-    .filter(Boolean);
+  const selectedCategories = preferredSlugs.map((slug) => categoriesBySlug.get(slug)).filter(Boolean);
 
   if (selectedCategories.length !== preferredSlugs.length) {
     const missingSlugs = preferredSlugs.filter((slug) => !categoriesBySlug.has(slug));
@@ -672,7 +670,10 @@ export async function runSeedData(pool, options = {}) {
 
     const categories = {
       income: await listCategoriesByType(client, "income"),
-      expense: selectSeedCategoriesBySlug(await listCategoriesByType(client, "expense"), DEFAULT_EXPENSE_CATEGORY_SLUGS),
+      expense: selectSeedCategoriesBySlug(
+        await listCategoriesByType(client, "expense"),
+        DEFAULT_EXPENSE_CATEGORY_SLUGS,
+      ),
     };
 
     if (!categories.income.length || !categories.expense.length) {

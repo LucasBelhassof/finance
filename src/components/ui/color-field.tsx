@@ -27,10 +27,7 @@ export function ColorField({
       <p className="text-sm text-muted-foreground">{label}</p>
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/35 px-3 py-2">
-          <span
-            className="h-8 w-8 rounded-full border border-white/20"
-            style={{ backgroundColor: resolvedColor }}
-          />
+          <span className="h-8 w-8 rounded-full border border-white/20" style={{ backgroundColor: resolvedColor }} />
           <input
             aria-label={inputAriaLabel}
             type="color"

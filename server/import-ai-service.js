@@ -2,9 +2,11 @@ import { requestDirectImportAiSuggestionsWithTelemetry } from "./import-ai-provi
 import { requestWebhookImportAiSuggestionsWithTelemetry } from "./import-ai-provider-webhook.js";
 
 function parseBooleanFlag(value) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase() === "true";
+  return (
+    String(value ?? "")
+      .trim()
+      .toLowerCase() === "true"
+  );
 }
 
 function parseNumber(value, fallback) {

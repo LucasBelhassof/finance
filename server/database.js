@@ -16,7 +16,11 @@ import {
   validateCommitLine,
 } from "./transaction-import.js";
 import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.js";
-import { createUniversalImportPreview, getUniversalPreviewSession, hasUniversalPreviewSession } from "./import/index.js";
+import {
+  createUniversalImportPreview,
+  getUniversalPreviewSession,
+  hasUniversalPreviewSession,
+} from "./import/index.js";
 import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
 import { normalizeDashboardFilters, shiftDashboardDateKey } from "./dashboard-filters.js";
@@ -248,7 +252,9 @@ function mapTransactionRow(row, referenceDate) {
     amount,
     formattedAmount: `${amount < 0 ? "- " : "+ "}${formatCurrency(Math.abs(amount))}`,
     occurredOn: normalizeDateValue(row.occurred_on),
-    relativeDate: referenceDate ? formatRelativeDate(row.occurred_on, referenceDate) : normalizeDateValue(row.occurred_on),
+    relativeDate: referenceDate
+      ? formatRelativeDate(row.occurred_on, referenceDate)
+      : normalizeDateValue(row.occurred_on),
     isRecurring: Boolean(row.is_recurring),
     isRecurringProjection: Boolean(row.is_recurring_projection),
     sourceTransactionId: row.recurring_source_transaction_id ?? row.id,
@@ -407,7 +413,9 @@ export async function getSummaryCards(userId) {
   currentMonthStart.setUTCDate(1);
   currentMonthStart.setUTCHours(0, 0, 0, 0);
   const nextMonthStart = new Date(Date.UTC(currentMonthStart.getUTCFullYear(), currentMonthStart.getUTCMonth() + 1, 1));
-  const previousMonthStart = new Date(Date.UTC(currentMonthStart.getUTCFullYear(), currentMonthStart.getUTCMonth() - 1, 1));
+  const previousMonthStart = new Date(
+    Date.UTC(currentMonthStart.getUTCFullYear(), currentMonthStart.getUTCMonth() - 1, 1),
+  );
   const [balanceResult, monthlyTotalsResult, transactionBalanceResult] = await Promise.all([
     pool.query(
       `
@@ -954,7 +962,15 @@ export async function getInstallmentsOverview(userId, filters = {}) {
   return buildInstallmentsOverviewResponse(rows, filters);
 }
 
-const housingExpenseTypes = new Set(["rent", "home_financing", "electricity", "water", "condo", "vehicle_financing", "other"]);
+const housingExpenseTypes = new Set([
+  "rent",
+  "home_financing",
+  "electricity",
+  "water",
+  "condo",
+  "vehicle_financing",
+  "other",
+]);
 const housingFinancingTypes = new Set(["home_financing", "vehicle_financing"]);
 const investmentContributionModes = new Set(["fixed_amount", "income_percentage"]);
 const investmentStatuses = new Set(["active", "paused", "archived"]);
@@ -996,7 +1012,9 @@ function mapHousingRow(row, transactions = []) {
       id: transaction.id,
       occurredOn: normalizeDateValue(transaction.occurred_on),
       amount: parseNumeric(transaction.amount),
-      installmentNumber: Number.isInteger(Number(transaction.installment_number)) ? Number(transaction.installment_number) : null,
+      installmentNumber: Number.isInteger(Number(transaction.installment_number))
+        ? Number(transaction.installment_number)
+        : null,
     })),
   };
 }
@@ -1395,8 +1413,10 @@ export async function deleteHousing(userId, housingId) {
 
 function mapInvestmentRow(row) {
   const currentAmount = parseNumeric(row.current_amount);
-  const targetAmount = row.target_amount === null || row.target_amount === undefined ? null : parseNumeric(row.target_amount);
-  const fixedAmount = row.fixed_amount === null || row.fixed_amount === undefined ? null : parseNumeric(row.fixed_amount);
+  const targetAmount =
+    row.target_amount === null || row.target_amount === undefined ? null : parseNumeric(row.target_amount);
+  const fixedAmount =
+    row.fixed_amount === null || row.fixed_amount === undefined ? null : parseNumeric(row.fixed_amount);
   const incomePercentage =
     row.income_percentage === null || row.income_percentage === undefined ? null : parseNumeric(row.income_percentage);
 
@@ -1430,7 +1450,9 @@ function mapInvestmentRow(row) {
 }
 
 function validateInvestmentInput(input = {}, options = {}) {
-  const name = String(input.name ?? "").replace(/\s+/g, " ").trim();
+  const name = String(input.name ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
   const description = String(input.description ?? "").trim();
   const contributionMode = String(input.contributionMode ?? input.contribution_mode ?? "").trim();
   const fixedAmountValue = input.fixedAmount ?? input.fixed_amount;
@@ -1442,17 +1464,25 @@ function validateInvestmentInput(input = {}, options = {}) {
   const color = String(input.color ?? "").trim() || null;
   const notes = String(input.notes ?? "").trim();
   const fixedAmount =
-    fixedAmountValue === undefined || fixedAmountValue === null || fixedAmountValue === "" ? null : Number(fixedAmountValue);
+    fixedAmountValue === undefined || fixedAmountValue === null || fixedAmountValue === ""
+      ? null
+      : Number(fixedAmountValue);
   const incomePercentage =
     incomePercentageValue === undefined || incomePercentageValue === null || incomePercentageValue === ""
       ? null
       : Number(incomePercentageValue);
   const currentAmount =
-    currentAmountValue === undefined || currentAmountValue === null || currentAmountValue === "" ? 0 : Number(currentAmountValue);
+    currentAmountValue === undefined || currentAmountValue === null || currentAmountValue === ""
+      ? 0
+      : Number(currentAmountValue);
   const targetAmount =
-    targetAmountValue === undefined || targetAmountValue === null || targetAmountValue === "" ? null : Number(targetAmountValue);
+    targetAmountValue === undefined || targetAmountValue === null || targetAmountValue === ""
+      ? null
+      : Number(targetAmountValue);
   const bankConnectionId =
-    bankConnectionValue === undefined || bankConnectionValue === null || bankConnectionValue === "" ? null : Number(bankConnectionValue);
+    bankConnectionValue === undefined || bankConnectionValue === null || bankConnectionValue === ""
+      ? null
+      : Number(bankConnectionValue);
 
   if (!name) {
     throw new Error("investment name is required");
@@ -1720,7 +1750,8 @@ export async function listCategories() {
 
 export async function createCategory(input) {
   const label = String(input.label ?? "").trim();
-  const transactionType = input.transactionType === "income" ? "income" : input.transactionType === "expense" ? "expense" : null;
+  const transactionType =
+    input.transactionType === "income" ? "income" : input.transactionType === "expense" ? "expense" : null;
   const icon = String(input.icon ?? "").trim();
   const color = String(input.color ?? "").trim();
   const groupLabel = String(input.groupLabel ?? "").trim();
@@ -1748,7 +1779,9 @@ export async function createCategory(input) {
 
   const total = Number(slugResult.rows[0]?.total ?? 0);
   const slug = total === 0 ? slugBase : `${slugBase}-${total + 1}`;
-  const sortOrderResult = await pool.query(`SELECT COALESCE(MAX(sort_order), 0) + 10 AS next_sort_order FROM categories`);
+  const sortOrderResult = await pool.query(
+    `SELECT COALESCE(MAX(sort_order), 0) + 10 AS next_sort_order FROM categories`,
+  );
 
   const result = await pool.query(
     `
@@ -1756,7 +1789,17 @@ export async function createCategory(input) {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
       RETURNING id, slug, label, transaction_type, icon, color, group_slug, group_label, group_color, is_system
     `,
-    [slug, label, transactionType, icon, color, groupSlug, groupLabel, groupColor, sortOrderResult.rows[0].next_sort_order],
+    [
+      slug,
+      label,
+      transactionType,
+      icon,
+      color,
+      groupSlug,
+      groupLabel,
+      groupColor,
+      sortOrderResult.rows[0].next_sort_order,
+    ],
   );
 
   return mapCategoryRow(result.rows[0]);
@@ -1867,10 +1910,19 @@ export async function deleteCategory(categoryId) {
       throw new Error("fallback category not found");
     }
 
-    await client.query(`UPDATE transactions SET category_id = $2 WHERE category_id = $1`, [categoryId, fallbackCategory.id]);
+    await client.query(`UPDATE transactions SET category_id = $2 WHERE category_id = $1`, [
+      categoryId,
+      fallbackCategory.id,
+    ]);
     await client.query(`UPDATE housing SET category_id = $2 WHERE category_id = $1`, [categoryId, fallbackCategory.id]);
-    await client.query(`UPDATE installment_purchases SET category_id = $2 WHERE category_id = $1`, [categoryId, fallbackCategory.id]);
-    await client.query(`UPDATE transaction_categorization_rules SET category_id = $2 WHERE category_id = $1`, [categoryId, fallbackCategory.id]);
+    await client.query(`UPDATE installment_purchases SET category_id = $2 WHERE category_id = $1`, [
+      categoryId,
+      fallbackCategory.id,
+    ]);
+    await client.query(`UPDATE transaction_categorization_rules SET category_id = $2 WHERE category_id = $1`, [
+      categoryId,
+      fallbackCategory.id,
+    ]);
     await client.query(`DELETE FROM categories WHERE id = $1`, [categoryId]);
 
     await client.query("COMMIT");
@@ -1884,7 +1936,8 @@ export async function deleteCategory(categoryId) {
 
 async function resolveCategoryForTransactionInput(rawCategoryId, amount, client = pool) {
   const transactionType = getTransactionTypeFromAmount(amount);
-  const categoryId = rawCategoryId === undefined || rawCategoryId === null || rawCategoryId === "" ? null : Number(rawCategoryId);
+  const categoryId =
+    rawCategoryId === undefined || rawCategoryId === null || rawCategoryId === "" ? null : Number(rawCategoryId);
 
   if (categoryId === null) {
     if (transactionType === "income") {
@@ -2320,7 +2373,17 @@ async function getOrCreateInstallmentPurchase(input, client = pool) {
 }
 
 async function createImportedTransaction(
-  { userId, bankConnectionId, categoryId, description, amount, occurredOn, seedKey, installmentPurchaseId = null, installmentNumber = null },
+  {
+    userId,
+    bankConnectionId,
+    categoryId,
+    description,
+    amount,
+    occurredOn,
+    seedKey,
+    installmentPurchaseId = null,
+    installmentNumber = null,
+  },
   client = pool,
 ) {
   const result = await client.query(
@@ -2340,7 +2403,17 @@ async function createImportedTransaction(
       ON CONFLICT (user_id, seed_key) DO NOTHING
       RETURNING id
     `,
-    [userId, bankConnectionId, categoryId, description, amount, occurredOn, seedKey, installmentPurchaseId, installmentNumber],
+    [
+      userId,
+      bankConnectionId,
+      categoryId,
+      description,
+      amount,
+      occurredOn,
+      seedKey,
+      installmentPurchaseId,
+      installmentNumber,
+    ],
   );
 
   if (!result.rowCount) {
@@ -2628,7 +2701,11 @@ export async function deleteTransaction(userId, transactionId, input = {}) {
       );
 
       await client.query("COMMIT");
-      await reevaluateAffectedPlansForTransactions(resolvedUserId, [mapTransactionRow(existingTransaction)], "transaction_deleted");
+      await reevaluateAffectedPlansForTransactions(
+        resolvedUserId,
+        [mapTransactionRow(existingTransaction)],
+        "transaction_deleted",
+      );
       return;
     }
 
@@ -2654,9 +2731,20 @@ export async function deleteTransaction(userId, transactionId, input = {}) {
   }
 }
 
-export async function previewTransactionImport(userId, fileBuffer, importSource, bankConnectionId, filename, contentType, filePassword) {
+export async function previewTransactionImport(
+  userId,
+  fileBuffer,
+  importSource,
+  bankConnectionId,
+  filename,
+  contentType,
+  filePassword,
+) {
   const resolvedUserId = await requireUserId(userId);
-  const parsedBankConnectionId = bankConnectionId === undefined || bankConnectionId === null || bankConnectionId === "" ? null : Number(bankConnectionId);
+  const parsedBankConnectionId =
+    bankConnectionId === undefined || bankConnectionId === null || bankConnectionId === ""
+      ? null
+      : Number(bankConnectionId);
   const hasExplicitImportSource = importSource === "credit_card_statement" || importSource === "bank_statement";
   let bankConnection = null;
 
@@ -2671,7 +2759,11 @@ export async function previewTransactionImport(userId, fileBuffer, importSource,
       throw new Error("bank connection not found");
     }
 
-    if (hasExplicitImportSource && importSource === "credit_card_statement" && bankConnection.account_type !== "credit_card") {
+    if (
+      hasExplicitImportSource &&
+      importSource === "credit_card_statement" &&
+      bankConnection.account_type !== "credit_card"
+    ) {
       throw new Error("A fatura do cartao precisa ser vinculada a uma conta do tipo cartao.");
     }
 
@@ -2691,7 +2783,12 @@ export async function previewTransactionImport(userId, fileBuffer, importSource,
     fingerprintRows.map((row) =>
       String(
         row.seed_key ??
-          buildImportSeedKey(resolvedUserId, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+          buildImportSeedKey(
+            resolvedUserId,
+            normalizeDateValue(row.occurred_on),
+            parseNumeric(row.amount),
+            normalizeDescription(row.description),
+          ),
       ),
     ),
   );
@@ -2738,7 +2835,14 @@ function normalizeUniversalImportSourceKind(value, fallback = "unknown") {
 }
 
 function buildUniversalImportFingerprint(parts) {
-  return createHash("sha256").update(parts.filter((part) => part !== null && part !== undefined).map(String).join("|")).digest("hex");
+  return createHash("sha256")
+    .update(
+      parts
+        .filter((part) => part !== null && part !== undefined)
+        .map(String)
+        .join("|"),
+    )
+    .digest("hex");
 }
 
 function buildUniversalExternalIdSeedKey({ userId, bankConnectionId, externalId, parserId, sourceKind }) {
@@ -2780,7 +2884,12 @@ function buildUniversalDuplicateCandidates({ userId, bankConnectionId, normalize
       parserId: previewItem?.parserId ?? null,
       sourceKind,
     }),
-    buildImportSeedKey(userId, normalizedLine.normalizedOccurredOn, normalizedLine.signedAmount, normalizedLine.normalizedFinalDescription),
+    buildImportSeedKey(
+      userId,
+      normalizedLine.normalizedOccurredOn,
+      normalizedLine.signedAmount,
+      normalizedLine.normalizedFinalDescription,
+    ),
     buildUniversalRawFallbackSeedKey({
       userId,
       bankConnectionId,
@@ -2819,7 +2928,9 @@ function resolveUniversalCommitSession(previewToken, userId) {
 
 export async function getTransactionImportAiSuggestions(userId, input) {
   const resolvedUserId = await requireUserId(userId);
-  const session = resolveUniversalCommitSession(input.previewToken, resolvedUserId) ?? getPreviewSession(input.previewToken, resolvedUserId);
+  const session =
+    resolveUniversalCommitSession(input.previewToken, resolvedUserId) ??
+    getPreviewSession(input.previewToken, resolvedUserId);
   const categories = await listCategories();
   const config = getImportAiConfig();
 
@@ -2896,12 +3007,20 @@ async function commitLegacyTransactionImport(resolvedUserId, input) {
   validateCommitItemsShape(input.items, session);
   const sessionItemsByRowIndex = new Map(session.items.map((item) => [item.rowIndex, item.original]));
 
-  const [categories, fingerprintRows] = await Promise.all([listCategories(), listTransactionFingerprintRows(resolvedUserId)]);
+  const [categories, fingerprintRows] = await Promise.all([
+    listCategories(),
+    listTransactionFingerprintRows(resolvedUserId),
+  ]);
   const existingFingerprints = new Set(
     fingerprintRows.map((row) =>
       String(
         row.seed_key ??
-          buildImportSeedKey(resolvedUserId, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+          buildImportSeedKey(
+            resolvedUserId,
+            normalizeDateValue(row.occurred_on),
+            parseNumeric(row.amount),
+            normalizeDescription(row.description),
+          ),
       ),
     ),
   );
@@ -2923,7 +3042,8 @@ async function commitLegacyTransactionImport(resolvedUserId, input) {
       const previewItem = sessionItemsByRowIndex.get(item.rowIndex) ?? null;
       const resolvedBankConnectionId =
         item.bankConnectionId === undefined || item.bankConnectionId === null || item.bankConnectionId === ""
-          ? requestedGlobalBankConnectionId ?? (Number.isInteger(session.bankConnectionId) ? session.bankConnectionId : null)
+          ? (requestedGlobalBankConnectionId ??
+            (Number.isInteger(session.bankConnectionId) ? session.bankConnectionId : null))
           : Number(item.bankConnectionId);
       const resolvedSourceKind =
         item.sourceKind === "credit_card_statement" || item.sourceKind === "bank_statement"
@@ -3064,12 +3184,15 @@ async function commitLegacyTransactionImport(resolvedUserId, input) {
         }
 
         if (importedTransactions.length > 0) {
-          await upsertTransactionCategorizationRule({
-            userId: resolvedUserId,
-            matchKey: extractCategorizationMatchKey(normalized.description),
-            type: normalized.type,
-            categoryId: normalized.categoryId,
-          }, client);
+          await upsertTransactionCategorizationRule(
+            {
+              userId: resolvedUserId,
+              matchKey: extractCategorizationMatchKey(normalized.description),
+              type: normalized.type,
+              categoryId: normalized.categoryId,
+            },
+            client,
+          );
         }
 
         await client.query("COMMIT");
@@ -3142,12 +3265,20 @@ async function commitUniversalTransactionImport(resolvedUserId, input) {
   const sessionItemsByRowIndex = new Map(
     session.items.map((item) => [item.rowIndex, { ...(item.original ?? {}), ...(item.commitData ?? {}) }]),
   );
-  const [categories, fingerprintRows] = await Promise.all([listCategories(), listTransactionFingerprintRows(resolvedUserId)]);
+  const [categories, fingerprintRows] = await Promise.all([
+    listCategories(),
+    listTransactionFingerprintRows(resolvedUserId),
+  ]);
   const existingFingerprints = new Set(
     fingerprintRows.map((row) =>
       String(
         row.seed_key ??
-          buildImportSeedKey(resolvedUserId, normalizeDateValue(row.occurred_on), parseNumeric(row.amount), normalizeDescription(row.description)),
+          buildImportSeedKey(
+            resolvedUserId,
+            normalizeDateValue(row.occurred_on),
+            parseNumeric(row.amount),
+            normalizeDescription(row.description),
+          ),
       ),
     ),
   );
@@ -3171,7 +3302,10 @@ async function commitUniversalTransactionImport(resolvedUserId, input) {
           ...item,
           sourceKind: normalizeUniversalImportSourceKind(
             item?.sourceKind,
-            normalizeUniversalImportSourceKind(previewItem?.sourceKind, normalizeUniversalImportSourceKind(session.detectedSourceKind, "unknown")),
+            normalizeUniversalImportSourceKind(
+              previewItem?.sourceKind,
+              normalizeUniversalImportSourceKind(session.detectedSourceKind, "unknown"),
+            ),
           ),
         },
         categories,
@@ -3213,8 +3347,8 @@ async function commitUniversalTransactionImport(resolvedUserId, input) {
                 previewItem?.isInstallment && Number.isInteger(previewItem?.installmentCount)
                   ? "credit_card_statement"
                   : normalized.sourceKind === "credit_card_statement" || normalized.sourceKind === "bank_statement"
-                  ? normalized.sourceKind
-                  : previewItem?.importSource ?? "generic_transactions",
+                    ? normalized.sourceKind
+                    : (previewItem?.importSource ?? "generic_transactions"),
             }
           : previewItem,
       });
@@ -3278,7 +3412,13 @@ async function commitUniversalTransactionImport(resolvedUserId, input) {
         for (const entry of entriesToImport) {
           const duplicateCandidates =
             installmentPurchaseSeedKey && Number.isInteger(entry.installmentNumber)
-              ? [buildInstallmentTransactionSeedKey(resolvedUserId, installmentPurchaseSeedKey, entry.installmentNumber)]
+              ? [
+                  buildInstallmentTransactionSeedKey(
+                    resolvedUserId,
+                    installmentPurchaseSeedKey,
+                    entry.installmentNumber,
+                  ),
+                ]
               : buildUniversalDuplicateCandidates({
                   userId: resolvedUserId,
                   bankConnectionId: resolvedBankConnectionId,
@@ -3292,7 +3432,10 @@ async function commitUniversalTransactionImport(resolvedUserId, input) {
                 });
           const seedKey = duplicateCandidates[0];
 
-          if (!normalized.ignoreDuplicate && duplicateCandidates.some((candidate) => commitFingerprints.has(candidate))) {
+          if (
+            !normalized.ignoreDuplicate &&
+            duplicateCandidates.some((candidate) => commitFingerprints.has(candidate))
+          ) {
             duplicateEntries += 1;
             continue;
           }
@@ -3323,12 +3466,15 @@ async function commitUniversalTransactionImport(resolvedUserId, input) {
         }
 
         if (importedTransactions.length > 0) {
-          await upsertTransactionCategorizationRule({
-            userId: resolvedUserId,
-            matchKey: extractCategorizationMatchKey(normalized.description),
-            type: normalized.type,
-            categoryId: normalized.categoryId,
-          }, client);
+          await upsertTransactionCategorizationRule(
+            {
+              userId: resolvedUserId,
+              matchKey: extractCategorizationMatchKey(normalized.description),
+              type: normalized.type,
+              categoryId: normalized.categoryId,
+            },
+            client,
+          );
         }
 
         await client.query("COMMIT");
@@ -3504,7 +3650,9 @@ function normalizePlanItems(items = []) {
 
   return items
     .map((item, index) => ({
-      title: String(item?.title ?? "").replace(/\s+/g, " ").trim(),
+      title: String(item?.title ?? "")
+        .replace(/\s+/g, " ")
+        .trim(),
       description: String(item?.description ?? "").trim(),
       status: normalizePlanStatus(item?.status),
       priority: normalizePlanPriority(item?.priority),
@@ -3647,9 +3795,10 @@ function normalizePlanGoal(goal = {}, options = {}) {
     targetAmount: Number(targetAmount.toFixed(2)),
     transactionType: normalizePlanTransactionType(goal?.transactionType ?? goal?.transaction_type),
     targetModel,
-    categoryIds: targetModel === "category" ? normalizePlanGoalCategoryIds(goal?.categoryIds ?? goal?.category_ids) : [],
-    investmentBoxId: targetModel === "investment_box" ? investmentBoxIds[0] ?? null : null,
-    investmentBox: targetModel === "investment_box" ? investmentBoxes[0] ?? null : null,
+    categoryIds:
+      targetModel === "category" ? normalizePlanGoalCategoryIds(goal?.categoryIds ?? goal?.category_ids) : [],
+    investmentBoxId: targetModel === "investment_box" ? (investmentBoxIds[0] ?? null) : null,
+    investmentBox: targetModel === "investment_box" ? (investmentBoxes[0] ?? null) : null,
     investmentBoxIds: targetModel === "investment_box" ? investmentBoxIds : [],
     investmentBoxes: targetModel === "investment_box" ? investmentBoxes : [],
     startDate,
@@ -3670,7 +3819,9 @@ function parsePlanGoalCategoryIds(value) {
 }
 
 function normalizePlanInput(input = {}, options = {}) {
-  const title = String(input.title ?? "").replace(/\s+/g, " ").trim();
+  const title = String(input.title ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (!title && options.requireTitle !== false) {
     throw new Error("plan title is required");
@@ -3736,7 +3887,10 @@ function mapPlanGoal(row) {
   const goal = {
     type: normalizePlanGoalType(row.goal_type),
     source: normalizePlanGoalSource(row.goal_source, row.source),
-    targetAmount: row.goal_target_amount === null || row.goal_target_amount === undefined ? null : parseNumeric(row.goal_target_amount),
+    targetAmount:
+      row.goal_target_amount === null || row.goal_target_amount === undefined
+        ? null
+        : parseNumeric(row.goal_target_amount),
     transactionType: normalizePlanTransactionType(row.goal_transaction_type),
     targetModel: normalizePlanGoalTargetModel(row.goal_target_model),
     categoryIds: parsePlanGoalCategoryIds(row.goal_category_ids),
@@ -4032,7 +4186,10 @@ async function reevaluateAffectedPlansForTransactions(userId, transactions, trig
         plan,
         trigger: {
           type: triggerType,
-          transactionIds: transactions.filter(Boolean).map((transaction) => transaction.id).filter(Boolean),
+          transactionIds: transactions
+            .filter(Boolean)
+            .map((transaction) => transaction.id)
+            .filter(Boolean),
         },
       });
     }
@@ -4292,11 +4449,7 @@ async function replacePlanInvestmentRefs(client, planId, investmentIds) {
   await client.query("DELETE FROM plan_investment_refs WHERE plan_id = $1", [planId]);
 
   const normalizedIds = Array.from(
-    new Set(
-      (investmentIds ?? [])
-        .map(Number)
-        .filter((value) => Number.isInteger(value) && value > 0),
-    ),
+    new Set((investmentIds ?? []).map(Number).filter((value) => Number.isInteger(value) && value > 0)),
   );
 
   for (const investmentId of normalizedIds) {
@@ -4508,7 +4661,11 @@ export async function updatePlan(userId, publicId, input = {}) {
   const hasDescription = Object.prototype.hasOwnProperty.call(input, "description");
   const hasItems = Object.prototype.hasOwnProperty.call(input, "items");
   const hasGoal = Object.prototype.hasOwnProperty.call(input, "goal");
-  const title = hasTitle ? String(input.title ?? "").replace(/\s+/g, " ").trim() : planRow.title;
+  const title = hasTitle
+    ? String(input.title ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+    : planRow.title;
 
   if (hasTitle && !title) {
     throw new Error("plan title is required");
@@ -4722,7 +4879,9 @@ function normalizeRevisionMessages(messages = []) {
   return messages
     .map((message) => ({
       role: message?.role === "assistant" ? "assistant" : "user",
-      content: String(message?.content ?? "").trim().slice(0, 2000),
+      content: String(message?.content ?? "")
+        .trim()
+        .slice(0, 2000),
     }))
     .filter((message) => message.content);
 }
@@ -5134,9 +5293,13 @@ async function persistPlanAssessment({ userId, planRow, plan, trigger = null }) 
       planRow.id,
       userId,
       normalizePlanAssessmentStatus(assessment.status),
-      String(assessment.riskSummary ?? "").trim().slice(0, 1000),
+      String(assessment.riskSummary ?? "")
+        .trim()
+        .slice(0, 1000),
       normalizePlanPriority(assessment.suggestedPriority),
-      String(assessment.adjustmentRecommendation ?? "").trim().slice(0, 1000),
+      String(assessment.adjustmentRecommendation ?? "")
+        .trim()
+        .slice(0, 1000),
       JSON.stringify({ trigger }),
     ],
   );
@@ -5168,7 +5331,9 @@ async function persistPlanAssessment({ userId, planRow, plan, trigger = null }) 
         userId,
         assessmentRow.id,
         String(assessment.recommendation.title).trim().slice(0, 160),
-        String(assessment.recommendation.rationale ?? "").trim().slice(0, 1000),
+        String(assessment.recommendation.rationale ?? "")
+          .trim()
+          .slice(0, 1000),
         JSON.stringify(assessment.recommendation.proposedPlan ?? {}),
       ],
     );
@@ -5234,7 +5399,10 @@ export async function applyPlanRecommendation(userId, planPublicId, recommendati
     throw new Error("recommendation not found");
   }
 
-  const proposedPlan = recommendation.proposed_plan && typeof recommendation.proposed_plan === "object" ? recommendation.proposed_plan : {};
+  const proposedPlan =
+    recommendation.proposed_plan && typeof recommendation.proposed_plan === "object"
+      ? recommendation.proposed_plan
+      : {};
   const updateInput = {};
 
   if (proposedPlan.title) {
@@ -5253,7 +5421,9 @@ export async function applyPlanRecommendation(userId, planPublicId, recommendati
     updateInput.items = proposedPlan.items;
   }
 
-  const plan = Object.keys(updateInput).length ? await updatePlan(resolvedUserId, planPublicId, updateInput) : await getPlanDetail(resolvedUserId, planPublicId);
+  const plan = Object.keys(updateInput).length
+    ? await updatePlan(resolvedUserId, planPublicId, updateInput)
+    : await getPlanDetail(resolvedUserId, planPublicId);
 
   await pool.query(
     `
@@ -5585,7 +5755,9 @@ export async function updateChatConversation(userId, publicId, input = {}) {
 
 export async function searchChatConversations(userId, query, limit = 12) {
   const resolvedUserId = await requireUserId(userId);
-  const normalizedQuery = String(query ?? "").replace(/\s+/g, " ").trim();
+  const normalizedQuery = String(query ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (!normalizedQuery) {
     return [];
@@ -6026,19 +6198,22 @@ export async function getDashboardData(userId, filters = {}) {
     throw new Error("user not found");
   }
 
-  const [summaryCards, recentTransactions, spendingByCategory, banks, chatMessages, snapshots] =
-    await Promise.all([
-      normalizedFilters.active ? getDashboardSummaryCardsWithFilters(resolvedUserId, normalizedFilters) : getSummaryCards(resolvedUserId),
-      listRecentTransactions(resolvedUserId, 8, normalizedFilters),
-      listSpendingByCategory(resolvedUserId, normalizedFilters),
-      listBanks(resolvedUserId),
-      listLatestChatMessages(resolvedUserId),
-      getReferenceMonth(resolvedUserId),
-    ]);
+  const [summaryCards, recentTransactions, spendingByCategory, banks, chatMessages, snapshots] = await Promise.all([
+    normalizedFilters.active
+      ? getDashboardSummaryCardsWithFilters(resolvedUserId, normalizedFilters)
+      : getSummaryCards(resolvedUserId),
+    listRecentTransactions(resolvedUserId, 8, normalizedFilters),
+    listSpendingByCategory(resolvedUserId, normalizedFilters),
+    listBanks(resolvedUserId),
+    listLatestChatMessages(resolvedUserId),
+    getReferenceMonth(resolvedUserId),
+  ]);
 
   return {
     user,
-    referenceMonth: normalizedFilters.active ? normalizedFilters.referenceDate.slice(0, 7) : normalizeDateValue(snapshots[0]?.month_start),
+    referenceMonth: normalizedFilters.active
+      ? normalizedFilters.referenceDate.slice(0, 7)
+      : normalizeDateValue(snapshots[0]?.month_start),
     summaryCards,
     recentTransactions,
     spendingByCategory,

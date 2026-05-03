@@ -20,11 +20,7 @@ function formatAmount(amount) {
 function serializeCanonicalRowsToCsv(rows) {
   const header = "data,descricao,valor";
   const lines = rows.map((row) => {
-    const cells = [
-      row.occurredOn,
-      `"${String(row.description ?? "").replace(/"/g, '""')}"`,
-      formatAmount(row.amount),
-    ];
+    const cells = [row.occurredOn, `"${String(row.description ?? "").replace(/"/g, '""')}"`, formatAmount(row.amount)];
     return cells.join(",");
   });
 
@@ -185,7 +181,15 @@ function buildSafeRawFallbackHash(canonicalRow) {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
-function buildUniversalSession({ preview, metadata, items, canonicalRows, selectedBankConnectionId, detectedSourceKind, userId }) {
+function buildUniversalSession({
+  preview,
+  metadata,
+  items,
+  canonicalRows,
+  selectedBankConnectionId,
+  detectedSourceKind,
+  userId,
+}) {
   const expiresAtMs = Date.parse(preview.expiresAt);
 
   return {
@@ -223,7 +227,7 @@ function buildUniversalSession({ preview, metadata, items, canonicalRows, select
           suggestedCategoryId: item.suggestedCategoryId ?? null,
           selectedBankConnectionId:
             item.bankConnectionId === "" || item.bankConnectionId === undefined || item.bankConnectionId === null
-              ? selectedBankConnectionId ?? null
+              ? (selectedBankConnectionId ?? null)
               : Number(item.bankConnectionId),
           defaultExclude: Boolean(item.defaultExclude),
           possibleDuplicate: Boolean(item.possibleDuplicate),
@@ -239,8 +243,9 @@ function buildUniversalSession({ preview, metadata, items, canonicalRows, select
           normalizedPurchaseDescriptionBase: item.normalizedPurchaseDescriptionBase ?? null,
           installmentIndex: Number.isInteger(Number(item.installmentIndex)) ? Number(item.installmentIndex) : null,
           installmentCount: Number.isInteger(Number(item.installmentCount)) ? Number(item.installmentCount) : null,
-          generatedInstallmentCount:
-            Number.isInteger(Number(item.generatedInstallmentCount)) ? Number(item.generatedInstallmentCount) : null,
+          generatedInstallmentCount: Number.isInteger(Number(item.generatedInstallmentCount))
+            ? Number(item.generatedInstallmentCount)
+            : null,
           parserId: metadata.parserId,
           parserLabel: metadata.parserLabel,
         },
@@ -252,8 +257,12 @@ function buildUniversalSession({ preview, metadata, items, canonicalRows, select
 function enrichPreviewResponse(preview, metadata, canonicalRows) {
   const items = preview.items.map((item, index) => {
     const canonicalRow = canonicalRows[index];
-    const parserWarnings = (canonicalRow?.issues ?? []).filter((issue) => issue.severity !== "error").map((issue) => issue.message);
-    const parserErrors = (canonicalRow?.issues ?? []).filter((issue) => issue.severity === "error").map((issue) => issue.message);
+    const parserWarnings = (canonicalRow?.issues ?? [])
+      .filter((issue) => issue.severity !== "error")
+      .map((issue) => issue.message);
+    const parserErrors = (canonicalRow?.issues ?? [])
+      .filter((issue) => issue.severity === "error")
+      .map((issue) => issue.message);
 
     return {
       ...item,
@@ -267,7 +276,8 @@ function enrichPreviewResponse(preview, metadata, canonicalRows) {
         ...parserErrors.map((message) => ({ level: "error", message })),
         ...parserWarnings.map((message) => ({ level: "warning", message })),
       ],
-      confidence: typeof canonicalRow?.confidence === "number" ? canonicalRow.confidence : item.possibleDuplicate ? 0.55 : 0.85,
+      confidence:
+        typeof canonicalRow?.confidence === "number" ? canonicalRow.confidence : item.possibleDuplicate ? 0.55 : 0.85,
       externalId: canonicalRow?.externalId ?? null,
       rawMetadata: buildSafeRawMetadata(canonicalRow),
     };
@@ -353,7 +363,11 @@ export async function createUniversalImportPreview({
     filename,
     contentType,
   });
-  const canonicalRows = Array.isArray(parsedResult?.rows) ? parsedResult.rows : Array.isArray(parsedResult) ? parsedResult : [];
+  const canonicalRows = Array.isArray(parsedResult?.rows)
+    ? parsedResult.rows
+    : Array.isArray(parsedResult)
+      ? parsedResult
+      : [];
 
   if (canonicalRows.length === 0) {
     throw new Error("Nao foi possivel localizar transacoes validas no arquivo.");
@@ -375,10 +389,7 @@ export async function createUniversalImportPreview({
     filePassword: undefined,
     filename: String(filename ?? "importacao.csv").replace(/\.[^.]+$/, ".csv"),
     historicalRows,
-    importSource:
-      sourceDetection.sourceKind === "credit_card_statement"
-        ? "credit_card_statement"
-        : "bank_statement",
+    importSource: sourceDetection.sourceKind === "credit_card_statement" ? "credit_card_statement" : "bank_statement",
     recurringRules,
     userId,
   });
@@ -407,10 +418,7 @@ export async function createUniversalImportPreview({
         null,
       statementReferenceMonth: parsedResult?.metadata?.statementReferenceMonth ?? null,
       statementDueDate: parsedResult?.metadata?.statementDueDate ?? null,
-      warnings: [
-        ...(parsedResult?.warnings ?? []),
-        ...sourceDetection.warnings,
-      ],
+      warnings: [...(parsedResult?.warnings ?? []), ...sourceDetection.warnings],
       userId,
     },
     canonicalRows,

@@ -253,7 +253,14 @@ export interface ApiBanksResponse {
   banks?: ApiBank[];
 }
 
-export type HousingExpenseType = "rent" | "home_financing" | "electricity" | "water" | "condo" | "vehicle_financing" | "other";
+export type HousingExpenseType =
+  | "rent"
+  | "home_financing"
+  | "electricity"
+  | "water"
+  | "condo"
+  | "vehicle_financing"
+  | "other";
 
 export interface ApiHousingTransaction {
   id?: number | string;
@@ -1351,7 +1358,12 @@ export interface HealthStatus {
 }
 
 export type InstallmentStatus = "active" | "paid" | "overdue";
-export type InstallmentSortBy = "smart" | "installment_amount" | "remaining_balance" | "next_due_date" | "purchase_date";
+export type InstallmentSortBy =
+  | "smart"
+  | "installment_amount"
+  | "remaining_balance"
+  | "next_due_date"
+  | "purchase_date";
 export type InstallmentSortOrder = "asc" | "desc";
 export type InstallmentCountMode = "all" | "installment_count" | "remaining_installments";
 

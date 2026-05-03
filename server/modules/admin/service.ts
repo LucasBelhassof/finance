@@ -310,10 +310,18 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
   const rangeValues = [startDate, endDate];
   const baseWhere = `created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')`;
 
-  const [summaryResult, byModelResult, byOperationResult, topUsersResult, userUsageResult, dailySeriesResult, dailyByModelResult, failuresResult] =
-    await Promise.all([
-      db.query(
-        `
+  const [
+    summaryResult,
+    byModelResult,
+    byOperationResult,
+    topUsersResult,
+    userUsageResult,
+    dailySeriesResult,
+    dailyByModelResult,
+    failuresResult,
+  ] = await Promise.all([
+    db.query(
+      `
           SELECT
             COALESCE(SUM(COALESCE(request_count, 1)), 0)::INT AS total_requests,
             COALESCE(SUM(CASE WHEN success THEN COALESCE(request_count, 1) ELSE 0 END), 0)::INT AS successful_requests,
@@ -346,10 +354,10 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           FROM ai_usage_events
           WHERE ${baseWhere}
         `,
-        rangeValues,
-      ),
-      db.query(
-        `
+      rangeValues,
+    ),
+    db.query(
+      `
           SELECT
             provider,
             model,
@@ -365,10 +373,10 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           GROUP BY provider, model
           ORDER BY requests DESC, total_tokens DESC, estimated_cost_usd DESC, provider ASC, model ASC
         `,
-        rangeValues,
-      ),
-      db.query(
-        `
+      rangeValues,
+    ),
+    db.query(
+      `
           SELECT
             surface,
             operation,
@@ -384,10 +392,10 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           GROUP BY surface, operation
           ORDER BY requests DESC, total_tokens DESC, estimated_cost_usd DESC, surface ASC, operation ASC
         `,
-        rangeValues,
-      ),
-      db.query(
-        `
+      rangeValues,
+    ),
+    db.query(
+      `
           SELECT
             u.id,
             u.name,
@@ -403,10 +411,10 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           ORDER BY requests DESC, total_tokens DESC, estimated_cost_usd DESC, u.name ASC
           LIMIT 10
         `,
-        rangeValues,
-      ),
-      db.query(
-        `
+      rangeValues,
+    ),
+    db.query(
+      `
           SELECT
             u.id,
             u.name,
@@ -426,10 +434,10 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           GROUP BY u.id, u.name, u.email
           ORDER BY requests DESC, total_tokens DESC, estimated_cost_usd DESC, u.name ASC
         `,
-        rangeValues,
-      ),
-      db.query(
-        `
+      rangeValues,
+    ),
+    db.query(
+      `
           SELECT
             TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS date,
             COALESCE(SUM(COALESCE(request_count, 1)), 0)::INT AS requests,
@@ -442,10 +450,10 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           GROUP BY 1
           ORDER BY 1 ASC
         `,
-        rangeValues,
-      ),
-      db.query(
-        `
+      rangeValues,
+    ),
+    db.query(
+      `
           SELECT
             TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS date,
             provider,
@@ -460,10 +468,10 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           GROUP BY 1, provider, model
           ORDER BY 1 ASC, requests DESC, provider ASC, model ASC
         `,
-        rangeValues,
-      ),
-      db.query(
-        `
+      rangeValues,
+    ),
+    db.query(
+      `
           SELECT
             a.created_at,
             a.surface,
@@ -482,9 +490,9 @@ export async function getAdminAiUsage(input: AdminDateRangeInput = {}) {
           ORDER BY a.created_at DESC
           LIMIT 20
         `,
-        rangeValues,
-      ),
-    ]);
+      rangeValues,
+    ),
+  ]);
 
   const summary = summaryResult.rows[0] ?? {};
 
@@ -665,10 +673,7 @@ export async function getAdminUsers(input: {
       name: String(row.name),
       email: row.email ? String(row.email) : "",
       role: row.role === "admin" ? "admin" : "user",
-      status:
-        row.status === "inactive" || row.status === "suspended"
-          ? row.status
-          : "active",
+      status: row.status === "inactive" || row.status === "suspended" ? row.status : "active",
       isPremium: Boolean(row.is_premium),
       createdAt: new Date(String(row.created_at)).toISOString(),
       premiumSince: row.premium_since ? new Date(String(row.premium_since)).toISOString() : null,

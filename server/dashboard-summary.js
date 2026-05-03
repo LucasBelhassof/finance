@@ -38,11 +38,7 @@ function formatPercentageChange(currentValue, previousValue) {
   };
 }
 
-export function resolveDashboardCurrentBalance({
-  currentBalance,
-  fallbackBalance = 0,
-  hasConfiguredBalance = false,
-}) {
+export function resolveDashboardCurrentBalance({ currentBalance, fallbackBalance = 0, hasConfiguredBalance = false }) {
   const parsedCurrentBalance = parseNumeric(currentBalance);
   const parsedFallbackBalance = parseNumeric(fallbackBalance);
 

@@ -105,7 +105,11 @@ export default function CreateInvestmentDialog({
             <label htmlFor="create-investment-name" className="text-sm font-medium text-foreground">
               Nome
             </label>
-            <Input id="create-investment-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+            <Input
+              id="create-investment-name"
+              value={form.name}
+              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            />
           </div>
 
           <div className="space-y-2">
@@ -155,7 +159,8 @@ export default function CreateInvestmentDialog({
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    [current.contributionMode === "income_percentage" ? "incomePercentage" : "fixedAmount"]: event.target.value,
+                    [current.contributionMode === "income_percentage" ? "incomePercentage" : "fixedAmount"]:
+                      event.target.value,
                   }))
                 }
                 placeholder={form.contributionMode === "income_percentage" ? "Ex.: 15" : "Ex.: 500,00"}
@@ -191,7 +196,10 @@ export default function CreateInvestmentDialog({
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Conta vinculada</label>
-            <Select value={form.bankConnectionId} onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}>
+            <Select
+              value={form.bankConnectionId}
+              onValueChange={(value) => setForm((current) => ({ ...current, bankConnectionId: value }))}
+            >
               <SelectTrigger className={MODAL_SELECT_TRIGGER_CLASSNAME}>
                 <SelectValue />
               </SelectTrigger>

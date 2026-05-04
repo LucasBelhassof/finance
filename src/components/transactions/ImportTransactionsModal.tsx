@@ -857,15 +857,6 @@ export default function ImportTransactionsModal({
                     </div>
                   ) : null}
 
-                  <div className="rounded-xl border border-border/50 bg-secondary/20 px-3 py-2.5">
-                    <div className="flex items-start gap-2">
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">
-                        Linhas ambíguas ou com baixa confiança permanecem no preview. Nada é importado silenciosamente.
-                      </p>
-                    </div>
-                  </div>
-
                   <div className="space-y-1.5">
                     <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                       Como funciona
@@ -873,7 +864,7 @@ export default function ImportTransactionsModal({
                     <ul className="space-y-1">
                       {[
                         "Detecta o formato do arquivo",
-                        "Normaliza datas, valores e descrições",
+                        "O sistema extrai datas, valores e descrições",
                         "Você revisa antes de confirmar",
                       ].map((label) => (
                         <li key={label} className="flex items-center gap-2 text-xs text-muted-foreground">

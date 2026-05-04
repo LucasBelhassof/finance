@@ -2386,7 +2386,7 @@ async function listHistoricalCategorizationRows(userId) {
       SELECT t.description, t.amount, t.category_id, t.occurred_on, c.transaction_type
       FROM transactions t
       INNER JOIN categories c ON c.id = t.category_id
-      WHERE user_id = $1
+      WHERE t.user_id = $1
         AND t.category_id IS NOT NULL
     `,
     [userId],

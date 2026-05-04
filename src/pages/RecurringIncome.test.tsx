@@ -205,7 +205,7 @@ describe("RecurringIncomePage", () => {
     expect(filtersPanel).not.toBeNull();
     expect(screen.getByText("mock-month-year-filter")).toBeInTheDocument();
     expect(screen.getByText("mock-date-range-filter")).toBeInTheDocument();
-    expect(screen.getAllByRole("combobox")).toHaveLength(2);
+    expect(screen.getAllByRole("combobox")).toHaveLength(3);
     expect(screen.getByText("Todas as contas")).toBeInTheDocument();
     expect(screen.getByText("Todas as categorias")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Buscar descrição, categoria ou conta...")).toBeInTheDocument();

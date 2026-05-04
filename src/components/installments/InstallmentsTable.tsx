@@ -1,3 +1,6 @@
+import { ListPaginationBar } from "@/components/ListPaginationBar";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
+import { usePagination } from "@/hooks/use-pagination";
 import type { InstallmentOverviewItem } from "@/types/api";
 
 import { formatCurrency, formatDate, getStatusClasses, getStatusLabel } from "./formatters";
@@ -7,6 +10,9 @@ interface InstallmentsTableProps {
 }
 
 export default function InstallmentsTable({ items }: InstallmentsTableProps) {
+  const { page, pageSize, totalPages, setPage, setPageSize, paginate } = usePagination(items.length);
+  const paginatedItems = paginate(items);
+
   return (
     <div className="glass-card rounded-2xl border border-border/40 p-4 sm:p-5">
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -14,7 +20,10 @@ export default function InstallmentsTable({ items }: InstallmentsTableProps) {
           <h2 className="text-lg font-semibold text-foreground">Compras parceladas</h2>
           <p className="text-sm text-muted-foreground">Listagem detalhada conforme os filtros atuais.</p>
         </div>
-        <span className="text-sm text-muted-foreground">{items.length} itens</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">{items.length} itens</span>
+          <PageSizeSelect value={pageSize} onChange={setPageSize} />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -33,7 +42,7 @@ export default function InstallmentsTable({ items }: InstallmentsTableProps) {
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {paginatedItems.map((item) => (
               <tr key={item.installmentPurchaseId} className="bg-secondary/20 text-sm text-foreground">
                 <td className="rounded-l-xl px-3 py-3 align-top">
                   <div className="font-medium">{item.description}</div>
@@ -60,6 +69,14 @@ export default function InstallmentsTable({ items }: InstallmentsTableProps) {
           </tbody>
         </table>
       </div>
+      <ListPaginationBar
+        page={page}
+        totalPages={totalPages}
+        totalItems={items.length}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        itemLabel="parcelamentos"
+      />
     </div>
   );
 }

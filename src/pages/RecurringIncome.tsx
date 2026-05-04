@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
+import { ListPaginationBar } from "@/components/ListPaginationBar";
 import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
 import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import PageFiltersPanel from "@/components/PageFiltersPanel";
@@ -30,9 +31,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBanks } from "@/hooks/use-banks";
+import { usePagination } from "@/hooks/use-pagination";
 import { useUrlPeriodFilter } from "@/hooks/use-url-period-filter";
 import {
   useCategories,
@@ -394,6 +397,16 @@ export default function RecurringIncomePage() {
   }, [dateRange.endDate, dateRange.startDate, filteredTransactions, isYearlyTable]);
   const deleteTarget = filteredTransactions.find((transaction) => String(transaction.id) === deleteTargetId) ?? null;
   const isEditing = Boolean(form.id);
+
+  const {
+    page: tableRowsPage,
+    pageSize: tableRowsPageSize,
+    totalPages: tableRowsTotalPages,
+    setPage: setTableRowsPage,
+    setPageSize: setTableRowsPageSize,
+    paginate: paginateTableRows,
+  } = usePagination(tableRows.length);
+  const paginatedTableRows = paginateTableRows(tableRows);
 
   const trendConfig = useMemo<ChartConfig>(
     () => ({
@@ -825,6 +838,7 @@ export default function RecurringIncomePage() {
             </p>
           </div>
           <div className="text-sm text-muted-foreground">{tableRows.length} linhas</div>
+          {tableRows.length > 0 && <PageSizeSelect value={tableRowsPageSize} onChange={setTableRowsPageSize} />}
         </div>
 
         {!tableRows.length ? (
@@ -834,77 +848,89 @@ export default function RecurringIncomePage() {
               : "Nenhuma receita recorrente encontrada para os filtros atuais."}
           </div>
         ) : (
-          <Table className="min-w-[940px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Receita</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>{isYearlyTable ? "Periodo" : "Ocorrencia"}</TableHead>
-                <TableHead>Serie</TableHead>
-                <TableHead className="text-center">{isYearlyTable ? "Ocorrencias" : "Tipo"}</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-[132px] text-right">Acoes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tableRows.map((row) => {
-                const categoryColor = resolveCategoryColorPresentation(row.categoryColor);
+          <>
+            <Table className="min-w-[940px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Receita</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Conta</TableHead>
+                  <TableHead>{isYearlyTable ? "Periodo" : "Ocorrencia"}</TableHead>
+                  <TableHead>Serie</TableHead>
+                  <TableHead className="text-center">{isYearlyTable ? "Ocorrencias" : "Tipo"}</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-[132px] text-right">Acoes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedTableRows.map((row) => {
+                  const categoryColor = resolveCategoryColorPresentation(row.categoryColor);
 
-                return (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-foreground">{row.description}</span>
-                          <span className="rounded-full bg-income/10 px-2 py-0.5 text-[11px] font-medium text-income">
-                            Recorrente
-                          </span>
-                          {!isYearlyTable && row.representativeTransaction.isRecurringProjection ? (
-                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                              Ocorrencia futura
+                  return (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-foreground">{row.description}</span>
+                            <span className="rounded-full bg-income/10 px-2 py-0.5 text-[11px] font-medium text-income">
+                              Recorrente
                             </span>
-                          ) : null}
+                            {!isYearlyTable && row.representativeTransaction.isRecurringProjection ? (
+                              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                Ocorrencia futura
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Serie #{row.sourceTransactionId}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">Serie #{row.sourceTransactionId}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium" style={{ color: categoryColor.text }}>
-                        {row.categoryLabel}
-                      </span>
-                    </TableCell>
-                    <TableCell>{row.accountName}</TableCell>
-                    <TableCell>{row.occurredOnLabel}</TableCell>
-                    <TableCell>{row.seriesLabel}</TableCell>
-                    <TableCell className="text-center text-sm text-muted-foreground">
-                      {isYearlyTable
-                        ? `${row.occurrenceCount}x`
-                        : row.representativeTransaction.isRecurringProjection
-                          ? "Projecao"
-                          : "Base"}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-income">{formatCurrency(row.amount)}</TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(row.representativeTransaction)}>
-                          <Pencil size={14} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTargetId(String(row.representativeTransaction.id))}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium" style={{ color: categoryColor.text }}>
+                          {row.categoryLabel}
+                        </span>
+                      </TableCell>
+                      <TableCell>{row.accountName}</TableCell>
+                      <TableCell>{row.occurredOnLabel}</TableCell>
+                      <TableCell>{row.seriesLabel}</TableCell>
+                      <TableCell className="text-center text-sm text-muted-foreground">
+                        {isYearlyTable
+                          ? `${row.occurrenceCount}x`
+                          : row.representativeTransaction.isRecurringProjection
+                            ? "Projecao"
+                            : "Base"}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-income">
+                        {formatCurrency(row.amount)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEdit(row.representativeTransaction)}>
+                            <Pencil size={14} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTargetId(String(row.representativeTransaction.id))}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <ListPaginationBar
+              page={tableRowsPage}
+              totalPages={tableRowsTotalPages}
+              totalItems={tableRows.length}
+              pageSize={tableRowsPageSize}
+              onPageChange={setTableRowsPage}
+              itemLabel="receitas"
+            />
+          </>
         )}
 
         {topIncome ? (

@@ -3,6 +3,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
+import { ListPaginationBar } from "@/components/ListPaginationBar";
 import CreateInvestmentDialog from "@/components/investments/CreateInvestmentDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,9 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useChatConversations } from "@/hooks/use-chat";
+import { usePagination } from "@/hooks/use-pagination";
 import { useCreatePlan, useGeneratePlanDraft, usePlans, useSuggestPlanLink } from "@/hooks/use-plans";
 import { useInvestments } from "@/hooks/use-investments";
 import { useCategories } from "@/hooks/use-transactions";
@@ -576,6 +579,17 @@ export default function PlansPage() {
   const [aiDraftForm, setAiDraftForm] = useState<PlanFormState | null>(null);
   const [suggestedChatId, setSuggestedChatId] = useState("");
   const [investmentDialogContext, setInvestmentDialogContext] = useState<"manual" | "ai" | null>(null);
+
+  const {
+    page: plansPage,
+    pageSize: plansPageSize,
+    totalPages: plansTotalPages,
+    setPage: setPlansPage,
+    setPageSize: setPlansPageSize,
+    paginate: paginatePlans,
+  } = usePagination(plans.length);
+  const paginatedPlans = paginatePlans(plans);
+
   const createInvestmentInitialValues = useMemo(
     () => buildInvestmentInitialValues(investmentDialogContext === "ai" ? aiDraftForm : planForm),
     [aiDraftForm, investmentDialogContext, planForm],
@@ -743,16 +757,30 @@ export default function PlansPage() {
       ) : null}
 
       {!isLoading && !isError && plans.length ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {plans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              categories={categories}
-              onSelect={() => navigate(`${appRoutes.plans}/${plan.id}`)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{plans.length} planejamentos</span>
+            <PageSizeSelect value={plansPageSize} onChange={setPlansPageSize} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {paginatedPlans.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                categories={categories}
+                onSelect={() => navigate(`${appRoutes.plans}/${plan.id}`)}
+              />
+            ))}
+          </div>
+          <ListPaginationBar
+            page={plansPage}
+            totalPages={plansTotalPages}
+            totalItems={plans.length}
+            pageSize={plansPageSize}
+            onPageChange={setPlansPage}
+            itemLabel="planejamentos"
+          />
+        </>
       ) : null}
 
       <Dialog

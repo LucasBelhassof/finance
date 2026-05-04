@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
+import { ListPaginationBar } from "@/components/ListPaginationBar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { DatePickerInput, DateRangePickerInput } from "@/components/ui/date-pick
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateSelfNotification,
@@ -19,6 +21,7 @@ import {
   useMarkNotificationAsUnread,
   useNotifications,
 } from "@/hooks/use-notifications";
+import { usePagination } from "@/hooks/use-pagination";
 import { appRoutes } from "@/lib/routes";
 import { toast } from "@/components/ui/sonner";
 import type {
@@ -114,6 +117,15 @@ export default function NotificationsPage() {
   const deleteNotification = useDeleteNotification();
 
   const notifications = data?.notifications ?? [];
+  const {
+    page: notifPage,
+    pageSize: notifPageSize,
+    totalPages: notifTotalPages,
+    setPage: setNotifPage,
+    setPageSize: setNotifPageSize,
+    paginate: paginateNotifications,
+  } = usePagination(notifications.length);
+  const paginatedNotifications = paginateNotifications(notifications);
   const selectedNotification = useMemo(
     () => notifications.find((item) => String(item.recipientId) === String(recipientId)) ?? notifications[0] ?? null,
     [notifications, recipientId],
@@ -316,10 +328,13 @@ export default function NotificationsPage() {
 
           <Card data-tour-id="notifications-inbox" className="xl:h-fit">
             <CardHeader>
-              <CardTitle>Caixa de entrada</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle>Caixa de entrada</CardTitle>
+                {notifications.length > 0 && <PageSizeSelect value={notifPageSize} onChange={setNotifPageSize} />}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {notifications.map((item) => {
+              {paginatedNotifications.map((item) => {
                 const Icon = getNotificationIcon(item.category);
                 const isSelected = String(item.recipientId) === String(selectedNotification?.recipientId);
 
@@ -359,6 +374,14 @@ export default function NotificationsPage() {
                   Nenhuma notificação encontrada para os filtros selecionados.
                 </p>
               ) : null}
+              <ListPaginationBar
+                page={notifPage}
+                totalPages={notifTotalPages}
+                totalItems={notifications.length}
+                pageSize={notifPageSize}
+                onPageChange={setNotifPage}
+                itemLabel="notificações"
+              />
             </CardContent>
           </Card>
         </div>

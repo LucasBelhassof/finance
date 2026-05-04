@@ -18,6 +18,7 @@ import { useSearchParams } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import CategoryPieChart, { type CategoryPieChartItem } from "@/components/CategoryPieChart";
+import { ListPaginationBar } from "@/components/ListPaginationBar";
 import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import PageFiltersPanel from "@/components/PageFiltersPanel";
 import {
@@ -43,11 +44,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBanks } from "@/hooks/use-banks";
 import { useCreateHousing, useDeleteHousing, useHousing, useUpdateHousing } from "@/hooks/use-housing";
+import { usePagination } from "@/hooks/use-pagination";
 import { useUrlPeriodFilter } from "@/hooks/use-url-period-filter";
 import { useCategories } from "@/hooks/use-transactions";
 import {
@@ -458,6 +461,17 @@ export default function HousingPage() {
   const editingExpense = expenses.find((expense) => String(expense.id) === editingExpenseId) ?? null;
   const isSaving = createHousing.isPending || updateHousing.isPending;
   const isDeleting = deleteHousing.isPending;
+
+  const housingResetKey = `${search}|${selectedAccountId}|${selectedType}|${dateRange.startDate}|${dateRange.endDate}`;
+  const {
+    page: housingPage,
+    pageSize: housingPageSize,
+    totalPages: housingTotalPages,
+    setPage: setHousingPage,
+    setPageSize: setHousingPageSize,
+    paginate: paginateHousing,
+  } = usePagination(filteredSeries.length, housingResetKey);
+  const paginatedSeries = paginateHousing(filteredSeries);
   const isFinancing = isFinancingType(form.type);
   const trendConfig = useMemo<ChartConfig>(
     () => ({
@@ -945,7 +959,7 @@ export default function HousingPage() {
               Gerencie as séries de habitação, revise vencimentos e atualize as recorrências.
             </p>
           </div>
-          <div className="text-sm text-muted-foreground">{filteredSeries.length} linhas</div>
+          <PageSizeSelect value={housingPageSize} onChange={setHousingPageSize} />
         </div>
 
         {!filteredSeries.length ? (
@@ -955,89 +969,101 @@ export default function HousingPage() {
               : "Nenhuma despesa encontrada para os filtros atuais."}
           </div>
         ) : (
-          <Table className="min-w-[980px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Despesa</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>Inicio</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Ocorrencias</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-[132px] text-right">Acoes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSeries.map((expense) => {
-                const rows = occurrencesByHousingId.get(String(expense.id)) ?? [];
-                const option = expenseTypeOptions.find((item) => item.value === expense.expenseType);
-                const totalInPeriod = rows.reduce((sum, row) => sum + row.amount, 0);
+          <>
+            <Table className="min-w-[980px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Despesa</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Conta</TableHead>
+                  <TableHead>Inicio</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead>Ocorrencias</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-[132px] text-right">Acoes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedSeries.map((expense) => {
+                  const rows = occurrencesByHousingId.get(String(expense.id)) ?? [];
+                  const option = expenseTypeOptions.find((item) => item.value === expense.expenseType);
+                  const totalInPeriod = rows.reduce((sum, row) => sum + row.amount, 0);
 
-                return (
-                  <TableRow key={expense.id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium text-foreground">{expense.description}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {expense.installmentCount
-                            ? `${expense.installmentCount} parcelas planejadas`
-                            : "Recorrencia mensal continua"}
+                  return (
+                    <TableRow key={expense.id}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium text-foreground">{expense.description}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {expense.installmentCount
+                              ? `${expense.installmentCount} parcelas planejadas`
+                              : "Recorrencia mensal continua"}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="rounded-full bg-secondary px-2 py-1 text-xs font-medium text-foreground">
-                        {option?.label ?? getExpenseTypeLabel(expense.expenseType)}
-                      </span>
-                    </TableCell>
-                    <TableCell>{expense.bank.name}</TableCell>
-                    <TableCell>{expense.startDate.split("-").reverse().join("/")}</TableCell>
-                    <TableCell>Dia {expense.dueDay}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium text-foreground">{rows.length} no período</div>
-                        <div className="text-xs text-muted-foreground">
-                          {expense.installmentCount
-                            ? `${rows.length}/${expense.installmentCount} visiveis no recorte`
-                            : "Cobrança mensal recorrente"}
+                      </TableCell>
+                      <TableCell>
+                        <span className="rounded-full bg-secondary px-2 py-1 text-xs font-medium text-foreground">
+                          {option?.label ?? getExpenseTypeLabel(expense.expenseType)}
+                        </span>
+                      </TableCell>
+                      <TableCell>{expense.bank.name}</TableCell>
+                      <TableCell>{expense.startDate.split("-").reverse().join("/")}</TableCell>
+                      <TableCell>Dia {expense.dueDay}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium text-foreground">{rows.length} no período</div>
+                          <div className="text-xs text-muted-foreground">
+                            {expense.installmentCount
+                              ? `${rows.length}/${expense.installmentCount} visiveis no recorte`
+                              : "Cobrança mensal recorrente"}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="space-y-1">
-                        <div className="font-semibold text-foreground">{formatCurrency(expense.amount)}</div>
-                        <div className="text-xs text-muted-foreground">{formatCurrency(totalInPeriod)} no período</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          aria-label={`Editar ${expense.description}`}
-                          onClick={() => startEditExpense(expense)}
-                          disabled={isSaving || isDeleting}
-                        >
-                          <Pencil size={14} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          aria-label={`Excluir ${expense.description}`}
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTargetId(String(expense.id))}
-                          disabled={isSaving || isDeleting}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="space-y-1">
+                          <div className="font-semibold text-foreground">{formatCurrency(expense.amount)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(totalInPeriod)} no período
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Editar ${expense.description}`}
+                            onClick={() => startEditExpense(expense)}
+                            disabled={isSaving || isDeleting}
+                          >
+                            <Pencil size={14} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Excluir ${expense.description}`}
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTargetId(String(expense.id))}
+                            disabled={isSaving || isDeleting}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <ListPaginationBar
+              page={housingPage}
+              totalPages={housingTotalPages}
+              totalItems={filteredSeries.length}
+              pageSize={housingPageSize}
+              onPageChange={setHousingPage}
+              itemLabel="despesas"
+            />
+          </>
         )}
       </section>
     </AppShell>

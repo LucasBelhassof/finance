@@ -268,11 +268,11 @@ describe("CreditCardInvoicesPage", () => {
     const advancedButton = screen.getByRole("button", { name: /Opções avançadas/ });
 
     expect(within(advancedButton).getByText("1")).toBeInTheDocument();
-    expect(screen.getAllByRole("combobox")).toHaveLength(2);
+    expect(screen.getAllByRole("combobox")).toHaveLength(3);
 
     fireEvent.click(advancedButton);
 
-    expect(screen.getAllByRole("combobox")).toHaveLength(3);
+    expect(screen.getAllByRole("combobox")).toHaveLength(4);
     expect(screen.getAllByText("Fechada").length).toBeGreaterThan(0);
   });
 

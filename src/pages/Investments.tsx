@@ -2,6 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Pencil, PiggyBank, Plus, Trash2 } from "lucide-react";
 
 import AppShell from "@/components/AppShell";
+import { ListPaginationBar } from "@/components/ListPaginationBar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,12 +31,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { useBanks } from "@/hooks/use-banks";
 import { useCreateInvestment, useDeleteInvestment, useInvestments, useUpdateInvestment } from "@/hooks/use-investments";
+import { usePagination } from "@/hooks/use-pagination";
 import { useCreatePlan, usePlans, useUpdatePlan } from "@/hooks/use-plans";
 import type {
   CreateInvestmentInput,
@@ -256,6 +259,16 @@ export default function InvestmentsPage() {
     };
   }, [investments]);
 
+  const {
+    page: investmentsPage,
+    pageSize: investmentsPageSize,
+    totalPages: investmentsTotalPages,
+    setPage: setInvestmentsPage,
+    setPageSize: setInvestmentsPageSize,
+    paginate: paginateInvestments,
+  } = usePagination(investments.length);
+  const paginatedInvestments = paginateInvestments(investments);
+
   const openCreateDialog = () => {
     setEditingInvestment(null);
     setForm(buildEmptyForm());
@@ -399,14 +412,17 @@ export default function InvestmentsPage() {
       </div>
 
       <div className="glass-card mt-6 p-5">
-        <div className="mb-4 flex items-center gap-3">
-          <PiggyBank size={18} className="text-primary" />
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Caixinhas cadastradas</h2>
-            <p className="text-sm text-muted-foreground">
-              Essas caixinhas podem ser usadas manualmente ou vinculadas pela IA em um planejamento.
-            </p>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <PiggyBank size={18} className="text-primary" />
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Caixinhas cadastradas</h2>
+              <p className="text-sm text-muted-foreground">
+                Essas caixinhas podem ser usadas manualmente ou vinculadas pela IA em um planejamento.
+              </p>
+            </div>
           </div>
+          {investments.length > 0 && <PageSizeSelect value={investmentsPageSize} onChange={setInvestmentsPageSize} />}
         </div>
 
         {isLoading ? (
@@ -424,79 +440,89 @@ export default function InvestmentsPage() {
             Nenhuma caixinha criada ainda. Crie a primeira para organizar metas e planejamentos manuais.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Caixinha</TableHead>
-                <TableHead>Modo de aporte</TableHead>
-                <TableHead>Saldo atual</TableHead>
-                <TableHead>Meta</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>Planejamento manual</TableHead>
-                <TableHead className="w-[120px] text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {investments.map((investment) => (
-                <TableRow key={investment.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-foreground">{investment.name}</p>
-                      <p className="text-xs text-muted-foreground">{investment.description || "Sem descricao."}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {investment.contributionMode === "income_percentage"
-                      ? `${investment.incomePercentage ?? 0}% da receita`
-                      : investment.fixedAmount !== null
-                        ? `${formatCurrency(investment.fixedAmount)} fixo`
-                        : "A definir"}
-                  </TableCell>
-                  <TableCell>{investment.formattedCurrentAmount}</TableCell>
-                  <TableCell>{investment.formattedTargetAmount ?? "Sem meta"}</TableCell>
-                  <TableCell>
-                    {investment.status === "paused"
-                      ? "Pausada"
-                      : investment.status === "archived"
-                        ? "Arquivada"
-                        : "Ativa"}
-                  </TableCell>
-                  <TableCell>{investment.bank?.name ?? "Nao vinculada"}</TableCell>
-                  <TableCell>
-                    {(() => {
-                      const linkedPlans = linkedManualPlansByInvestmentId.get(String(investment.id)) ?? [];
-
-                      if (!linkedPlans.length) {
-                        return "Sem vinculo";
-                      }
-
-                      if (linkedPlans.length === 1) {
-                        return linkedPlans[0].title;
-                      }
-
-                      return `${linkedPlans[0].title} +${linkedPlans.length - 1}`;
-                    })()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button type="button" variant="ghost" size="icon" onClick={() => openEditDialog(investment)}>
-                        <Pencil size={16} />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeletingInvestment(investment)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Caixinha</TableHead>
+                  <TableHead>Modo de aporte</TableHead>
+                  <TableHead>Saldo atual</TableHead>
+                  <TableHead>Meta</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Conta</TableHead>
+                  <TableHead>Planejamento manual</TableHead>
+                  <TableHead className="w-[120px] text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {paginatedInvestments.map((investment) => (
+                  <TableRow key={investment.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">{investment.name}</p>
+                        <p className="text-xs text-muted-foreground">{investment.description || "Sem descricao."}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {investment.contributionMode === "income_percentage"
+                        ? `${investment.incomePercentage ?? 0}% da receita`
+                        : investment.fixedAmount !== null
+                          ? `${formatCurrency(investment.fixedAmount)} fixo`
+                          : "A definir"}
+                    </TableCell>
+                    <TableCell>{investment.formattedCurrentAmount}</TableCell>
+                    <TableCell>{investment.formattedTargetAmount ?? "Sem meta"}</TableCell>
+                    <TableCell>
+                      {investment.status === "paused"
+                        ? "Pausada"
+                        : investment.status === "archived"
+                          ? "Arquivada"
+                          : "Ativa"}
+                    </TableCell>
+                    <TableCell>{investment.bank?.name ?? "Nao vinculada"}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const linkedPlans = linkedManualPlansByInvestmentId.get(String(investment.id)) ?? [];
+
+                        if (!linkedPlans.length) {
+                          return "Sem vinculo";
+                        }
+
+                        if (linkedPlans.length === 1) {
+                          return linkedPlans[0].title;
+                        }
+
+                        return `${linkedPlans[0].title} +${linkedPlans.length - 1}`;
+                      })()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => openEditDialog(investment)}>
+                          <Pencil size={16} />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletingInvestment(investment)}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <ListPaginationBar
+              page={investmentsPage}
+              totalPages={investmentsTotalPages}
+              totalItems={investments.length}
+              pageSize={investmentsPageSize}
+              onPageChange={setInvestmentsPage}
+              itemLabel="caixinhas"
+            />
+          </>
         )}
       </div>
 

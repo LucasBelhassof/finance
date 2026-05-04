@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import CategoryPieChart from "@/components/CategoryPieChart";
+import { ListPaginationBar } from "@/components/ListPaginationBar";
 import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
 import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import PageFiltersPanel from "@/components/PageFiltersPanel";
@@ -30,11 +31,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBanks } from "@/hooks/use-banks";
 import { useFilteredTransactionsData } from "@/hooks/use-filtered-transactions-data";
+import { usePagination } from "@/hooks/use-pagination";
 import { useUrlPeriodFilter } from "@/hooks/use-url-period-filter";
 import {
   useCategories,
@@ -384,6 +387,16 @@ export default function TransactionsPage() {
       categoryFilter,
       range: dateRange,
     });
+  const transactionsResetKey = `${search}|${typeFilter}|${categoryFilter}|${selectedBankAccountId}|${selectedAccountType}|${selectedCreditCardId}|${dateRange.startDate}|${dateRange.endDate}`;
+  const {
+    page: transactionsPage,
+    pageSize: transactionsPageSize,
+    totalPages: transactionsTotalPages,
+    setPage: setTransactionsPage,
+    setPageSize: setTransactionsPageSize,
+    paginate: paginateTransactions,
+  } = usePagination(filteredTransactions.length, transactionsResetKey);
+  const paginatedTransactions = paginateTransactions(filteredTransactions);
   const categoriesWithBreakdown = useMemo(() => {
     const breakdownById = new Map(categoryBreakdown.map((item) => [item.id, item]));
 
@@ -637,7 +650,7 @@ export default function TransactionsPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredTransactions.map((transaction) => {
+          {paginatedTransactions.map((transaction) => {
             const accentColor = transaction.amount >= 0 ? "text-income" : "text-expense";
             const categoryColor = resolveCategoryColorPresentation(
               transaction.category.groupColor || transaction.category.color,
@@ -1189,7 +1202,8 @@ export default function TransactionsPage() {
         <div data-tour-id="transactions-table" className="glass-card rounded-2xl border border-border/40 p-5">
           <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-[1.35rem] font-semibold text-foreground sm:text-[1.7rem]">Todas as Transações</h2>
-            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+              <PageSizeSelect value={transactionsPageSize} onChange={setTransactionsPageSize} />
               <Button
                 variant="outline"
                 className="w-full rounded-xl border-border/60 bg-secondary/20 sm:w-auto"
@@ -1210,11 +1224,14 @@ export default function TransactionsPage() {
             </div>
           </div>
           {renderTransactionsTable()}
-          <div className="flex flex-col sm:flex-row sm:justify-end">
-            <span className="text-sm text-muted-foreground sm:justify-end">
-              {filteredTransactions.length} transações
-            </span>
-          </div>
+          <ListPaginationBar
+            page={transactionsPage}
+            totalPages={transactionsTotalPages}
+            totalItems={filteredTransactions.length}
+            pageSize={transactionsPageSize}
+            onPageChange={setTransactionsPage}
+            itemLabel="transações"
+          />
         </div>
 
         <div data-tour-id="transactions-categories" className="glass-card rounded-2xl border border-border/40 p-5">

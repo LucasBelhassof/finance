@@ -540,7 +540,7 @@ describe("TransactionsPage", () => {
       expect(screen.getByText("Cafe da esquina")).toBeInTheDocument();
       expect(screen.queryByText("iFood")).not.toBeInTheDocument();
       expect(screen.queryByText("Netflix")).not.toBeInTheDocument();
-      expect(screen.getAllByRole("combobox")).toHaveLength(3);
+      expect(screen.getAllByRole("combobox")).toHaveLength(4);
     });
 
     fireEvent.click(accountTrigger);

@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { AlertTriangle, Bell, CalendarDays, CheckCircle2, ChevronDown, CreditCard, Settings2 } from "lucide-react";
 
 import AppShell from "@/components/AppShell";
+import { ListPaginationBar } from "@/components/ListPaginationBar";
 import PageFiltersPanel from "@/components/PageFiltersPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,10 +18,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import { useInvoices, useMarkInvoicePaid, useUnmarkInvoicePaid, useUpdateInvoiceSettings } from "@/hooks/use-invoices";
+import { usePagination } from "@/hooks/use-pagination";
 import { useUrlPeriodFilter } from "@/hooks/use-url-period-filter";
 import { getCurrentMonthSelection, resolveMonthYearRange } from "@/lib/transactions-date-filter";
 import { cn } from "@/lib/utils";
@@ -310,6 +313,16 @@ export default function CreditCardInvoicesPage() {
   const [settingsInvoice, setSettingsInvoice] = useState<InvoiceItem | null>(null);
   const invoices = data?.invoices ?? [];
 
+  const {
+    page: invoicesPage,
+    pageSize: invoicesPageSize,
+    totalPages: invoicesTotalPages,
+    setPage: setInvoicesPage,
+    setPageSize: setInvoicesPageSize,
+    paginate: paginateInvoices,
+  } = usePagination(invoices.length);
+  const paginatedInvoices = paginateInvoices(invoices);
+
   const handleTogglePaid = async (invoice: InvoiceItem) => {
     try {
       if (invoice.isPaid) {
@@ -478,6 +491,12 @@ export default function CreditCardInvoicesPage() {
       ) : null}
 
       <div className="space-y-4">
+        {!isLoading && invoices.length > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{invoices.length} faturas</span>
+            <PageSizeSelect value={invoicesPageSize} onChange={setInvoicesPageSize} />
+          </div>
+        )}
         {isLoading
           ? Array.from({ length: 3 }).map((_, index) => (
               <div key={index} className="glass-card rounded-2xl border border-border/40 p-5">
@@ -485,7 +504,7 @@ export default function CreditCardInvoicesPage() {
                 <Skeleton className="mt-4 h-16 w-full" />
               </div>
             ))
-          : invoices.map((invoice) => {
+          : paginatedInvoices.map((invoice) => {
               const isOpen = openInvoiceIds.has(invoice.id);
 
               return (
@@ -648,6 +667,14 @@ export default function CreditCardInvoicesPage() {
                 </Collapsible>
               );
             })}
+        <ListPaginationBar
+          page={invoicesPage}
+          totalPages={invoicesTotalPages}
+          totalItems={invoices.length}
+          pageSize={invoicesPageSize}
+          onPageChange={setInvoicesPage}
+          itemLabel="faturas"
+        />
       </div>
 
       <Dialog open={Boolean(settingsInvoice)} onOpenChange={(open) => !open && setSettingsInvoice(null)}>

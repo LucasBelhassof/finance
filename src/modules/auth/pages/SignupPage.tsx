@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { appRoutes } from "@/lib/routes";
@@ -22,6 +23,8 @@ export default function SignupPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      acceptedTerms: false,
+      acceptedPrivacy: false,
     },
   });
   const signupMutation = useSignup();
@@ -127,6 +130,52 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-3 rounded-xl border border-border/60 bg-background/60 p-3">
+                <FormField
+                  control={form.control}
+                  name="acceptedTerms"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <div className="flex items-start gap-3">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked)} />
+                        </FormControl>
+                        <FormLabel className="text-sm font-normal leading-5">
+                          Li e aceito os{" "}
+                          <Link className="font-medium text-primary hover:text-primary/80" to={appRoutes.terms}>
+                            Termos de Uso
+                          </Link>
+                          .
+                        </FormLabel>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="acceptedPrivacy"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <div className="flex items-start gap-3">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked)} />
+                        </FormControl>
+                        <FormLabel className="text-sm font-normal leading-5">
+                          Li e aceito a{" "}
+                          <Link className="font-medium text-primary hover:text-primary/80" to={appRoutes.privacy}>
+                            Politica de Privacidade
+                          </Link>
+                          .
+                        </FormLabel>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <Button
                 className="h-12 w-full rounded-xl text-sm font-semibold"

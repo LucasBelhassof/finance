@@ -678,6 +678,47 @@ export interface ApiHealthResponse {
   serverTime?: string;
 }
 
+export type BillingStatus = "active" | "past_due" | "canceled" | "inactive" | "pending";
+
+export interface ApiBillingPlan {
+  id?: string;
+  name?: string;
+  description?: string | null;
+  amount?: number;
+  currency?: string;
+  intervalUnit?: "month" | "year";
+  intervalCount?: number;
+  features?: string[];
+}
+
+export interface ApiBillingSubscription {
+  id?: number | string;
+  status?: BillingStatus;
+  providerSubscriptionId?: string | null;
+  providerCheckoutId?: string | null;
+  providerCheckoutUrl?: string | null;
+  nextDueDate?: string | null;
+  currentPeriodEnd?: string | null;
+  activatedAt?: string | null;
+  canceledAt?: string | null;
+  lastPaymentAt?: string | null;
+}
+
+export interface ApiBillingSubscriptionResponse {
+  isPremium?: boolean;
+  status?: BillingStatus;
+  plan?: ApiBillingPlan | null;
+  subscription?: ApiBillingSubscription | null;
+  nextDueDate?: string | null;
+  currentPeriodEnd?: string | null;
+  checkoutUrl?: string | null;
+}
+
+export interface ApiBillingCheckoutResponse {
+  checkoutUrl?: string | null;
+  subscription?: ApiBillingSubscriptionResponse;
+}
+
 export interface ApiErrorResponse {
   error?: string;
   message?: string;
@@ -1357,6 +1398,40 @@ export interface HealthStatus {
   serverTime: string;
 }
 
+export interface BillingPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  amount: number;
+  currency: string;
+  intervalUnit: "month" | "year";
+  intervalCount: number;
+  features: string[];
+}
+
+export interface BillingSubscription {
+  id: number | string;
+  status: BillingStatus;
+  providerSubscriptionId: string | null;
+  providerCheckoutId: string | null;
+  providerCheckoutUrl: string | null;
+  nextDueDate: string | null;
+  currentPeriodEnd: string | null;
+  activatedAt: string | null;
+  canceledAt: string | null;
+  lastPaymentAt: string | null;
+}
+
+export interface BillingSubscriptionData {
+  isPremium: boolean;
+  status: BillingStatus;
+  plan: BillingPlan | null;
+  subscription: BillingSubscription | null;
+  nextDueDate: string | null;
+  currentPeriodEnd: string | null;
+  checkoutUrl: string | null;
+}
+
 export type InstallmentStatus = "active" | "paid" | "overdue";
 export type InstallmentSortBy =
   | "smart"
@@ -1512,6 +1587,11 @@ export interface ApiAdminSubscriptionMetricsResponse {
     premiumUsers?: number;
     freeUsers?: number;
     conversionRate?: number;
+    activeSubscriptions?: number;
+    pastDueSubscriptions?: number;
+    canceledSubscriptions?: number;
+    subscriptionRevenue?: number;
+    mrr?: number;
     estimatedSubscriptionRevenue?: number;
     estimatedMrr?: number;
   };
@@ -1710,6 +1790,11 @@ export interface AdminSubscriptionMetricsData {
     premiumUsers: number;
     freeUsers: number;
     conversionRate: number;
+    activeSubscriptions: number;
+    pastDueSubscriptions: number;
+    canceledSubscriptions: number;
+    subscriptionRevenue: number;
+    mrr: number;
     estimatedSubscriptionRevenue: number;
     estimatedMrr: number;
   };

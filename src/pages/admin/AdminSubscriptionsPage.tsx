@@ -34,11 +34,32 @@ export default function AdminSubscriptionsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">MRR estimado</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">MRR real</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {currencyFormatter.format(data?.summary.estimatedMrr ?? 0)}
+            {currencyFormatter.format(data?.summary.mrr ?? data?.summary.estimatedMrr ?? 0)}
           </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Assinaturas ativas</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">{data?.summary.activeSubscriptions ?? 0}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pagamentos pendentes</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">{data?.summary.pastDueSubscriptions ?? 0}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Canceladas</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">{data?.summary.canceledSubscriptions ?? 0}</CardContent>
         </Card>
       </div>
 

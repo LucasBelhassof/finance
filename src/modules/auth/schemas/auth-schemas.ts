@@ -16,6 +16,12 @@ export const signupFormSchema = z
       .max(72, "A senha pode ter no maximo 72 caracteres."),
     confirmPassword: z.string().min(1, "Confirme sua senha."),
     rememberMe: z.boolean().default(false),
+    acceptedTerms: z.literal(true, {
+      errorMap: () => ({ message: "Voce precisa aceitar os Termos de Uso." }),
+    }),
+    acceptedPrivacy: z.literal(true, {
+      errorMap: () => ({ message: "Voce precisa aceitar a Politica de Privacidade." }),
+    }),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: "As senhas precisam ser iguais.",

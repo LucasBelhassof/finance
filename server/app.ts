@@ -67,6 +67,12 @@ import {
 } from "./database.js";
 import { createAdminRouter } from "./modules/admin/routes.js";
 import { createAuthRouter, requireAccessToken } from "./modules/auth/routes.js";
+import {
+  createAsaasWebhookRouter,
+  createBillingRouter,
+  enforceFreeImportLimit,
+  requirePremiumFeature,
+} from "./modules/billing/routes.js";
 import { createInvoicesRouter } from "./modules/invoices/routes.js";
 import { createNotificationsRouter } from "./modules/notifications/routes.js";
 import { env } from "./shared/env.js";
@@ -160,11 +166,13 @@ export function createApp() {
   });
 
   app.use("/api/auth", createAuthRouter());
+  app.use("/api/webhooks/asaas", createAsaasWebhookRouter());
   app.use("/api", async (request, _response, next) => {
     await requireAccessToken(request);
     next();
   });
   app.use("/api/admin", createAdminRouter());
+  app.use("/api/billing", createBillingRouter());
   app.use("/api/notifications", createNotificationsRouter());
   app.use("/api/invoices", createInvoicesRouter());
 
@@ -384,14 +392,20 @@ export function createApp() {
   );
 
   app.post("/api/transactions/import/commit", importRateLimiter, async (request, response) => {
+    await enforceFreeImportLimit(request);
     const result = await commitTransactionImport(getAuthenticatedUserId(request), request.body ?? {});
     response.status(201).json(result);
   });
 
-  app.post("/api/transactions/import/ai-suggestions", aiRateLimiter, async (request, response) => {
-    const result = await getTransactionImportAiSuggestions(getAuthenticatedUserId(request), request.body ?? {});
-    response.status(201).json(result);
-  });
+  app.post(
+    "/api/transactions/import/ai-suggestions",
+    aiRateLimiter,
+    requirePremiumFeature("import_ai"),
+    async (request, response) => {
+      const result = await getTransactionImportAiSuggestions(getAuthenticatedUserId(request), request.body ?? {});
+      response.status(201).json(result);
+    },
+  );
 
   app.patch("/api/transactions/:id", async (request, response) => {
     const transactionId = parseIntegerRouteParam(request.params.id, "invalid_transaction_id");
@@ -460,7 +474,7 @@ export function createApp() {
     response.json({ spending });
   });
 
-  app.get("/api/insights", async (request, response) => {
+  app.get("/api/insights", requirePremiumFeature("insights_advanced"), async (request, response) => {
     const insights = await listInsights(getAuthenticatedUserId(request));
     response.json({ insights });
   });
@@ -551,7 +565,7 @@ export function createApp() {
     response.status(201).json({ plan });
   });
 
-  app.post("/api/plans/ai/draft", aiRateLimiter, async (request, response) => {
+  app.post("/api/plans/ai/draft", aiRateLimiter, requirePremiumFeature("plans_ai"), async (request, response) => {
     const chatId = request.body?.chatId;
 
     if (typeof chatId !== "string" || !chatId.trim()) {
@@ -565,19 +579,24 @@ export function createApp() {
     response.json({ draft });
   });
 
-  app.post("/api/plans/ai/draft-session", aiRateLimiter, async (request, response) => {
-    const chatId = request.body?.chatId;
+  app.post(
+    "/api/plans/ai/draft-session",
+    aiRateLimiter,
+    requirePremiumFeature("plans_ai"),
+    async (request, response) => {
+      const chatId = request.body?.chatId;
 
-    if (typeof chatId !== "string" || !chatId.trim()) {
-      response.status(400).json({
-        error: "chatId is required",
-      });
-      return;
-    }
+      if (typeof chatId !== "string" || !chatId.trim()) {
+        response.status(400).json({
+          error: "chatId is required",
+        });
+        return;
+      }
 
-    const draftSession = await createOrGetPlanAiDraftSession(getAuthenticatedUserId(request), chatId.trim());
-    response.status(201).json({ draftSession });
-  });
+      const draftSession = await createOrGetPlanAiDraftSession(getAuthenticatedUserId(request), chatId.trim());
+      response.status(201).json({ draftSession });
+    },
+  );
 
   app.get("/api/plan-drafts/:draftId", async (request, response) => {
     const draftSession = await getPlanAiDraft(getAuthenticatedUserId(request), request.params.draftId);
@@ -596,21 +615,26 @@ export function createApp() {
     response.json({ draftSession });
   });
 
-  app.post("/api/plan-drafts/:draftId/revise", aiRateLimiter, async (request, response) => {
-    const correction = request.body?.correction;
+  app.post(
+    "/api/plan-drafts/:draftId/revise",
+    aiRateLimiter,
+    requirePremiumFeature("plans_ai"),
+    async (request, response) => {
+      const correction = request.body?.correction;
 
-    if (typeof correction !== "string" || !correction.trim()) {
-      response.status(400).json({ error: "correction is required" });
-      return;
-    }
+      if (typeof correction !== "string" || !correction.trim()) {
+        response.status(400).json({ error: "correction is required" });
+        return;
+      }
 
-    const draftSession = await revisePlanAiDraft(
-      getAuthenticatedUserId(request),
-      request.params.draftId,
-      correction.trim(),
-    );
-    response.json({ draftSession });
-  });
+      const draftSession = await revisePlanAiDraft(
+        getAuthenticatedUserId(request),
+        request.params.draftId,
+        correction.trim(),
+      );
+      response.json({ draftSession });
+    },
+  );
 
   app.post("/api/plan-drafts/:draftId/confirm", async (request, response) => {
     const plan = await confirmPlanAiDraft(getAuthenticatedUserId(request), request.params.draftId);
@@ -622,36 +646,41 @@ export function createApp() {
     response.json({ draftSession });
   });
 
-  app.post("/api/plans/ai/revise-draft", aiRateLimiter, async (request, response) => {
-    const chatId = request.body?.chatId;
-    const draft = request.body?.draft;
-    const correction = request.body?.correction;
+  app.post(
+    "/api/plans/ai/revise-draft",
+    aiRateLimiter,
+    requirePremiumFeature("plans_ai"),
+    async (request, response) => {
+      const chatId = request.body?.chatId;
+      const draft = request.body?.draft;
+      const correction = request.body?.correction;
 
-    if (typeof chatId !== "string" || !chatId.trim()) {
-      response.status(400).json({ error: "chatId is required" });
-      return;
-    }
+      if (typeof chatId !== "string" || !chatId.trim()) {
+        response.status(400).json({ error: "chatId is required" });
+        return;
+      }
 
-    if (!draft || typeof draft !== "object") {
-      response.status(400).json({ error: "draft is required" });
-      return;
-    }
+      if (!draft || typeof draft !== "object") {
+        response.status(400).json({ error: "draft is required" });
+        return;
+      }
 
-    if (typeof correction !== "string" || !correction.trim()) {
-      response.status(400).json({ error: "correction is required" });
-      return;
-    }
+      if (typeof correction !== "string" || !correction.trim()) {
+        response.status(400).json({ error: "correction is required" });
+        return;
+      }
 
-    const revisedDraft = await revisePlanDraftFromChat(
-      getAuthenticatedUserId(request),
-      chatId.trim(),
-      draft,
-      correction.trim(),
-    );
-    response.json({ draft: revisedDraft });
-  });
+      const revisedDraft = await revisePlanDraftFromChat(
+        getAuthenticatedUserId(request),
+        chatId.trim(),
+        draft,
+        correction.trim(),
+      );
+      response.json({ draft: revisedDraft });
+    },
+  );
 
-  app.post("/api/plans/ai/suggest-link", async (request, response) => {
+  app.post("/api/plans/ai/suggest-link", requirePremiumFeature("plans_ai"), async (request, response) => {
     const chatId = request.body?.chatId;
 
     if (typeof chatId !== "string" || !chatId.trim()) {
@@ -670,12 +699,17 @@ export function createApp() {
     response.json({ plan });
   });
 
-  app.post("/api/plans/:planId/ai/evaluate", aiRateLimiter, async (request, response) => {
-    const plan = await evaluatePlanWithAi(getAuthenticatedUserId(request), request.params.planId, {
-      type: "manual_evaluation",
-    });
-    response.status(201).json({ plan });
-  });
+  app.post(
+    "/api/plans/:planId/ai/evaluate",
+    aiRateLimiter,
+    requirePremiumFeature("plans_ai"),
+    async (request, response) => {
+      const plan = await evaluatePlanWithAi(getAuthenticatedUserId(request), request.params.planId, {
+        type: "manual_evaluation",
+      });
+      response.status(201).json({ plan });
+    },
+  );
 
   app.get("/api/plans/:planId/recommendations", async (request, response) => {
     const recommendations = await listPlanRecommendations(getAuthenticatedUserId(request), request.params.planId);
@@ -788,24 +822,29 @@ export function createApp() {
     response.json({ summary });
   });
 
-  app.post("/api/chats/:chatId/summary", aiRateLimiter, async (request, response) => {
+  app.post("/api/chats/:chatId/summary", aiRateLimiter, requirePremiumFeature("ai_chat"), async (request, response) => {
     const summary = await generatePlanChatSummary(getAuthenticatedUserId(request), request.params.chatId);
     response.status(201).json({ summary });
   });
 
-  app.post("/api/chats/:chatId/messages", chatRateLimiter, async (request, response) => {
-    const messages = parseChatRequestMessages(request.body);
+  app.post(
+    "/api/chats/:chatId/messages",
+    chatRateLimiter,
+    requirePremiumFeature("ai_chat"),
+    async (request, response) => {
+      const messages = parseChatRequestMessages(request.body);
 
-    if (!messages.length) {
-      response.status(400).json({
-        error: "message is required",
-      });
-      return;
-    }
+      if (!messages.length) {
+        response.status(400).json({
+          error: "message is required",
+        });
+        return;
+      }
 
-    const reply = await createChatReply(getAuthenticatedUserId(request), request.params.chatId, messages);
-    response.status(201).json(reply);
-  });
+      const reply = await createChatReply(getAuthenticatedUserId(request), request.params.chatId, messages);
+      response.status(201).json(reply);
+    },
+  );
 
   app.delete("/api/chats/:chatId", async (request, response) => {
     await deleteChatConversation(getAuthenticatedUserId(request), request.params.chatId);
@@ -818,7 +857,7 @@ export function createApp() {
     response.json({ messages });
   });
 
-  app.post("/api/chat/messages", chatRateLimiter, async (request, response) => {
+  app.post("/api/chat/messages", chatRateLimiter, requirePremiumFeature("ai_chat"), async (request, response) => {
     const messages = parseChatRequestMessages(request.body);
 
     if (!messages.length) {

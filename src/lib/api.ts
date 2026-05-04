@@ -23,6 +23,10 @@ import type {
   ApiAdminSubscriptionMetricsResponse,
   ApiAdminNotificationTargetsResponse,
   ApiAdminUsersResponse,
+  ApiBillingCheckoutResponse,
+  ApiBillingPlan,
+  ApiBillingSubscription,
+  ApiBillingSubscriptionResponse,
   ApiDashboardResponse,
   AdminActivityData,
   AdminAiUsageData,
@@ -68,6 +72,9 @@ import type {
   ApiTransactionAccount,
   ApiTransactionsResponse,
   BankItem,
+  BillingPlan,
+  BillingSubscription,
+  BillingSubscriptionData,
   CreateAdminNotificationInput,
   CategoryItem,
   ChatConversation,
@@ -432,6 +439,11 @@ function mapAdminSubscriptionMetricsResponse(
       premiumUsers: safeNumber(response.summary?.premiumUsers),
       freeUsers: safeNumber(response.summary?.freeUsers),
       conversionRate: safeNumber(response.summary?.conversionRate),
+      activeSubscriptions: safeNumber(response.summary?.activeSubscriptions),
+      pastDueSubscriptions: safeNumber(response.summary?.pastDueSubscriptions),
+      canceledSubscriptions: safeNumber(response.summary?.canceledSubscriptions),
+      subscriptionRevenue: safeNumber(response.summary?.subscriptionRevenue),
+      mrr: safeNumber(response.summary?.mrr),
       estimatedSubscriptionRevenue: safeNumber(response.summary?.estimatedSubscriptionRevenue),
       estimatedMrr: safeNumber(response.summary?.estimatedMrr),
     },
@@ -1693,6 +1705,69 @@ export function mapHealthResponse(response: ApiHealthResponse): HealthStatus {
   };
 }
 
+function normalizeBillingStatus(status?: string): BillingSubscriptionData["status"] {
+  switch (status) {
+    case "active":
+    case "past_due":
+    case "canceled":
+    case "inactive":
+    case "pending":
+      return status;
+    default:
+      return "inactive";
+  }
+}
+
+function mapBillingPlan(plan?: ApiBillingPlan | null): BillingPlan | null {
+  if (!plan) {
+    return null;
+  }
+
+  return {
+    id: safeString(plan.id),
+    name: safeString(plan.name, "Finly Premium"),
+    description: plan.description ? safeString(plan.description) : null,
+    amount: safeNumber(plan.amount),
+    currency: safeString(plan.currency, "BRL"),
+    intervalUnit: plan.intervalUnit === "year" ? "year" : "month",
+    intervalCount: safeNumber(plan.intervalCount, 1),
+    features: (plan.features ?? []).map((feature) => safeString(feature)).filter(Boolean),
+  };
+}
+
+function mapBillingSubscription(subscription?: ApiBillingSubscription | null): BillingSubscription | null {
+  if (!subscription) {
+    return null;
+  }
+
+  return {
+    id: subscription.id ?? "",
+    status: normalizeBillingStatus(subscription.status),
+    providerSubscriptionId: subscription.providerSubscriptionId
+      ? safeString(subscription.providerSubscriptionId)
+      : null,
+    providerCheckoutId: subscription.providerCheckoutId ? safeString(subscription.providerCheckoutId) : null,
+    providerCheckoutUrl: subscription.providerCheckoutUrl ? safeString(subscription.providerCheckoutUrl) : null,
+    nextDueDate: subscription.nextDueDate ? safeString(subscription.nextDueDate) : null,
+    currentPeriodEnd: subscription.currentPeriodEnd ? safeString(subscription.currentPeriodEnd) : null,
+    activatedAt: subscription.activatedAt ? safeString(subscription.activatedAt) : null,
+    canceledAt: subscription.canceledAt ? safeString(subscription.canceledAt) : null,
+    lastPaymentAt: subscription.lastPaymentAt ? safeString(subscription.lastPaymentAt) : null,
+  };
+}
+
+function mapBillingSubscriptionResponse(response: ApiBillingSubscriptionResponse): BillingSubscriptionData {
+  return {
+    isPremium: Boolean(response.isPremium),
+    status: normalizeBillingStatus(response.status),
+    plan: mapBillingPlan(response.plan),
+    subscription: mapBillingSubscription(response.subscription),
+    nextDueDate: response.nextDueDate ? safeString(response.nextDueDate) : null,
+    currentPeriodEnd: response.currentPeriodEnd ? safeString(response.currentPeriodEnd) : null,
+    checkoutUrl: response.checkoutUrl ? safeString(response.checkoutUrl) : null,
+  };
+}
+
 export async function getDashboard(filters: DashboardFilters = {}) {
   const response = await request<ApiDashboardResponse>(
     buildPath("/api/dashboard", {
@@ -1701,6 +1776,36 @@ export async function getDashboard(filters: DashboardFilters = {}) {
     }),
   );
   return mapDashboardResponse(response);
+}
+
+export async function getBillingSubscription() {
+  const response = await request<ApiBillingSubscriptionResponse>("/api/billing/subscription");
+  return mapBillingSubscriptionResponse(response);
+}
+
+export async function createBillingCheckout() {
+  const response = await request<ApiBillingCheckoutResponse>("/api/billing/checkout", {
+    method: "POST",
+  });
+
+  return {
+    checkoutUrl: response.checkoutUrl ? safeString(response.checkoutUrl) : null,
+    subscription: mapBillingSubscriptionResponse(response.subscription ?? {}),
+  };
+}
+
+export async function cancelBillingSubscription() {
+  const response = await request<ApiBillingSubscriptionResponse>("/api/billing/cancel", {
+    method: "POST",
+  });
+  return mapBillingSubscriptionResponse(response);
+}
+
+export async function syncBillingSubscription() {
+  const response = await request<ApiBillingSubscriptionResponse>("/api/billing/sync", {
+    method: "POST",
+  });
+  return mapBillingSubscriptionResponse(response);
 }
 
 export async function getAdminOverview(startDate?: string, endDate?: string) {

@@ -640,6 +640,44 @@ export async function insertAuditEvent(
   );
 }
 
+export async function insertPolicyAcceptance(
+  input: {
+    userId: number;
+    termsVersion: string;
+    privacyVersion: string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    requestId?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+  client: Queryable = db,
+) {
+  await client.query(
+    `
+      INSERT INTO user_policy_acceptances (
+        user_id,
+        terms_version,
+        privacy_version,
+        ip_address,
+        user_agent,
+        request_id,
+        metadata
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+      ON CONFLICT DO NOTHING
+    `,
+    [
+      input.userId,
+      input.termsVersion,
+      input.privacyVersion,
+      input.ipAddress ?? null,
+      input.userAgent ?? null,
+      input.requestId ?? null,
+      JSON.stringify(input.metadata ?? {}),
+    ],
+  );
+}
+
 export async function updateUserOnboardingState(
   userId: number,
   input: {

@@ -45,6 +45,7 @@ function getRequestMetadata(request: Request): AuthRequestMetadata {
   return {
     ipAddress,
     userAgent: request.get("user-agent") || null,
+    requestId: request.requestId ?? null,
   };
 }
 
@@ -141,6 +142,8 @@ export function createAuthRouter() {
         email: input.email,
         password: input.password,
         rememberMe: input.rememberMe ?? false,
+        acceptedTerms: input.acceptedTerms,
+        acceptedPrivacy: input.acceptedPrivacy,
       },
       getRequestMetadata(request),
     );

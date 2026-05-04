@@ -20,6 +20,34 @@ As migrations são controladas por `schema_migrations` e aplicadas em ordem lexi
 - o seed padrão de categorias usa `ON CONFLICT (user_id, slug) DO NOTHING`
 - signup continua transacional; se o seed falhar, a criação do usuário não deve ficar parcial
 
+## Billing e aceite legal
+
+- `billing_plans` mantém o plano interno `premium_monthly`
+- `billing_customers` vincula usuário ao customer do provedor
+- `billing_subscriptions` é a fonte de verdade para premium
+- `billing_events` deduplica webhooks por `(provider, provider_event_id)`
+- `billing_audit_logs` preserva histórico de mudança de status
+- `user_policy_acceptances` guarda versão de Termos/Privacidade aceita no signup
+- `users.is_premium` e `users.premium_since` devem ser tratados como cache derivado
+
+## Backup e restore
+
+Backup lógico recomendado:
+
+```bash
+pg_dump "$DATABASE_URL" --format=custom --file=finly-$(date +%Y%m%d-%H%M%S).dump
+```
+
+Armazenar o arquivo fora da VPS, com criptografia e retenção definida. Teste de restore em ambiente isolado:
+
+```bash
+createdb finly_restore_test
+pg_restore --dbname=finly_restore_test --clean --if-exists finly-YYYYMMDD-HHMMSS.dump
+npm run db:migrate
+```
+
+Não considerar backup válido sem teste periódico de restore.
+
 ## Riscos operacionais conhecidos
 
 - existem migrations históricas com prefixo numérico duplicado (`011_*`)

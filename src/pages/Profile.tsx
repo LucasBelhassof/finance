@@ -1,4 +1,4 @@
-import { BellRing, Crown, Lightbulb, LogOut, Mail, Rocket, Settings, ShieldCheck, UserCircle2 } from "lucide-react";
+import { BellRing, CreditCard, Crown, RefreshCw, Rocket, Settings, UserCircle2, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
+import {
+  useBillingSubscription,
+  useCancelBillingSubscription,
+  useCreateBillingCheckout,
+  useSyncBillingSubscription,
+} from "@/hooks/use-billing";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { appRoutes } from "@/lib/routes";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
@@ -211,6 +217,21 @@ function getPlanMeta(isPremium?: boolean, premiumSince?: string | null) {
   };
 }
 
+function getBillingStatusMeta(status?: string) {
+  switch (status) {
+    case "active":
+      return { label: "Assinatura ativa", className: "border-income/20 bg-income/10 text-income" };
+    case "past_due":
+      return { label: "Pagamento pendente", className: "border-warning/20 bg-warning/10 text-warning" };
+    case "canceled":
+      return { label: "Cancelada", className: "border-destructive/20 bg-destructive/10 text-destructive" };
+    case "pending":
+      return { label: "Checkout pendente", className: "border-primary/20 bg-primary/10 text-primary" };
+    default:
+      return { label: "Sem assinatura", className: "border-border/60 bg-secondary/50 text-foreground" };
+  }
+}
+
 function addMonths(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, date.getDate(), 12, 0, 0, 0);
 }
@@ -307,6 +328,10 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { data } = useDashboard();
   const { user } = useAuthSession();
+  const { data: billingData, isLoading: isBillingLoading } = useBillingSubscription();
+  const checkoutMutation = useCreateBillingCheckout();
+  const cancelBillingMutation = useCancelBillingSubscription();
+  const syncBillingMutation = useSyncBillingSubscription();
   const { restartTour } = useProductTour();
   const logoutMutation = useLogout();
   const [preferences, setPreferences] = useState<ProfilePreferences>(() => getInitialPreferences());
@@ -331,8 +356,25 @@ export default function ProfilePage() {
     ? 100
     : Math.round((onboardingStepsDone / ONBOARDING_STEP_IDS.length) * 100);
   const insightsCount = data?.insights.length ?? 0;
-  const isPremiumUser = Boolean(user?.isPremium);
-  const subscriptionSummary = getSubscriptionSummary(user?.isPremium, user?.premiumSince);
+  const isPremiumUser = Boolean(billingData?.isPremium ?? user?.isPremium);
+  const billingStatusMeta = getBillingStatusMeta(billingData?.status);
+  const subscriptionSummary =
+    billingData?.subscription || billingData?.nextDueDate
+      ? {
+          dueDayLabel: billingData.nextDueDate
+            ? String(new Date(`${billingData.nextDueDate}T12:00:00`).getDate()).padStart(2, "0")
+            : "--",
+          dueDescription: billingData.nextDueDate
+            ? `Proxima cobranca em ${formatDateLabel(billingData.nextDueDate)}.`
+            : "Proxima cobranca indisponivel.",
+          referenceMonthLabel: billingData.currentPeriodEnd ? formatMonthReference(billingData.currentPeriodEnd) : "--",
+          paymentDescription: billingData.subscription?.lastPaymentAt
+            ? `Ultimo pagamento em ${formatDateLabel(billingData.subscription.lastPaymentAt)}.`
+            : "Pagamento ainda nao confirmado no billing.",
+          renewalDescription:
+            billingData.status === "active" ? "Entitlement premium ativo no backend." : billingStatusMeta.label,
+        }
+      : getSubscriptionSummary(user?.isPremium, user?.premiumSince);
 
   const handlePreferenceToggle = (key: keyof ProfilePreferences, checked: boolean) => {
     setPreferences((current) => ({
@@ -346,6 +388,42 @@ export default function ProfilePage() {
       await logoutMutation.mutateAsync();
     } catch (error) {
       toast.error("Não foi possível encerrar a sessão.", {
+        description: error instanceof Error ? error.message : "Tente novamente em instantes.",
+      });
+    }
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      const result = await checkoutMutation.mutateAsync();
+
+      if (result.checkoutUrl) {
+        window.location.assign(result.checkoutUrl);
+      }
+    } catch (error) {
+      toast.error("Nao foi possivel iniciar o checkout.", {
+        description: error instanceof Error ? error.message : "Tente novamente em instantes.",
+      });
+    }
+  };
+
+  const handleSyncBilling = async () => {
+    try {
+      await syncBillingMutation.mutateAsync();
+      toast.success("Assinatura sincronizada.");
+    } catch (error) {
+      toast.error("Nao foi possivel sincronizar a assinatura.", {
+        description: error instanceof Error ? error.message : "Tente novamente em instantes.",
+      });
+    }
+  };
+
+  const handleCancelBilling = async () => {
+    try {
+      await cancelBillingMutation.mutateAsync();
+      toast.success("Assinatura cancelada.");
+    } catch (error) {
+      toast.error("Nao foi possivel cancelar a assinatura.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
@@ -435,12 +513,56 @@ export default function ProfilePage() {
 
               <div className="space-y-4">
                 <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
-                  <p className="text-sm text-muted-foreground">Plano atual</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    {isPremiumUser ? <Crown size={16} className="text-primary" /> : null}
-                    <p className="text-lg font-semibold text-foreground">{planMeta.label}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Plano atual</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        {isPremiumUser ? <Crown size={16} className="text-primary" /> : <CreditCard size={16} />}
+                        <p className="text-lg font-semibold text-foreground">
+                          {isBillingLoading ? "Carregando" : billingData?.plan?.name || planMeta.label}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className={billingStatusMeta.className}>{billingStatusMeta.label}</Badge>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{planMeta.description}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {billingData?.plan?.description || planMeta.description}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {!isPremiumUser ? (
+                      <Button
+                        size="sm"
+                        className="rounded-xl"
+                        disabled={checkoutMutation.isPending}
+                        onClick={handleUpgrade}
+                      >
+                        <Crown size={14} />
+                        Assinar Premium
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl border-border/60 bg-secondary/20"
+                      disabled={syncBillingMutation.isPending}
+                      onClick={handleSyncBilling}
+                    >
+                      <RefreshCw size={14} />
+                      Sincronizar
+                    </Button>
+                    {isPremiumUser ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={cancelBillingMutation.isPending}
+                        onClick={handleCancelBilling}
+                      >
+                        <XCircle size={14} />
+                        Cancelar
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

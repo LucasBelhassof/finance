@@ -92,6 +92,8 @@ export interface SignupInput {
   password: string;
   confirmPassword: string;
   rememberMe: boolean;
+  acceptedTerms: boolean;
+  acceptedPrivacy: boolean;
 }
 
 export interface ForgotPasswordInput {

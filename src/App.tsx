@@ -33,12 +33,14 @@ const InstallmentsPage = lazy(() => import("./pages/Installments.tsx"));
 const Index = lazy(() => import("./pages/Index.tsx"));
 const InsightsPage = lazy(() => import("./pages/Insights.tsx"));
 const InvestmentsPage = lazy(() => import("./pages/Investments.tsx"));
+const LegalPage = lazy(() => import("./pages/LegalPage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const NotificationsPage = lazy(() => import("./pages/Notifications.tsx"));
 const OnboardingPage = lazy(() => import("./pages/Onboarding.tsx"));
 const PlanDetailPage = lazy(() => import("./pages/PlanDetail.tsx"));
 const PlansPage = lazy(() => import("./pages/Plans.tsx"));
 const ProfilePage = lazy(() => import("./pages/Profile.tsx"));
+const PricingPage = lazy(() => import("./pages/Pricing.tsx"));
 const SettingsPage = lazy(() => import("./pages/Settings.tsx"));
 const TransactionsPage = lazy(() => import("./pages/Transactions.tsx"));
 
@@ -61,6 +63,39 @@ const App = () => (
         <AuthProvider>
           <ProductTourProvider>
             <Routes>
+              <Route
+                path={appRoutes.pricing}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PricingPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.terms}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegalPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.privacy}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegalPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.cancellationPolicy}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegalPage />
+                  </Suspense>
+                }
+              />
+
               <Route element={<PublicOnlyRoute />}>
                 <Route path={appRoutes.login} element={<LoginPage />} />
                 <Route path={appRoutes.signup} element={<SignupPage />} />

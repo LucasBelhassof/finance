@@ -5,7 +5,9 @@ import { SignJWT, jwtVerify } from "jose";
 
 import { seedDefaultCategoriesForUser } from "../../default-categories.js";
 import { env } from "../../shared/env.js";
+import { sendPasswordResetEmail, sendSignupConfirmationEmail } from "../../shared/email.js";
 import { BadRequestError, ForbiddenError, HttpError, UnauthorizedError } from "../../shared/errors.js";
+import { logger } from "../../shared/logger.js";
 import {
   attachCredentialsToUser,
   createPasswordResetToken,
@@ -17,6 +19,7 @@ import {
   findUserByEmail,
   findUserById,
   insertAuditEvent,
+  insertPolicyAcceptance,
   invalidateActivePasswordResetTokens,
   listUsersWithoutCredentials,
   markPasswordResetTokenUsed,
@@ -36,9 +39,12 @@ import type { AuthOnboardingProgress, AuthSessionResult, AuthUser, OnboardingSte
 export interface AuthRequestMetadata {
   ipAddress: string | null;
   userAgent: string | null;
+  requestId?: string | null;
 }
 
 const accessSecret = new TextEncoder().encode(env.auth.accessTokenSecret);
+const LEGAL_TERMS_VERSION = "2026-05-04";
+const LEGAL_PRIVACY_VERSION = "2026-05-04";
 const ONBOARDING_STEPS: OnboardingStepId[] = [
   "dashboard_summary",
   "dashboard_transactions",
@@ -445,11 +451,17 @@ export async function signup(
     email: string;
     password: string;
     rememberMe: boolean;
+    acceptedTerms: boolean;
+    acceptedPrivacy: boolean;
   },
   metadata: AuthRequestMetadata,
 ) {
   const email = normalizeEmail(input.email);
   const passwordHash = await hashPassword(input.password);
+
+  if (!input.acceptedTerms || !input.acceptedPrivacy) {
+    throw new BadRequestError("legal_acceptance_required", "Terms and privacy policy must be accepted.");
+  }
 
   return withTransaction(async (client) => {
     const existingUser = await findUserByEmail(email, client);
@@ -478,6 +490,17 @@ export async function signup(
       client,
     );
     await seedDefaultCategoriesForUser(user.id, client);
+    await insertPolicyAcceptance(
+      {
+        userId: user.id,
+        termsVersion: LEGAL_TERMS_VERSION,
+        privacyVersion: LEGAL_PRIVACY_VERSION,
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        requestId: metadata.requestId ?? null,
+      },
+      client,
+    );
 
     const authUser = await toAuthUser(user);
     const refreshToken = buildRefreshToken();
@@ -513,6 +536,16 @@ export async function signup(
       },
       client,
     );
+
+    void sendSignupConfirmationEmail({
+      to: authUser.email,
+      name: authUser.name,
+    }).catch((error) => {
+      logger.warn("Signup confirmation email failed", {
+        userId: authUser.id,
+        error,
+      });
+    });
 
     return {
       user: authUser,
@@ -712,6 +745,18 @@ export async function forgotPassword(emailInput: string, metadata: AuthRequestMe
 
     if (!env.isProduction) {
       debugResetUrl = `${env.auth.passwordResetBaseUrl}?token=${rawResetToken}`;
+    }
+
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        resetUrl: `${env.auth.passwordResetBaseUrl}?token=${rawResetToken}`,
+      });
+    } catch (error) {
+      logger.error("Password reset email failed", {
+        userId: user.id,
+        error,
+      });
     }
   } else {
     await insertAuditEvent({

@@ -7,6 +7,7 @@ import { createAdminRouter } from "./routes.js";
 
 const {
   getAdminActivityMock,
+  getAdminAiUsageMock,
   getAdminFinancialMetricsMock,
   getAdminOverviewMock,
   getAdminSubscriptionMetricsMock,
@@ -17,6 +18,7 @@ const {
   listAdminNotificationsMock,
 } = vi.hoisted(() => ({
   getAdminActivityMock: vi.fn(),
+  getAdminAiUsageMock: vi.fn(),
   getAdminFinancialMetricsMock: vi.fn(),
   getAdminOverviewMock: vi.fn(),
   getAdminSubscriptionMetricsMock: vi.fn(),
@@ -29,6 +31,7 @@ const {
 
 vi.mock("./service.js", () => ({
   getAdminActivity: getAdminActivityMock,
+  getAdminAiUsage: getAdminAiUsageMock,
   getAdminFinancialMetrics: getAdminFinancialMetricsMock,
   getAdminOverview: getAdminOverviewMock,
   getAdminSubscriptionMetrics: getAdminSubscriptionMetricsMock,
@@ -85,6 +88,7 @@ describe("admin routes", () => {
     getAdminUsersMock.mockResolvedValue({ page: 1, pageSize: 20, total: 1, users: [] });
     getAdminFinancialMetricsMock.mockResolvedValue({ period: {}, summary: {}, monthlySeries: [], topUsers: [] });
     getAdminSubscriptionMetricsMock.mockResolvedValue({ period: {}, summary: {}, evolution: [] });
+    getAdminAiUsageMock.mockResolvedValue({ period: {}, summary: {}, dailySeries: [] });
     getAdminActivityMock.mockResolvedValue({ events: [] });
     listAdminNotificationTargetsMock.mockResolvedValue({ users: [] });
     listAdminNotificationsMock.mockResolvedValue({ notifications: [] });

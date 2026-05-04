@@ -15,6 +15,7 @@ const {
   logoutMock,
   refreshSessionMock,
   resetPasswordMock,
+  signupMock,
   updateOnboardingProgressMock,
   verifyAccessTokenMock,
 } = vi.hoisted(() => ({
@@ -25,6 +26,7 @@ const {
   logoutMock: vi.fn(),
   refreshSessionMock: vi.fn(),
   resetPasswordMock: vi.fn(),
+  signupMock: vi.fn(),
   updateOnboardingProgressMock: vi.fn(),
   verifyAccessTokenMock: vi.fn(),
 }));
@@ -51,6 +53,7 @@ vi.mock("./service.js", () => ({
   logout: logoutMock,
   refreshSession: refreshSessionMock,
   resetPassword: resetPasswordMock,
+  signup: signupMock,
   updateOnboardingProgress: updateOnboardingProgressMock,
   verifyAccessToken: verifyAccessTokenMock,
 }));
@@ -170,6 +173,14 @@ describe("auth routes", () => {
       message: "Password updated successfully. Active sessions have been revoked.",
     });
 
+    signupMock.mockResolvedValue({
+      user: buildUser({ id: 8, email: "novo@finance.test" }),
+      accessToken: "signup-access-token",
+      expiresAt: "2026-04-12T12:00:00.000Z",
+      refreshToken: "signup-refresh-token",
+      rememberMe: false,
+    });
+
     verifyAccessTokenMock.mockResolvedValue({
       userId: 7,
       user: buildUser(),
@@ -195,6 +206,34 @@ describe("auth routes", () => {
       expiresAt: "2026-04-12T12:00:00.000Z",
     });
     expect(response.headers["set-cookie"]?.[0]).toContain(`${env.auth.refreshCookieName}=refresh-token`);
+  });
+
+  it("signs up with legal acceptance and sets the refresh cookie", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).post("/api/auth/signup").send({
+      name: "Novo Usuario",
+      email: "novo@finance.test",
+      password: "Password123!",
+      confirmPassword: "Password123!",
+      rememberMe: false,
+      acceptedTerms: true,
+      acceptedPrivacy: true,
+    });
+
+    expect(response.status).toBe(201);
+    expect(signupMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Novo Usuario",
+        email: "novo@finance.test",
+        acceptedTerms: true,
+        acceptedPrivacy: true,
+      }),
+      expect.objectContaining({
+        ipAddress: expect.anything(),
+      }),
+    );
+    expect(response.headers["set-cookie"]?.[0]).toContain(`${env.auth.refreshCookieName}=signup-refresh-token`);
   });
 
   it("rotates the refresh cookie on refresh", async () => {

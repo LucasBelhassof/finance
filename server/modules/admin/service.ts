@@ -35,12 +35,18 @@ export async function getAdminOverview(input: AdminDateRangeInput = {}) {
   const [countsResult, sessionsResult, transactionsResult, signupsResult] = await Promise.all([
     db.query(
       `
+        WITH active_premium_users AS (
+          SELECT DISTINCT user_id
+          FROM billing_subscriptions
+          WHERE status = 'active'
+        )
         SELECT
-          COUNT(*)::INT AS total_users,
-          COUNT(*) FILTER (WHERE status = 'active')::INT AS active_users,
-          COUNT(*) FILTER (WHERE is_premium = TRUE)::INT AS premium_users,
-          COUNT(*) FILTER (WHERE is_premium = FALSE)::INT AS free_users
-        FROM users
+          COUNT(u.*)::INT AS total_users,
+          COUNT(u.*) FILTER (WHERE u.status = 'active')::INT AS active_users,
+          COUNT(u.*) FILTER (WHERE apu.user_id IS NOT NULL)::INT AS premium_users,
+          COUNT(u.*) FILTER (WHERE apu.user_id IS NULL)::INT AS free_users
+        FROM users u
+        LEFT JOIN active_premium_users apu ON apu.user_id = u.id
       `,
     ),
     db.query(
@@ -211,22 +217,37 @@ export async function getAdminSubscriptionMetrics(input: AdminDateRangeInput = {
   const [summaryResult, evolutionResult] = await Promise.all([
     db.query(
       `
+        WITH active_premium_users AS (
+          SELECT DISTINCT user_id
+          FROM billing_subscriptions
+          WHERE status = 'active'
+        ),
+        active_subscriptions AS (
+          SELECT s.id, s.user_id, p.amount
+          FROM billing_subscriptions s
+          INNER JOIN billing_plans p ON p.id = s.plan_id
+          WHERE s.status = 'active'
+        )
         SELECT
-          COUNT(*)::INT AS total_users,
-          COUNT(*) FILTER (WHERE is_premium = TRUE)::INT AS premium_users,
-          COUNT(*) FILTER (WHERE is_premium = FALSE)::INT AS free_users
-        FROM users
+          COUNT(u.*)::INT AS total_users,
+          COUNT(u.*) FILTER (WHERE apu.user_id IS NOT NULL)::INT AS premium_users,
+          COUNT(u.*) FILTER (WHERE apu.user_id IS NULL)::INT AS free_users,
+          (SELECT COUNT(*)::INT FROM active_subscriptions) AS active_subscriptions,
+          (SELECT COUNT(*)::INT FROM billing_subscriptions WHERE status = 'past_due') AS past_due_subscriptions,
+          (SELECT COUNT(*)::INT FROM billing_subscriptions WHERE status = 'canceled') AS canceled_subscriptions,
+          (SELECT COALESCE(SUM(amount), 0)::NUMERIC(14, 2) FROM active_subscriptions) AS mrr
+        FROM users u
+        LEFT JOIN active_premium_users apu ON apu.user_id = u.id
       `,
     ),
     db.query(
       `
         SELECT
-          TO_CHAR(DATE_TRUNC('month', premium_since), 'YYYY-MM') AS month,
+          TO_CHAR(DATE_TRUNC('month', activated_at), 'YYYY-MM') AS month,
           COUNT(*)::INT AS premium_activations
-        FROM users
-        WHERE is_premium = TRUE
-          AND premium_since IS NOT NULL
-          AND premium_since::date BETWEEN $1::date AND $2::date
+        FROM billing_subscriptions
+        WHERE activated_at IS NOT NULL
+          AND activated_at::date BETWEEN $1::date AND $2::date
         GROUP BY 1
         ORDER BY 1 ASC
       `,
@@ -239,7 +260,7 @@ export async function getAdminSubscriptionMetrics(input: AdminDateRangeInput = {
   const premiumUsers = Number(summary.premium_users ?? 0);
   const freeUsers = Number(summary.free_users ?? 0);
   const conversionRate = totalUsers > 0 ? premiumUsers / totalUsers : 0;
-  const estimatedMrr = premiumUsers * 29.9;
+  const actualMrr = parseNumeric(summary.mrr);
 
   return {
     period: {
@@ -251,8 +272,13 @@ export async function getAdminSubscriptionMetrics(input: AdminDateRangeInput = {
       premiumUsers,
       freeUsers,
       conversionRate,
-      estimatedSubscriptionRevenue: estimatedMrr,
-      estimatedMrr,
+      activeSubscriptions: Number(summary.active_subscriptions ?? 0),
+      pastDueSubscriptions: Number(summary.past_due_subscriptions ?? 0),
+      canceledSubscriptions: Number(summary.canceled_subscriptions ?? 0),
+      subscriptionRevenue: actualMrr,
+      estimatedSubscriptionRevenue: actualMrr,
+      mrr: actualMrr,
+      estimatedMrr: actualMrr,
     },
     evolution: evolutionResult.rows.map((row) => ({
       month: String(row.month),

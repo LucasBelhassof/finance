@@ -7,6 +7,7 @@ const findSessionByTokenHashMock = vi.hoisted(() => vi.fn());
 const findUserByEmailMock = vi.hoisted(() => vi.fn());
 const findUserByIdMock = vi.hoisted(() => vi.fn());
 const insertAuditEventMock = vi.hoisted(() => vi.fn());
+const insertPolicyAcceptanceMock = vi.hoisted(() => vi.fn());
 const listUsersWithoutCredentialsMock = vi.hoisted(() => vi.fn());
 const markSessionRotatedMock = vi.hoisted(() => vi.fn());
 const revokeSessionFamilyMock = vi.hoisted(() => vi.fn());
@@ -52,6 +53,11 @@ vi.mock("../../default-categories.js", () => ({
   seedDefaultCategoriesForUser: seedDefaultCategoriesForUserMock,
 }));
 
+vi.mock("../../shared/email.js", () => ({
+  sendPasswordResetEmail: vi.fn().mockResolvedValue({ sent: true }),
+  sendSignupConfirmationEmail: vi.fn().mockResolvedValue({ sent: true }),
+}));
+
 vi.mock("./repository.js", () => ({
   attachCredentialsToUser: noop,
   createPasswordResetToken: noop,
@@ -63,6 +69,7 @@ vi.mock("./repository.js", () => ({
   findUserByEmailExcludingUserId: noop,
   findUserById: findUserByIdMock,
   insertAuditEvent: insertAuditEventMock,
+  insertPolicyAcceptance: insertPolicyAcceptanceMock,
   invalidateActivePasswordResetTokens: noop,
   listUsersWithoutCredentials: listUsersWithoutCredentialsMock,
   markPasswordResetTokenUsed: noop,
@@ -123,6 +130,8 @@ describe("auth category seeding", () => {
         email: "lucas@example.com",
         password: "Password123!",
         rememberMe: true,
+        acceptedTerms: true,
+        acceptedPrivacy: true,
       },
       {
         ipAddress: "127.0.0.1",
@@ -158,6 +167,8 @@ describe("auth category seeding", () => {
           email: "seed@example.com",
           password: "Password123!",
           rememberMe: false,
+          acceptedTerms: true,
+          acceptedPrivacy: true,
         },
         {
           ipAddress: "127.0.0.1",

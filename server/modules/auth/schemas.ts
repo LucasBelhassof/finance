@@ -33,6 +33,12 @@ export const signupSchema = z
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Password confirmation is required."),
     rememberMe: z.boolean().optional().default(false),
+    acceptedTerms: z.literal(true, {
+      errorMap: () => ({ message: "Terms acceptance is required." }),
+    }),
+    acceptedPrivacy: z.literal(true, {
+      errorMap: () => ({ message: "Privacy policy acceptance is required." }),
+    }),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: "Passwords do not match.",

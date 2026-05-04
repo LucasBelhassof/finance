@@ -112,6 +112,14 @@ vi.mock("./modules/admin/routes.js", () => ({
   createAdminRouter: () => express.Router(),
 }));
 
+vi.mock("./modules/billing/routes.js", () => ({
+  createAsaasWebhookRouter: () => express.Router(),
+  createBillingRouter: () => express.Router(),
+  enforceFreeImportLimit: vi.fn(),
+  requirePremiumFeature: () => (_request: express.Request, _response: express.Response, next: express.NextFunction) =>
+    next(),
+}));
+
 vi.mock("./modules/notifications/routes.js", () => ({
   createNotificationsRouter: () => express.Router(),
 }));

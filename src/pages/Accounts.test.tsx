@@ -90,6 +90,7 @@ describe("AccountsPage invoice preferences", () => {
     fireEvent.change(screen.getByPlaceholderText("Dia de vencimento"), {
       target: { value: "20" },
     });
+    fireEvent.click(screen.getByRole("switch", { name: /notificar vencimento próximo/i }));
     fireEvent.change(screen.getByPlaceholderText("Dias antes do vencimento"), {
       target: { value: "5" },
     });
@@ -104,7 +105,7 @@ describe("AccountsPage invoice preferences", () => {
           statementCloseDay: 10,
           statementDueDay: 20,
           notifyInvoiceClosed: false,
-          notifyInvoiceDueSoon: false,
+          notifyInvoiceDueSoon: true,
           invoiceDueReminderDays: 5,
         }),
       );

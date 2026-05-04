@@ -24,10 +24,66 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function getComparisonDescription(datePreset: string): string {
+  switch (datePreset) {
+    case "month":
+      return "comparado ao mês anterior";
+    case "year":
+      return "comparado ao ano anterior";
+    case "custom":
+      return "comparado ao período anterior";
+    default:
+      return "comparado ao período anterior";
+  }
+}
+
+function getPreviousPeriodRange(
+  datePreset: string,
+  dateRange: { startDate: string; endDate: string },
+): { startDate: string; endDate: string } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  if (datePreset === "month") {
+    const [yearStr, monthStr] = dateRange.startDate.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const prevYear = month === 1 ? year - 1 : year;
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const lastDay = new Date(prevYear, prevMonth, 0).getDate();
+    return {
+      startDate: `${prevYear}-${pad(prevMonth)}-01`,
+      endDate: `${prevYear}-${pad(prevMonth)}-${pad(lastDay)}`,
+    };
+  }
+
+  if (datePreset === "year") {
+    const year = Number(dateRange.startDate.split("-")[0]);
+    return { startDate: `${year - 1}-01-01`, endDate: `${year - 1}-12-31` };
+  }
+
+  const startMs = new Date(dateRange.startDate + "T00:00:00").getTime();
+  const endMs = new Date(dateRange.endDate + "T00:00:00").getTime();
+  const durationMs = endMs - startMs;
+  const prevEndMs = startMs - 86400000;
+  const prevStartMs = prevEndMs - durationMs;
+  const fmt = (ms: number) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  return { startDate: fmt(prevStartMs), endDate: fmt(prevEndMs) };
+}
+
+function formatAbsoluteDelta(delta: number): string {
+  if (delta === 0) return formatCurrency(0);
+  return delta > 0 ? `+${formatCurrency(delta)}` : formatCurrency(delta);
+}
+
 function buildDashboardSummaryCards(
   templateCards: SummaryCard[],
   filteredTransactions: TransactionItem[],
   periodLabel: string,
+  datePreset: string,
+  previousPeriodTransactions?: TransactionItem[],
 ): SummaryCard[] {
   const totalIncomes = filteredTransactions
     .filter((transaction) => transaction.amount > 0)
@@ -37,11 +93,34 @@ function buildDashboardSummaryCards(
     .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
   const balance = totalIncomes - totalExpenses;
 
+  const previousTotalIncomes = previousPeriodTransactions
+    ? previousPeriodTransactions
+        .filter((transaction) => transaction.amount > 0)
+        .reduce((sum, transaction) => sum + transaction.amount, 0)
+    : 0;
+  const previousTotalExpenses = previousPeriodTransactions
+    ? previousPeriodTransactions
+        .filter((transaction) => transaction.amount < 0)
+        .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0)
+    : 0;
+  const previousBalance = previousTotalIncomes - previousTotalExpenses;
+
+  const calculatePercentageChange = (current: number, previous: number): number => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+
+  const incomeChange = calculatePercentageChange(totalIncomes, previousTotalIncomes);
+  const expenseChange = calculatePercentageChange(totalExpenses, previousTotalExpenses);
+  const balanceChange = calculatePercentageChange(balance, previousBalance);
+
   const templatesByKind = {
     income: templateCards.find((card) => card.label.toLowerCase().includes("receita")) ?? null,
     expense: templateCards.find((card) => card.label.toLowerCase().includes("despesa")) ?? null,
     balance: templateCards.find((card) => card.label.toLowerCase().includes("saldo")) ?? null,
   };
+
+  const comparisonDescription = getComparisonDescription(datePreset);
 
   return [
     {
@@ -50,8 +129,14 @@ function buildDashboardSummaryCards(
       value: totalIncomes,
       formattedValue: formatCurrency(totalIncomes),
       positive: true,
-      change: periodLabel,
-      description: "com filtros atuais",
+      change: `${incomeChange >= 0 ? "+" : ""}${incomeChange}%`,
+      description: comparisonDescription,
+      changePositive: incomeChange >= 0,
+      previousFormattedValue:
+        previousPeriodTransactions !== undefined ? formatCurrency(previousTotalIncomes) : undefined,
+      absoluteDeltaFormatted:
+        previousPeriodTransactions !== undefined ? formatAbsoluteDelta(totalIncomes - previousTotalIncomes) : undefined,
+      icon: (templatesByKind.income ?? templateCards[0])?.icon,
     },
     {
       ...(templatesByKind.expense ?? templateCards[1] ?? {}),
@@ -59,8 +144,16 @@ function buildDashboardSummaryCards(
       value: totalExpenses,
       formattedValue: formatCurrency(totalExpenses),
       positive: false,
-      change: periodLabel,
-      description: "com filtros atuais",
+      change: `${expenseChange >= 0 ? "+" : ""}${expenseChange}%`,
+      description: comparisonDescription,
+      changePositive: expenseChange <= 0,
+      previousFormattedValue:
+        previousPeriodTransactions !== undefined ? formatCurrency(previousTotalExpenses) : undefined,
+      absoluteDeltaFormatted:
+        previousPeriodTransactions !== undefined
+          ? formatAbsoluteDelta(totalExpenses - previousTotalExpenses)
+          : undefined,
+      icon: (templatesByKind.expense ?? templateCards[1])?.icon,
     },
     {
       ...(templatesByKind.balance ?? templateCards[2] ?? {}),
@@ -68,8 +161,13 @@ function buildDashboardSummaryCards(
       value: balance,
       formattedValue: formatCurrency(balance),
       positive: balance >= 0,
-      change: periodLabel,
-      description: "com filtros atuais",
+      change: `${balanceChange >= 0 ? "+" : ""}${balanceChange}%`,
+      description: comparisonDescription,
+      changePositive: balanceChange >= 0,
+      previousFormattedValue: previousPeriodTransactions !== undefined ? formatCurrency(previousBalance) : undefined,
+      absoluteDeltaFormatted:
+        previousPeriodTransactions !== undefined ? formatAbsoluteDelta(balance - previousBalance) : undefined,
+      icon: (templatesByKind.balance ?? templateCards[2])?.icon,
     },
   ];
 }
@@ -251,14 +349,62 @@ export default function Index() {
 
     return Array.from(grouped.values()).sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
   }, [dashboardTransactions]);
+  const previousPeriodRange = useMemo(() => getPreviousPeriodRange(datePreset, dateRange), [datePreset, dateRange]);
+  const previousDashboardTransactions = useMemo(
+    () =>
+      supportedTransactions.filter((transaction) => {
+        const transactionAccountId = String(transaction.account.id);
+        const isSelectedAccountTransaction = selectedAccount
+          ? transactionAccountId === String(selectedAccount.id)
+          : false;
+        const isLinkedCardTransaction = selectedAccountLinkedCardIds.has(transactionAccountId);
+        const matchesDate =
+          transaction.occurredOn >= previousPeriodRange.startDate &&
+          transaction.occurredOn <= previousPeriodRange.endDate;
+        const matchesPurchaseType =
+          selectedPurchaseType === "all" || transaction.account.accountType === selectedPurchaseType;
+        const matchesAccount =
+          selectedAccountId === "all"
+            ? true
+            : selectedAccount?.accountType === "bank_account"
+              ? isSelectedAccountTransaction || isLinkedCardTransaction
+              : isSelectedAccountTransaction;
+        const matchesCreditCard =
+          selectedPurchaseType !== "credit_card" ||
+          selectedCreditCardId === "all" ||
+          transactionAccountId === selectedCreditCardId;
+        const matchesCategory = selectedCategoryId === "all" || String(transaction.category.id) === selectedCategoryId;
+
+        return matchesDate && matchesPurchaseType && matchesAccount && matchesCreditCard && matchesCategory;
+      }),
+    [
+      previousPeriodRange,
+      selectedAccount,
+      selectedAccountId,
+      selectedAccountLinkedCardIds,
+      selectedCreditCardId,
+      selectedPurchaseType,
+      selectedCategoryId,
+      supportedTransactions,
+    ],
+  );
   const filteredSummaryCards = useMemo(
     () =>
       buildDashboardSummaryCards(
         data?.summaryCards ?? [],
         dashboardTransactions,
         `${dateRange.startDate.split("-").reverse().join("/")} - ${dateRange.endDate.split("-").reverse().join("/")}`,
+        datePreset,
+        previousDashboardTransactions,
       ),
-    [dashboardTransactions, data?.summaryCards, dateRange.endDate, dateRange.startDate],
+    [
+      dashboardTransactions,
+      data?.summaryCards,
+      dateRange.endDate,
+      dateRange.startDate,
+      datePreset,
+      previousDashboardTransactions,
+    ],
   );
   const filteredRecentTransactions = useMemo(
     () => [...dashboardTransactions].sort((left, right) => right.occurredOn.localeCompare(left.occurredOn)).slice(0, 8),

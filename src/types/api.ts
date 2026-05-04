@@ -692,6 +692,9 @@ export interface SummaryCard {
   positive: boolean;
   description: string;
   icon: LucideIcon;
+  changePositive?: boolean;
+  previousFormattedValue?: string;
+  absoluteDeltaFormatted?: string;
 }
 
 export interface TransactionCategory {

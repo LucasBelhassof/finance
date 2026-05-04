@@ -2,6 +2,8 @@ import { ArrowUpRight } from "lucide-react";
 
 import MetricInfoTooltip from "@/components/MetricInfoTooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type { SummaryCard } from "@/types/api";
 
 interface BalanceCardsProps {
@@ -118,13 +120,47 @@ export default function BalanceCards({ cards = [], isLoading, isError }: Balance
             </div>
           </div>
           <p className="mb-1 break-words text-2xl font-bold text-foreground">{card.formattedValue}</p>
-          <div className="flex flex-wrap items-center gap-1">
-            <ArrowUpRight size={14} className={card.positive ? "text-income" : "rotate-90 text-expense"} />
-            <span className={`text-xs font-medium ${card.positive ? "text-income" : "text-expense"}`}>
-              {card.change}
-            </span>
-            <span className="ml-1 text-xs text-muted-foreground">{card.description}</span>
-          </div>
+          {(() => {
+            const changeIsPositive = card.changePositive ?? card.positive;
+            const changeIsUp = !card.change.startsWith("-");
+            const changeContent = (
+              <div className="flex flex-wrap items-center gap-1">
+                <ArrowUpRight
+                  size={14}
+                  className={cn(changeIsPositive ? "text-income" : "text-expense", !changeIsUp && "rotate-90")}
+                />
+                <span className={cn("text-xs font-medium", changeIsPositive ? "text-income" : "text-expense")}>
+                  {card.change}
+                </span>
+                <span className="ml-1 text-xs text-muted-foreground">{card.description}</span>
+              </div>
+            );
+
+            if (!card.previousFormattedValue) return changeContent;
+
+            return (
+              <TooltipProvider delayDuration={120}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="cursor-default">{changeContent}</div>
+                  </TooltipTrigger>
+                  <TooltipContent className="space-y-1">
+                    <p className="text-xs">
+                      Período anterior: <span className="font-medium">{card.previousFormattedValue}</span>
+                    </p>
+                    {card.absoluteDeltaFormatted ? (
+                      <p className="text-xs">
+                        Variação:{" "}
+                        <span className={cn("font-medium", changeIsPositive ? "text-income" : "text-expense")}>
+                          {card.absoluteDeltaFormatted}
+                        </span>
+                      </p>
+                    ) : null}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          })()}
         </div>
       ))}
     </div>

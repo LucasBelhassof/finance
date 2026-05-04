@@ -419,7 +419,7 @@ export default function AccountsPage() {
                 </div>
 
                 <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                  <div className="space-y-3">
+                  <div className="grid gap-4">
                     <label className="flex items-center justify-between gap-4 text-sm text-foreground">
                       <span>Notificar fatura fechada</span>
                       <Switch
@@ -438,15 +438,20 @@ export default function AccountsPage() {
                         }
                       />
                     </label>
-                    <Input
-                      value={form.invoiceDueReminderDays}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, invoiceDueReminderDays: event.target.value }))
-                      }
-                      placeholder="Dias antes do vencimento"
-                      inputMode="numeric"
-                      className="h-11 rounded-xl border-border/60 bg-background/60"
-                    />
+                    {form.notifyInvoiceDueSoon ? (
+                      <label className="flex items-center justify-between gap-4 text-sm text-foreground">
+                        <span>Notificar dias antes do vencimento</span>
+                        <Input
+                          value={form.invoiceDueReminderDays}
+                          onChange={(event) =>
+                            setForm((current) => ({ ...current, invoiceDueReminderDays: event.target.value }))
+                          }
+                          placeholder="Dias antes do vencimento"
+                          inputMode="numeric"
+                          className="w-14 rounded-xl border-border/60 bg-background/60"
+                        />
+                      </label>
+                    ) : null}
                   </div>
                 </div>
               </>

@@ -811,8 +811,13 @@ export async function generateInvoiceNotificationsForUser(
 
   for (const invoice of response.invoices) {
     const dueSoonStart = addDays(invoice.dueDate, -invoice.card.invoiceDueReminderDays) ?? invoice.dueDate;
+    const notificationWindowStart = addDays(today, -45) ?? today;
 
-    if (invoice.card.notifyInvoiceClosed && today >= invoice.closingDate) {
+    if (
+      invoice.card.notifyInvoiceClosed &&
+      today >= invoice.closingDate &&
+      invoice.closingDate >= notificationWindowStart
+    ) {
       const created = await createInvoiceNotificationEvent(userId, invoice, "invoice_closed");
       createdCount += created ? 1 : 0;
     }

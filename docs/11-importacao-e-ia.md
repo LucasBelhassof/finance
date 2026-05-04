@@ -36,9 +36,10 @@ O rebuild universal preserva o fluxo antigo de preview/commit, mas agora aceita 
 
 ## Sessao de preview
 
-- o preview principal continua em memoria com TTL de 15 minutos
+- o preview principal fica persistido temporariamente em Postgres com TTL de 15 minutos
 - o fluxo universal adiciona metadados leves por token, como `detectedFileType`, `detectedSourceKind` e `selectedBankConnectionId`
 - o arquivo bruto nao e persistido na sessao
+- previews consumidos no commit sao marcados como utilizados e nao podem ser reutilizados
 
 ## Parsing
 

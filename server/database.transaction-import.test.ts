@@ -129,6 +129,17 @@ function createDbState() {
     { id: number; installment_count: number; purchase_occurred_on: string }
   >();
   const rules = new Map<string, { id: number; type: string; category_id: number; times_confirmed: number }>();
+  const previewSessions = new Map<
+    string,
+    {
+      id: string;
+      user_id: number;
+      kind: string;
+      payload: { metadata: unknown; session: unknown };
+      expires_at: string;
+      committed_at: string | null;
+    }
+  >();
   let nextTransactionId = 1000;
   let nextInstallmentPurchaseId = 500;
 
@@ -136,6 +147,7 @@ function createDbState() {
     transactionsBySeed,
     installmentPurchases,
     rules,
+    previewSessions,
     inserts: [] as Array<{ seedKey: string; description: string; amount: number; occurredOn: string }>,
     aiUsageEvents: 0,
     handleQuery(sql: string, params: unknown[]) {
@@ -167,6 +179,62 @@ function createDbState() {
           })),
           rowCount: transactionsBySeed.size,
         });
+      }
+
+      if (
+        normalizedSql.includes("SELECT id, user_id, kind, payload, expires_at, committed_at") &&
+        normalizedSql.includes("FROM import_preview_sessions") &&
+        normalizedSql.includes("WHERE id = $1")
+      ) {
+        const existing = previewSessions.get(String(params[0]));
+        return Promise.resolve({ rows: existing ? [existing] : [], rowCount: existing ? 1 : 0 });
+      }
+
+      if (normalizedSql.includes("INSERT INTO import_preview_sessions (")) {
+        const id = String(params[0]);
+        const entry = {
+          id,
+          user_id: Number(params[1]),
+          kind: String(params[2]),
+          payload: {
+            metadata: JSON.parse(String(params[3])),
+            session: JSON.parse(String(params[4])),
+          },
+          expires_at: new Date(Number(params[5])).toISOString(),
+          committed_at: null,
+        };
+        previewSessions.set(id, entry);
+        return Promise.resolve({ rows: [], rowCount: 1 });
+      }
+
+      if (
+        normalizedSql.includes("UPDATE import_preview_sessions") &&
+        normalizedSql.includes("SET committed_at = NOW(), updated_at = NOW()")
+      ) {
+        const existing = previewSessions.get(String(params[0]));
+
+        if (existing && existing.committed_at === null) {
+          existing.committed_at = new Date().toISOString();
+        }
+
+        return Promise.resolve({ rows: [], rowCount: existing ? 1 : 0 });
+      }
+
+      if (
+        normalizedSql.includes("DELETE FROM import_preview_sessions") &&
+        normalizedSql.includes("WHERE expires_at < NOW() - INTERVAL '24 hours'")
+      ) {
+        let deletedCount = 0;
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+
+        for (const [key, value] of previewSessions.entries()) {
+          if (Date.parse(value.expires_at) < cutoff) {
+            previewSessions.delete(key);
+            deletedCount += 1;
+          }
+        }
+
+        return Promise.resolve({ rows: [], rowCount: deletedCount });
       }
 
       if (
@@ -445,7 +513,7 @@ describe("transaction import commit dispatcher", () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-global", {
+    await setUniversalPreviewSession("universal-global", {
       kind: "universal",
       previewToken: "universal-global",
       userId: "7",
@@ -480,13 +548,128 @@ describe("transaction import commit dispatcher", () => {
       amount: -67.9,
       occurredOn: "2026-04-06",
     });
+    expect(pgState.current?.previewSessions.get("universal-global")?.committed_at).toBeTruthy();
+  });
+
+  it("stores universal metadata and session in Postgres and reloads by user", async () => {
+    const {
+      getUniversalPreviewMetadata,
+      getUniversalPreviewSession,
+      setUniversalPreviewMetadata,
+      setUniversalPreviewSession,
+    } = await import("./import/preview-session-store.js");
+
+    await setUniversalPreviewMetadata("preview-store-1", {
+      userId: 7,
+      detectedFileType: "csv",
+      selectedBankConnectionId: 10,
+    });
+    await setUniversalPreviewSession("preview-store-1", {
+      kind: "universal",
+      previewToken: "preview-store-1",
+      userId: "7",
+      createdAtMs: Date.now(),
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+
+    const metadata = await getUniversalPreviewMetadata("preview-store-1");
+    const session = await getUniversalPreviewSession("preview-store-1", 7);
+
+    expect(metadata).toMatchObject({
+      detectedFileType: "csv",
+      selectedBankConnectionId: 10,
+    });
+    expect(session.previewToken).toBe("preview-store-1");
+    expect(session.items).toHaveLength(1);
+  });
+
+  it("rejects universal preview access for another user", async () => {
+    const { getUniversalPreviewSession, setUniversalPreviewSession } =
+      await import("./import/preview-session-store.js");
+
+    await setUniversalPreviewSession("preview-store-cross-user", {
+      kind: "universal",
+      previewToken: "preview-store-cross-user",
+      userId: "7",
+      createdAtMs: Date.now(),
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+
+    await expect(getUniversalPreviewSession("preview-store-cross-user", 8)).rejects.toThrow(
+      "Preview invalido ou expirado.",
+    );
+  });
+
+  it("rejects expired universal previews", async () => {
+    const { getUniversalPreviewSession, setUniversalPreviewSession } =
+      await import("./import/preview-session-store.js");
+
+    await setUniversalPreviewSession("preview-store-expired", {
+      kind: "universal",
+      previewToken: "preview-store-expired",
+      userId: "7",
+      createdAtMs: Date.now() - 120_000,
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+    const expiredEntry = pgState.current?.previewSessions.get("preview-store-expired");
+    if (expiredEntry) {
+      expiredEntry.expires_at = new Date(Date.now() - 60_000).toISOString();
+    }
+
+    await expect(getUniversalPreviewSession("preview-store-expired", 7)).rejects.toThrow(
+      "A previa expirou. Gere a previa novamente para continuar.",
+    );
+  });
+
+  it("cleans up previews expired more than 24 hours ago", async () => {
+    const { cleanupExpiredImportPreviews, setUniversalPreviewSession } =
+      await import("./import/preview-session-store.js");
+
+    await setUniversalPreviewSession("preview-store-cleanup-old", {
+      kind: "universal",
+      previewToken: "preview-store-cleanup-old",
+      userId: "7",
+      createdAtMs: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+    await setUniversalPreviewSession("preview-store-cleanup-recent", {
+      kind: "universal",
+      previewToken: "preview-store-cleanup-recent",
+      userId: "7",
+      createdAtMs: Date.now() - 60_000,
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+    const oldEntry = pgState.current?.previewSessions.get("preview-store-cleanup-old");
+    if (oldEntry) {
+      oldEntry.expires_at = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    await cleanupExpiredImportPreviews();
+
+    expect(pgState.current?.previewSessions.has("preview-store-cleanup-old")).toBe(false);
+    expect(pgState.current?.previewSessions.has("preview-store-cleanup-recent")).toBe(true);
   });
 
   it("supports a per-row account override for universal previews", async () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-row-account", {
+    await setUniversalPreviewSession("universal-row-account", {
       kind: "universal",
       previewToken: "universal-row-account",
       userId: "7",
@@ -527,7 +710,7 @@ describe("transaction import commit dispatcher", () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-missing-account", {
+    await setUniversalPreviewSession("universal-missing-account", {
       kind: "universal",
       previewToken: "universal-missing-account",
       userId: "7",
@@ -561,6 +744,39 @@ describe("transaction import commit dispatcher", () => {
     });
   });
 
+  it("rejects commit attempts from another user", async () => {
+    const { commitTransactionImport } = await loadDatabaseModule();
+    const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
+
+    await setUniversalPreviewSession("universal-cross-user-commit", {
+      kind: "universal",
+      previewToken: "universal-cross-user-commit",
+      userId: "7",
+      createdAtMs: Date.now(),
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+
+    await expect(
+      commitTransactionImport(8, {
+        previewToken: "universal-cross-user-commit",
+        items: [
+          {
+            rowIndex: 1,
+            description: "iFood pedido",
+            amount: "67.90",
+            occurredOn: "2026-04-06",
+            type: "expense",
+            categoryId: 1,
+            sourceKind: "generic_transactions",
+          },
+        ],
+      }),
+    ).rejects.toThrow("Preview invalido ou expirado.");
+  });
+
   it("detects universal duplicates by externalId before inserting", async () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
@@ -579,7 +795,7 @@ describe("transaction import commit dispatcher", () => {
       },
     });
 
-    setUniversalPreviewSession("universal-duplicate-external", {
+    await setUniversalPreviewSession("universal-duplicate-external", {
       kind: "universal",
       previewToken: "universal-duplicate-external",
       userId: "7",
@@ -622,7 +838,7 @@ describe("transaction import commit dispatcher", () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-installments", {
+    await setUniversalPreviewSession("universal-installments", {
       kind: "universal",
       previewToken: "universal-installments",
       userId: "7",
@@ -689,7 +905,7 @@ describe("transaction import commit dispatcher", () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-installments-1-3", {
+    await setUniversalPreviewSession("universal-installments-1-3", {
       kind: "universal",
       previewToken: "universal-installments-1-3",
       userId: "7",
@@ -737,7 +953,7 @@ describe("transaction import commit dispatcher", () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-installments-2-3", {
+    await setUniversalPreviewSession("universal-installments-2-3", {
       kind: "universal",
       previewToken: "universal-installments-2-3",
       userId: "7",
@@ -785,7 +1001,7 @@ describe("transaction import commit dispatcher", () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-installments-duplicate", {
+    await setUniversalPreviewSession("universal-installments-duplicate", {
       kind: "universal",
       previewToken: "universal-installments-duplicate",
       userId: "7",
@@ -822,7 +1038,31 @@ describe("transaction import commit dispatcher", () => {
     const first = await commitTransactionImport(7, input);
     const purchasesAfterFirstImport = pgState.current?.installmentPurchases.size;
     const insertsAfterFirstImport = pgState.current?.inserts.length;
-    const second = await commitTransactionImport(7, input);
+    await expect(commitTransactionImport(7, input)).rejects.toThrow("Esta previa ja foi utilizada.");
+
+    await setUniversalPreviewSession("universal-installments-duplicate-2", {
+      kind: "universal",
+      previewToken: "universal-installments-duplicate-2",
+      userId: "7",
+      createdAtMs: Date.now(),
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 20,
+      items: [
+        buildUniversalInstallmentSessionRow({
+          description: "Compra Loja 1/3",
+          purchaseOccurredOn: "2026-03-15",
+          occurredOn: "2026-03-15",
+          installmentIndex: 1,
+          installmentCount: 3,
+        }),
+      ],
+    });
+
+    const second = await commitTransactionImport(7, {
+      ...input,
+      previewToken: "universal-installments-duplicate-2",
+    });
 
     expect(first.importedCount).toBe(3);
     expect(second.importedCount).toBe(0);
@@ -835,7 +1075,7 @@ describe("transaction import commit dispatcher", () => {
     const { commitTransactionImport } = await loadDatabaseModule();
     const { setUniversalPreviewSession } = await import("./import/preview-session-store.js");
 
-    setUniversalPreviewSession("universal-single-expense", {
+    await setUniversalPreviewSession("universal-single-expense", {
       kind: "universal",
       previewToken: "universal-single-expense",
       userId: "7",
@@ -887,7 +1127,7 @@ describe("transaction import commit dispatcher", () => {
       usage: null,
     });
 
-    setUniversalPreviewSession("universal-ai", {
+    await setUniversalPreviewSession("universal-ai", {
       kind: "universal",
       previewToken: "universal-ai",
       userId: "7",
@@ -917,7 +1157,7 @@ describe("transaction import commit dispatcher", () => {
       previewToken: "universal-ai",
       rowIndexes: [1],
     });
-    const session = getUniversalPreviewSession("universal-ai", 7);
+    const session = await getUniversalPreviewSession("universal-ai", 7);
 
     expect(result.status).toBe("completed");
     expect(result.items[0]).toMatchObject({

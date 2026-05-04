@@ -8,6 +8,12 @@
 4. Suba o backend com `npm run server:start` ou via container Docker.
 5. Valide `GET /api/health` e `GET /api/ready`.
 
+## Infraestrutura do MVP
+
+- Redis não é necessário para o fluxo de preview de importação atual.
+- O backend usa Postgres para persistir previews temporários compartilhados entre instâncias.
+- Garanta apenas que `npm run db:migrate` seja executado antes de subir múltiplos containers.
+
 ## Docker
 
 Build:

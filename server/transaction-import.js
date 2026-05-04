@@ -1,5 +1,10 @@
 import crypto from "crypto";
 import { PasswordException, PDFParse } from "pdf-parse";
+import {
+  cleanupExpiredImportPreviews,
+  getLegacyPreviewSession,
+  setLegacyPreviewSession,
+} from "./import/preview-session-store.js";
 import { suggestKnownMerchantCategory } from "./merchant-category-rules.js";
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -10,10 +15,6 @@ export const RECURRING_RULE_MIN_CONFIRMATIONS = 3;
 const DEFAULT_EXPENSE_CATEGORY_SLUG = "compras";
 const IMPORT_FINGERPRINT_VERSION = "v1";
 const PDF_PAGE_JOINER = "\n-- page_number of total_number --\n";
-
-// TODO: Persist preview sessions in Postgres or Redis before running multiple backend instances.
-// This in-memory store is lost on restart and is not safe for multi-instance production.
-const previewSessions = new Map();
 
 class ImportBadRequestError extends Error {
   constructor(code, message, details) {
@@ -179,16 +180,6 @@ const importRules = [
     typeOverride: "expense",
   },
 ];
-
-function cleanupExpiredPreviewSessions() {
-  const now = Date.now();
-
-  for (const [token, session] of previewSessions.entries()) {
-    if (session.expiresAtMs <= now) {
-      previewSessions.delete(token);
-    }
-  }
-}
 
 function toAsciiSlug(value) {
   return String(value ?? "")
@@ -2001,7 +1992,7 @@ export async function createImportPreview({
     throw new Error("O arquivo excede o limite de 5 MB.");
   }
 
-  cleanupExpiredPreviewSessions();
+  await cleanupExpiredImportPreviews();
   const extracted = await extractImportRowsFromFile({
     fileBuffer,
     contentType,
@@ -2033,7 +2024,7 @@ export async function createImportPreview({
   const previewToken = crypto.randomUUID();
   const expiresAtMs = Date.now() + PREVIEW_TTL_MS;
 
-  previewSessions.set(previewToken, {
+  await setLegacyPreviewSession(previewToken, {
     createdAtMs: Date.now(),
     expiresAtMs,
     bankConnectionId,
@@ -2065,24 +2056,21 @@ export async function createImportPreview({
   };
 }
 
-export function getPreviewSession(previewToken, userId) {
-  cleanupExpiredPreviewSessions();
-  const session = previewSessions.get(String(previewToken));
+export async function getPreviewSession(previewToken, userId) {
+  try {
+    return await getLegacyPreviewSession(previewToken, userId);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      typeof error.status === "number" &&
+      typeof error.code === "string" &&
+      error.name === "HttpError"
+    ) {
+      throw new ImportHttpError(error.status, error.code, error.message, error.details);
+    }
 
-  if (!session || session.userId !== String(userId)) {
-    throw new ImportHttpError(404, "import_preview_not_found", "Preview invalido ou expirado.");
+    throw error;
   }
-
-  if (session.expiresAtMs <= Date.now()) {
-    previewSessions.delete(String(previewToken));
-    throw new ImportHttpError(
-      400,
-      "import_preview_expired",
-      "A previa expirou. Gere a previa novamente para continuar.",
-    );
-  }
-
-  return session;
 }
 
 function ensureCommitItemShape(item) {

@@ -254,7 +254,7 @@ function buildUniversalSession({
   };
 }
 
-function enrichPreviewResponse(preview, metadata, canonicalRows) {
+async function enrichPreviewResponse(preview, metadata, canonicalRows) {
   const items = preview.items.map((item, index) => {
     const canonicalRow = canonicalRows[index];
     const parserWarnings = (canonicalRow?.issues ?? [])
@@ -283,7 +283,7 @@ function enrichPreviewResponse(preview, metadata, canonicalRows) {
     };
   });
 
-  setUniversalPreviewMetadata(preview.previewToken, metadata);
+  await setUniversalPreviewMetadata(preview.previewToken, metadata);
 
   const warningRows = items.filter((item) => item.issues.some((issue) => issue.level === "warning")).length;
   const errorRows = items.filter((item) => item.issues.some((issue) => issue.level === "error")).length;
@@ -313,7 +313,7 @@ function enrichPreviewResponse(preview, metadata, canonicalRows) {
     },
   };
 
-  setUniversalPreviewSession(
+  await setUniversalPreviewSession(
     preview.previewToken,
     buildUniversalSession({
       preview: response,
@@ -401,7 +401,7 @@ export async function createUniversalImportPreview({
     }
   });
 
-  return enrichPreviewResponse(
+  return await enrichPreviewResponse(
     preview,
     {
       parserId: parsedResult?.parserId ?? PARSERS[detectedFileType].parserId,

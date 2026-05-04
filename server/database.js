@@ -18,8 +18,11 @@ import {
 import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.js";
 import {
   createUniversalImportPreview,
+  deleteUniversalPreviewSession,
   getUniversalPreviewSession,
   hasUniversalPreviewSession,
+  setLegacyPreviewSession,
+  setUniversalPreviewSession,
 } from "./import/index.js";
 import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
@@ -3109,8 +3112,8 @@ function resolveUniversalCommitBankConnectionId(itemBankConnectionId, fallbackBa
   return Number.isInteger(bankConnectionId) ? bankConnectionId : null;
 }
 
-function resolveUniversalCommitSession(previewToken, userId) {
-  if (!hasUniversalPreviewSession(previewToken)) {
+async function resolveUniversalCommitSession(previewToken, userId) {
+  if (!(await hasUniversalPreviewSession(previewToken))) {
     return null;
   }
 
@@ -3120,8 +3123,8 @@ function resolveUniversalCommitSession(previewToken, userId) {
 export async function getTransactionImportAiSuggestions(userId, input) {
   const resolvedUserId = await requireUserId(userId);
   const session =
-    resolveUniversalCommitSession(input.previewToken, resolvedUserId) ??
-    getPreviewSession(input.previewToken, resolvedUserId);
+    (await resolveUniversalCommitSession(input.previewToken, resolvedUserId)) ??
+    (await getPreviewSession(input.previewToken, resolvedUserId));
   const categories = await listCategories(resolvedUserId);
   const config = getImportAiConfig();
 
@@ -3184,6 +3187,12 @@ export async function getTransactionImportAiSuggestions(userId, input) {
     },
   });
 
+  if (session?.kind === "universal") {
+    await setUniversalPreviewSession(input.previewToken, session);
+  } else {
+    await setLegacyPreviewSession(input.previewToken, session);
+  }
+
   return {
     previewToken: String(input.previewToken),
     status: "completed",
@@ -3194,7 +3203,7 @@ export async function getTransactionImportAiSuggestions(userId, input) {
 }
 
 async function commitLegacyTransactionImport(resolvedUserId, input) {
-  const session = getPreviewSession(input.previewToken, resolvedUserId);
+  const session = await getPreviewSession(input.previewToken, resolvedUserId);
   validateCommitItemsShape(input.items, session);
   const sessionItemsByRowIndex = new Map(session.items.map((item) => [item.rowIndex, item.original]));
 
@@ -3454,16 +3463,20 @@ async function commitLegacyTransactionImport(resolvedUserId, input) {
 
   await reevaluateAffectedPlansForTransactions(resolvedUserId, allImportedTransactions, "transaction_imported");
 
-  return {
+  const result = {
     importedCount,
     skippedCount,
     failedCount,
     results,
   };
+
+  await deleteUniversalPreviewSession(input.previewToken);
+
+  return result;
 }
 
 async function commitUniversalTransactionImport(resolvedUserId, input) {
-  const session = getUniversalPreviewSession(input.previewToken, resolvedUserId);
+  const session = await getUniversalPreviewSession(input.previewToken, resolvedUserId);
   validateCommitItemsShape(input.items, session);
   const sessionItemsByRowIndex = new Map(
     session.items.map((item) => [item.rowIndex, { ...(item.original ?? {}), ...(item.commitData ?? {}) }]),
@@ -3752,18 +3765,22 @@ async function commitUniversalTransactionImport(resolvedUserId, input) {
 
   await reevaluateAffectedPlansForTransactions(resolvedUserId, allImportedTransactions, "transaction_imported");
 
-  return {
+  const result = {
     importedCount,
     skippedCount,
     failedCount,
     results,
   };
+
+  await deleteUniversalPreviewSession(input.previewToken);
+
+  return result;
 }
 
 export async function commitTransactionImport(userId, input) {
   const resolvedUserId = await requireUserId(userId);
 
-  if (hasUniversalPreviewSession(input?.previewToken)) {
+  if (await hasUniversalPreviewSession(input?.previewToken)) {
     return commitUniversalTransactionImport(resolvedUserId, input);
   }
 

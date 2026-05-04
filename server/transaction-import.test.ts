@@ -1,4 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const previewStoreState = new Map();
+
+vi.mock("./import/preview-session-store.js", () => ({
+  cleanupExpiredImportPreviews: vi.fn(async () => {}),
+  setLegacyPreviewSession: vi.fn(async (previewToken, session) => {
+    previewStoreState.set(String(previewToken), structuredClone(session));
+  }),
+  getLegacyPreviewSession: vi.fn(async (previewToken, userId) => {
+    const session = previewStoreState.get(String(previewToken));
+
+    if (!session || session.userId !== String(userId)) {
+      const error = new Error("Preview invalido ou expirado.");
+      error.name = "HttpError";
+      error.status = 404;
+      error.code = "import_preview_not_found";
+      throw error;
+    }
+
+    if (session.expiresAtMs <= Date.now()) {
+      const error = new Error("A previa expirou. Gere a previa novamente para continuar.");
+      error.name = "HttpError";
+      error.status = 400;
+      error.code = "import_preview_expired";
+      throw error;
+    }
+
+    return session;
+  }),
+}));
+
+beforeEach(() => {
+  previewStoreState.clear();
+});
 
 import {
   addMonthsToOccurredOn,
@@ -482,7 +516,7 @@ describe("transaction import helpers", () => {
       fileBuffer: Buffer.from(csv, "utf8"),
       userId: 1,
     });
-    const session = getPreviewSession(preview.previewToken, 1);
+    const session = await getPreviewSession(preview.previewToken, 1);
     const suggestCategories = async ({ items }) =>
       items.map((item) => ({
         rowIndex: item.rowIndex,
@@ -561,7 +595,7 @@ describe("transaction import helpers", () => {
       fileBuffer: Buffer.from(csv, "utf8"),
       userId: 1,
     });
-    const session = getPreviewSession(preview.previewToken, 1);
+    const session = await getPreviewSession(preview.previewToken, 1);
     let callCount = 0;
     const suggestCategories = async ({ items }) => {
       callCount += 1;
@@ -645,7 +679,7 @@ describe("transaction import helpers", () => {
       fileBuffer: Buffer.from(csv, "utf8"),
       userId: 1,
     });
-    const session = getPreviewSession(preview.previewToken, 1);
+    const session = await getPreviewSession(preview.previewToken, 1);
 
     await expect(
       enrichPreviewSessionWithAi({

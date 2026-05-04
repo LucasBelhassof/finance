@@ -32,6 +32,6 @@
 
 ## Limitações conhecidas
 
-- preview de importação ainda usa store em memória
-- restart do backend invalida previews em aberto
-- multi-instância exige store compartilhado em Postgres ou Redis
+- preview de importação usa store temporário em Postgres com validação por `user_id`
+- o arquivo bruto e segredos do upload não são persistidos na sessão de preview
+- previews expiram e são marcados como consumidos após commit bem-sucedido

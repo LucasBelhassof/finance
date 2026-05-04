@@ -1,11 +1,18 @@
 import { createApp } from "./app.js";
 import { closeDatabase, initializeDatabase } from "./database.js";
+import { cleanupExpiredImportPreviews, closeImportPreviewStore } from "./import/index.js";
 import { closeSharedDatabase } from "./shared/db.js";
 import { env } from "./shared/env.js";
 import { logger } from "./shared/logger.js";
 
 export async function startServer() {
   await initializeDatabase();
+
+  try {
+    await cleanupExpiredImportPreviews();
+  } catch (error) {
+    logger.warn("Failed to cleanup expired import previews on startup", { error });
+  }
 
   const app = createApp();
   const server = app.listen(env.port, () => {
@@ -20,7 +27,7 @@ export async function startServer() {
     logger.info("Shutting down backend", { signal });
 
     server.close(async () => {
-      await Promise.allSettled([closeDatabase(), closeSharedDatabase()]);
+      await Promise.allSettled([closeDatabase(), closeSharedDatabase(), closeImportPreviewStore()]);
       process.exit(0);
     });
   };

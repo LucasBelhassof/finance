@@ -14,6 +14,7 @@
 - `VITE_API_URL`: URL pública do backend para o frontend.
 - `PASSWORD_RESET_BASE_URL`: URL base do reset de senha.
 - `AUTH_REFRESH_COOKIE_NAME`: nome do cookie HttpOnly de refresh.
+- preview de importação temporário usa o mesmo `DATABASE_URL`; Redis não é necessário no MVP atual.
 
 ## IA
 

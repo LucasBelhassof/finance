@@ -9,7 +9,7 @@ export async function startServer() {
   await initializeDatabase();
 
   try {
-    await cleanupExpiredImportPreviews();
+    await cleanupExpiredImportPreviews({ force: true });
   } catch (error) {
     logger.warn("Failed to cleanup expired import previews on startup", { error });
   }

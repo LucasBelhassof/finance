@@ -4,11 +4,15 @@ import pg from "pg";
 dotenv.config();
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
+const CLEANUP_BATCH_SIZE = 500;
 const PREVIEW_KIND = "transaction_import";
 const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+let cleanupStartedAtMs = 0;
+let cleanupPromise = null;
 
 class PreviewStoreHttpError extends Error {
   constructor(status, code, message, details) {
@@ -56,6 +60,16 @@ function resolveExpiresAtMs(sourceValue, ttlMs = DEFAULT_TTL_MS) {
   }
 
   return Date.now() + ttlMs;
+}
+
+function sanitizeStoredMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const sanitized = { ...metadata };
+  delete sanitized.userId;
+  return sanitized;
 }
 
 function normalizeEntry(row) {
@@ -106,6 +120,8 @@ async function savePreviewEntry({ previewToken, userId, metadata, session, expir
     throw new Error("Preview session requires a previewToken and userId.");
   }
 
+  const sanitizedMetadata = sanitizeStoredMetadata(metadata);
+
   await pool.query(
     `
       INSERT INTO import_preview_sessions (
@@ -141,7 +157,7 @@ async function savePreviewEntry({ previewToken, userId, metadata, session, expir
       key,
       normalizedUserId,
       PREVIEW_KIND,
-      JSON.stringify(metadata ?? null),
+      JSON.stringify(sanitizedMetadata),
       JSON.stringify(session ?? null),
       expiresAtMs,
     ],
@@ -182,13 +198,75 @@ async function getStoredSession(previewToken, userId, expectedKind = null) {
   return session;
 }
 
-export async function cleanupExpiredImportPreviews() {
-  await pool.query(
+async function deleteExpiredPreviewBatch() {
+  const result = await pool.query(
     `
-      DELETE FROM import_preview_sessions
-      WHERE expires_at < NOW() - INTERVAL '24 hours'
+      WITH expired_candidates AS (
+        SELECT id
+        FROM import_preview_sessions
+        WHERE expires_at < NOW() - INTERVAL '24 hours'
+        ORDER BY expires_at ASC
+        LIMIT $1
+      )
+      DELETE FROM import_preview_sessions AS previews
+      USING expired_candidates
+      WHERE previews.id = expired_candidates.id
     `,
+    [CLEANUP_BATCH_SIZE],
   );
+
+  return result.rowCount ?? 0;
+}
+
+async function deleteCommittedPreviewBatch() {
+  const result = await pool.query(
+    `
+      WITH committed_candidates AS (
+        SELECT id
+        FROM import_preview_sessions
+        WHERE committed_at IS NOT NULL
+          AND committed_at < NOW() - INTERVAL '7 days'
+        ORDER BY committed_at ASC
+        LIMIT $1
+      )
+      DELETE FROM import_preview_sessions AS previews
+      USING committed_candidates
+      WHERE previews.id = committed_candidates.id
+    `,
+    [CLEANUP_BATCH_SIZE],
+  );
+
+  return result.rowCount ?? 0;
+}
+
+export async function cleanupExpiredImportPreviews({ force = false } = {}) {
+  const now = Date.now();
+
+  if (!force && cleanupStartedAtMs > 0 && now - cleanupStartedAtMs < CLEANUP_INTERVAL_MS) {
+    return { skipped: true, deletedExpiredCount: 0, deletedCommittedCount: 0 };
+  }
+
+  if (cleanupPromise) {
+    return cleanupPromise;
+  }
+
+  cleanupStartedAtMs = now;
+  cleanupPromise = (async () => {
+    const deletedExpiredCount = await deleteExpiredPreviewBatch();
+    const deletedCommittedCount = await deleteCommittedPreviewBatch();
+
+    return {
+      skipped: false,
+      deletedExpiredCount,
+      deletedCommittedCount,
+    };
+  })();
+
+  try {
+    return await cleanupPromise;
+  } finally {
+    cleanupPromise = null;
+  }
 }
 
 export async function closeImportPreviewStore() {

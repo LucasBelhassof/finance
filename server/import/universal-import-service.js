@@ -127,15 +127,11 @@ function buildSafeRawMetadata(canonicalRow) {
     "sheet",
     "page",
     "pageNumber",
-    "line",
     "lineNumber",
-    "row",
     "rowNumber",
     "fitid",
     "externalId",
     "currency",
-    "accountId",
-    "bankId",
   ];
   const metadata = {};
 

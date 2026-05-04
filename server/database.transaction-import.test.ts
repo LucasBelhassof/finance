@@ -221,14 +221,34 @@ function createDbState() {
       }
 
       if (
-        normalizedSql.includes("DELETE FROM import_preview_sessions") &&
-        normalizedSql.includes("WHERE expires_at < NOW() - INTERVAL '24 hours'")
+        normalizedSql.includes("WITH expired_candidates AS") &&
+        normalizedSql.includes("WHERE expires_at < NOW() - INTERVAL '24 hours'") &&
+        normalizedSql.includes("DELETE FROM import_preview_sessions AS previews")
       ) {
         let deletedCount = 0;
         const cutoff = Date.now() - 24 * 60 * 60 * 1000;
 
         for (const [key, value] of previewSessions.entries()) {
           if (Date.parse(value.expires_at) < cutoff) {
+            previewSessions.delete(key);
+            deletedCount += 1;
+          }
+        }
+
+        return Promise.resolve({ rows: [], rowCount: deletedCount });
+      }
+
+      if (
+        normalizedSql.includes("WITH committed_candidates AS") &&
+        normalizedSql.includes("WHERE committed_at IS NOT NULL") &&
+        normalizedSql.includes("committed_at < NOW() - INTERVAL '7 days'") &&
+        normalizedSql.includes("DELETE FROM import_preview_sessions AS previews")
+      ) {
+        let deletedCount = 0;
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+        for (const [key, value] of previewSessions.entries()) {
+          if (value.committed_at && Date.parse(value.committed_at) < cutoff) {
             previewSessions.delete(key);
             deletedCount += 1;
           }
@@ -663,6 +683,45 @@ describe("transaction import commit dispatcher", () => {
 
     expect(pgState.current?.previewSessions.has("preview-store-cleanup-old")).toBe(false);
     expect(pgState.current?.previewSessions.has("preview-store-cleanup-recent")).toBe(true);
+  });
+
+  it("cleans up committed previews after the retention window", async () => {
+    const { cleanupExpiredImportPreviews, markImportPreviewSessionCommitted, setUniversalPreviewSession } =
+      await import("./import/preview-session-store.js");
+
+    await setUniversalPreviewSession("preview-store-committed-old", {
+      kind: "universal",
+      previewToken: "preview-store-committed-old",
+      userId: "7",
+      createdAtMs: Date.now() - 10 * 24 * 60 * 60 * 1000,
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+    await setUniversalPreviewSession("preview-store-committed-recent", {
+      kind: "universal",
+      previewToken: "preview-store-committed-recent",
+      userId: "7",
+      createdAtMs: Date.now() - 60_000,
+      expiresAtMs: Date.now() + 60_000,
+      detectedSourceKind: "generic_transactions",
+      selectedBankConnectionId: 10,
+      items: [buildUniversalSessionRow()],
+    });
+
+    await markImportPreviewSessionCommitted("preview-store-committed-old");
+    await markImportPreviewSessionCommitted("preview-store-committed-recent");
+
+    const oldCommittedEntry = pgState.current?.previewSessions.get("preview-store-committed-old");
+    if (oldCommittedEntry) {
+      oldCommittedEntry.committed_at = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    await cleanupExpiredImportPreviews({ force: true });
+
+    expect(pgState.current?.previewSessions.has("preview-store-committed-old")).toBe(false);
+    expect(pgState.current?.previewSessions.has("preview-store-committed-recent")).toBe(true);
   });
 
   it("supports a per-row account override for universal previews", async () => {

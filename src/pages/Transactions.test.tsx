@@ -123,6 +123,25 @@ const banks: BankItem[] = [
   },
   {
     id: 3,
+    slug: "carteira",
+    name: "Carteira",
+    accountType: "cash",
+    parentBankConnectionId: null,
+    parentAccountName: null,
+    statementCloseDay: null,
+    statementDueDay: null,
+    notifyInvoiceClosed: false,
+    notifyInvoiceDueSoon: false,
+    invoiceDueReminderDays: 3,
+    connected: true,
+    color: "bg-warning",
+    currentBalance: 300,
+    formattedBalance: "R$ 300,00",
+    creditLimit: null,
+    formattedCreditLimit: null,
+  },
+  {
+    id: 4,
     slug: "inter-black",
     name: "Inter Black",
     accountType: "credit_card",
@@ -306,11 +325,43 @@ const transactions: TransactionItem[] = [
       groupColor: "bg-info",
     },
     account: {
-      id: 3,
+      id: 4,
       slug: "inter-black",
       name: "Inter Black",
       accountType: "credit_card",
       color: "bg-info",
+    },
+  },
+  {
+    id: 16,
+    description: "Cafe da esquina",
+    amount: -12,
+    formattedAmount: "-R$ 12,00",
+    occurredOn: "2026-04-11",
+    relativeDate: "11 Abr",
+    housingId: null,
+    isInstallment: false,
+    installmentPurchaseId: null,
+    installmentNumber: null,
+    installmentCount: null,
+    purchaseOccurredOn: null,
+    category: {
+      id: 1,
+      slug: "restaurantes",
+      label: "Restaurantes",
+      iconName: "ArrowDownCircle",
+      icon: ArrowDownCircle,
+      color: "#e76f51",
+      groupSlug: "alimentacao",
+      groupLabel: "Alimentacao",
+      groupColor: "#e76f51",
+    },
+    account: {
+      id: 3,
+      slug: "carteira",
+      name: "Carteira",
+      accountType: "cash",
+      color: "bg-warning",
     },
   },
   {
@@ -461,7 +512,54 @@ describe("TransactionsPage", () => {
       expect(screen.queryByText("Passagem aérea")).not.toBeInTheDocument();
       expect(screen.queryByText("iFood")).not.toBeInTheDocument();
       expect(screen.queryByText("Uber")).not.toBeInTheDocument();
+      expect(screen.queryByText("Cafe da esquina")).not.toBeInTheDocument();
     });
+  });
+
+  it("offers cash in account and type filters, filters cash transactions, and hides card selector outside card mode", async () => {
+    renderPage();
+
+    const initialComboboxes = screen.getAllByRole("combobox");
+    const accountTrigger = initialComboboxes[0]!;
+    const typeTrigger = initialComboboxes.find((element) => element.textContent?.includes("Todos"));
+
+    expect(typeTrigger).toBeDefined();
+
+    fireEvent.click(accountTrigger);
+    expect(await screen.findAllByRole("option", { name: "Carteira" })).not.toHaveLength(0);
+
+    fireEvent.click((await screen.findAllByRole("option", { name: "Todas as contas" }))[0]!);
+
+    fireEvent.click(typeTrigger!);
+    expect(await screen.findAllByRole("option", { name: "Caixa / dinheiro" })).not.toHaveLength(0);
+
+    fireEvent.click(typeTrigger!);
+    fireEvent.click((await screen.findAllByRole("option", { name: "Caixa / dinheiro" }))[0]!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Cafe da esquina")).toBeInTheDocument();
+      expect(screen.queryByText("iFood")).not.toBeInTheDocument();
+      expect(screen.queryByText("Netflix")).not.toBeInTheDocument();
+      expect(screen.getAllByRole("combobox")).toHaveLength(3);
+    });
+
+    fireEvent.click(accountTrigger);
+    fireEvent.click((await screen.findAllByRole("option", { name: "Carteira" }))[0]!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Cafe da esquina")).toBeInTheDocument();
+      expect(screen.queryByText("iFood")).not.toBeInTheDocument();
+    });
+
+    const refreshedTypeTrigger = screen
+      .getAllByRole("combobox")
+      .find((element) => element.textContent?.includes("Caixa / dinheiro"));
+
+    expect(refreshedTypeTrigger).toBeDefined();
+    fireEvent.click(refreshedTypeTrigger!);
+    expect(await screen.findAllByRole("option", { name: "Caixa / dinheiro" })).toHaveLength(1);
+    expect(screen.queryByRole("option", { name: "Conta corrente" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Cartão" })).not.toBeInTheDocument();
   });
 
   it("submits the chosen custom color when creating a category", async () => {

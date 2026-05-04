@@ -57,6 +57,7 @@ import type { CreateCategoryInput, CreateTransactionInput, TransactionItem, Upda
 import { toast } from "@/components/ui/sonner";
 
 type TransactionTypeFilter = "all" | "income" | "expense";
+type AccountTypeFilter = "all" | "bank_account" | "credit_card" | "cash";
 type TransactionFormState = {
   id?: string;
   sourceTransactionId?: string;
@@ -194,7 +195,7 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedBankAccountId, setSelectedBankAccountId] = useState("all");
-  const [selectedAccountType, setSelectedAccountType] = useState<"all" | "bank_account" | "credit_card">("all");
+  const [selectedAccountType, setSelectedAccountType] = useState<AccountTypeFilter>("all");
   const [selectedCreditCardId, setSelectedCreditCardId] = useState("all");
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -224,19 +225,41 @@ export default function TransactionsPage() {
       }),
     [banks, transactionForm.type],
   );
-  const bankAccounts = useMemo(() => banks.filter((bank) => bank.accountType === "bank_account"), [banks]);
+  const bankAccounts = useMemo(
+    () => banks.filter((bank) => bank.accountType === "bank_account" || bank.accountType === "cash"),
+    [banks],
+  );
   const creditCards = useMemo(() => banks.filter((bank) => bank.accountType === "credit_card"), [banks]);
   const selectedBankAccount = useMemo(
     () => bankAccounts.find((bank) => String(bank.id) === selectedBankAccountId) ?? null,
     [bankAccounts, selectedBankAccountId],
   );
-  const availableAccountTypeOptions = useMemo(
-    () => [
-      { value: "bank_account" as const, label: "Conta corrente" },
-      ...(creditCards.length > 0 ? [{ value: "credit_card" as const, label: "Cartão" }] : []),
-    ],
-    [creditCards],
-  );
+  const availableAccountTypeOptions = useMemo(() => {
+    if (selectedBankAccount?.accountType === "cash") {
+      return [{ value: "cash" as const, label: "Caixa / dinheiro" }];
+    }
+
+    if (selectedBankAccount?.accountType === "bank_account") {
+      const hasLinkedCards = creditCards.some(
+        (card) => String(card.parentBankConnectionId) === String(selectedBankAccount.id),
+      );
+
+      return [
+        { value: "bank_account" as const, label: "Conta corrente" },
+        ...(hasLinkedCards ? [{ value: "credit_card" as const, label: "Cartão" }] : []),
+      ];
+    }
+
+    const hasBankAccounts = bankAccounts.some((bank) => bank.accountType === "bank_account");
+    const hasCreditCards = creditCards.length > 0;
+    const hasCashAccounts = bankAccounts.some((bank) => bank.accountType === "cash");
+
+    return [
+      ...(hasBankAccounts ? [{ value: "bank_account" as const, label: "Conta corrente" }] : []),
+      ...(hasCreditCards ? [{ value: "credit_card" as const, label: "Cartão" }] : []),
+      ...(hasCashAccounts ? [{ value: "cash" as const, label: "Caixa / dinheiro" }] : []),
+    ];
+  }, [bankAccounts, creditCards, selectedBankAccount]);
   const selectedBankLinkedCardIds = useMemo(
     () =>
       new Set(
@@ -307,7 +330,15 @@ export default function TransactionsPage() {
             return transaction.account.accountType === "credit_card";
           }
 
+          if (selectedAccountType === "cash") {
+            return transaction.account.accountType === "cash";
+          }
+
           return true;
+        }
+
+        if (selectedBankAccount.accountType === "cash") {
+          return transactionAccountId === String(selectedBankAccount.id);
         }
 
         const isSelectedBankTransaction = transactionAccountId === String(selectedBankAccount.id);
@@ -323,6 +354,10 @@ export default function TransactionsPage() {
           }
 
           return isLinkedCardTransaction;
+        }
+
+        if (selectedAccountType === "cash") {
+          return false;
         }
 
         return isSelectedBankTransaction || isLinkedCardTransaction;
@@ -1057,7 +1092,7 @@ export default function TransactionsPage() {
           <div className="flex w-full flex-col gap-3 xl:flex-1 xl:flex-row">
             <Select
               value={selectedAccountType}
-              onValueChange={(value) => setSelectedAccountType(value as "all" | "bank_account" | "credit_card")}
+              onValueChange={(value) => setSelectedAccountType(value as AccountTypeFilter)}
             >
               <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:min-w-[220px] xl:flex-1">
                 <SelectValue placeholder="Tipo da conta" />

@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 
+import { Crown, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
 import { NotificationBell } from "@/components/NotificationBell";
+import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
+import { appRoutes } from "@/lib/routes";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 
@@ -15,6 +20,8 @@ interface AppShellProps {
 
 export default function AppShell({ title, description, children, headerContent, showGreeting = false }: AppShellProps) {
   const { user } = useAuthSession();
+  const navigate = useNavigate();
+  const shouldShowPremiumBar = Boolean(user) && !user?.isPremium;
 
   return (
     <SidebarProvider defaultOpen>
@@ -56,6 +63,26 @@ export default function AppShell({ title, description, children, headerContent, 
               {headerContent ? <div>{headerContent}</div> : null}
             </div>
           </header>
+
+          {shouldShowPremiumBar ? (
+            <div className="sticky top-[97px] z-[9] border-b border-primary/15 bg-primary/10 px-4 py-3 backdrop-blur-lg sm:px-6">
+              <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-background/85 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Crown size={16} className="shrink-0 text-primary" />
+                    <span>Torne-se Premium</span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Desbloqueie chat com IA, insights e planejamentos gerados com base em suas conversas!
+                  </p>
+                </div>
+                <Button type="button" className="shrink-0" onClick={() => navigate(appRoutes.profile)}>
+                  <Sparkles size={16} />
+                  Conhecer Premium
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-6 p-4 sm:p-6">{children}</div>
         </main>

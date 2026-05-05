@@ -583,6 +583,11 @@ export default function PlansPage() {
   const [aiDraftForm, setAiDraftForm] = useState<PlanFormState | null>(null);
   const [suggestedChatId, setSuggestedChatId] = useState("");
   const [investmentDialogContext, setInvestmentDialogContext] = useState<"manual" | "ai" | null>(null);
+  const premiumFeatureHighlights = [
+    "Geracao de rascunhos com IA a partir dos seus chats",
+    "Sugestao inteligente de vinculo entre conversa e planejamento",
+    "Revisao assistida para transformar contexto financeiro em acoes",
+  ];
 
   const {
     page: plansPage,
@@ -718,19 +723,15 @@ export default function PlansPage() {
             <Plus size={16} />
             Novo planejamento
           </Button>
-          <PremiumGate featureLabel="Geração de planejamento com IA" mode="inline">
+          {isPremiumUser ? (
             <Button variant="secondary" onClick={() => setAiDialogOpen(true)}>
               <Sparkles size={16} />
               Gerar com IA
             </Button>
-          </PremiumGate>
+          ) : null}
         </div>
 
-        <PremiumGate
-          featureLabel="Sugestão de vínculo por IA"
-          mode="inline"
-          description="A IA pode sugerir quando um chat deve virar um novo planejamento ou ser vinculado a um existente."
-        >
+        {isPremiumUser ? (
           <div className="flex flex-col gap-2 sm:flex-row">
             <Select
               value={suggestedChatId || EMPTY_SELECT_VALUE}
@@ -753,7 +754,25 @@ export default function PlansPage() {
               Sugerir vinculo
             </Button>
           </div>
-        </PremiumGate>
+        ) : (
+          <div className="rounded-2xl border border-border/60 bg-secondary/25 p-4 sm:max-w-xl">
+            <p className="text-sm font-semibold text-foreground">Disponivel apenas na versao Premium</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Desbloqueie os recursos de IA desta area para acelerar a construcao e a revisao dos seus planejamentos.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
+              {premiumFeatureHighlights.map((feature) => (
+                <div key={feature} className="flex items-start gap-2">
+                  <Sparkles size={14} className="mt-0.5 shrink-0 text-primary" />
+                  <span>{feature}</span>
+                </div>
+              ))}
+            </div>
+            <Button type="button" variant="secondary" className="mt-4" disabled>
+              Conhecer Premium
+            </Button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (

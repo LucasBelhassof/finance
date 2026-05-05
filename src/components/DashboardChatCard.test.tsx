@@ -10,6 +10,7 @@ const mockUseCreateChatConversation = vi.fn();
 const mockNavigate = vi.fn();
 const mockCreateChatMutateAsync = vi.fn();
 const mockAiChatConsumeInitialMessage = vi.fn();
+const mockUseAuthContext = vi.fn();
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
@@ -23,6 +24,10 @@ vi.mock("react-router-dom", async () => {
 vi.mock("@/hooks/use-chat", () => ({
   useChatConversations: (...args: unknown[]) => mockUseChatConversations(...args),
   useCreateChatConversation: (...args: unknown[]) => mockUseCreateChatConversation(...args),
+}));
+
+vi.mock("@/modules/auth/components/AuthProvider", () => ({
+  useAuthContext: () => mockUseAuthContext(),
 }));
 
 vi.mock("@/components/ui/sonner", () => ({
@@ -105,6 +110,9 @@ vi.mock("@/components/AiChat", () => ({
 describe("DashboardChatCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseAuthContext.mockReturnValue({
+      user: { isPremium: true },
+    });
     mockUseChatConversations.mockReturnValue({
       data: [
         {
@@ -121,6 +129,17 @@ describe("DashboardChatCard", () => {
       isPending: false,
       mutateAsync: mockCreateChatMutateAsync.mockResolvedValue({ id: "chat-2" }),
     });
+  });
+
+  it("renders the premium blur overlay for free users without loading conversations", () => {
+    mockUseAuthContext.mockReturnValue({
+      user: { isPremium: false },
+    });
+
+    render(<DashboardChatCard />);
+
+    expect(screen.getByTestId("premium-gate-overlay")).toBeInTheDocument();
+    expect(mockUseChatConversations).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("creates a new chat from the dashboard first message and keeps the conversation inline", async () => {

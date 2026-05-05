@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AiChat from "@/components/AiChat";
+import { PremiumGate } from "@/components/premium/PremiumGate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { useChatConversations, useCreateChatConversation } from "@/hooks/use-chat";
 import { appRoutes } from "@/lib/routes";
+import { useAuthContext } from "@/modules/auth/components/AuthProvider";
 
 const NEW_CHAT_VALUE = "__new__";
 const INLINE_SELECT_TRIGGER_CLASSNAME = "h-10 rounded-md border-border/60 bg-background";
@@ -19,8 +21,10 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function DashboardChatCard() {
+  const { user } = useAuthContext();
+  const isPremiumUser = Boolean(user?.isPremium);
   const navigate = useNavigate();
-  const { data: chats = [] } = useChatConversations();
+  const { data: chats = [] } = useChatConversations({ enabled: isPremiumUser });
   const createChat = useCreateChatConversation();
   const [selectedChatId, setSelectedChatId] = useState(NEW_CHAT_VALUE);
   const [activeChatId, setActiveChatId] = useState<string | undefined>();
@@ -76,6 +80,17 @@ export default function DashboardChatCard() {
   const handleOpenFullChat = () => {
     navigate(activeChatId ? getChatPath(activeChatId) : appRoutes.chat);
   };
+
+  if (!isPremiumUser) {
+    return (
+      <PremiumGate
+        featureLabel="Chat financeiro com IA"
+        description="Faça upgrade para desbloquear o assistente financeiro com contexto do seu historico e conversas salvas."
+      >
+        <AiChat />
+      </PremiumGate>
+    );
+  }
 
   return (
     <AiChat

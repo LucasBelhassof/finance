@@ -41,6 +41,7 @@ import type {
   ApiImportCommitResponse,
   ApiImportAiSuggestionsResponse,
   ApiImportAiSuggestionItem,
+  ImportMappingField,
   ApiImportPreviewItem,
   ApiImportPreviewResponse,
   ApiInsight,
@@ -92,6 +93,7 @@ import type {
   ImportCommitItem,
   ImportAiSuggestionsData,
   ImportAiSuggestionItem,
+  ImportMappingPreflight,
   ImportPreviewData,
   ImportPreviewItem,
   ImportSourceKind,
@@ -306,6 +308,17 @@ function normalizeImportSourceKind(value?: string): ImportSourceKind {
       return "bank_statement";
   }
 }
+
+const importMappingFields: ImportMappingField[] = [
+  "date",
+  "description",
+  "amount",
+  "debit",
+  "credit",
+  "balance",
+  "currency",
+  "externalId",
+];
 
 function normalizeHousingExpenseType(type?: string): HousingExpenseType {
   switch (type) {
@@ -1592,6 +1605,64 @@ function mapImportAiSuggestionItem(item: ApiImportAiSuggestionItem): ImportAiSug
 }
 
 export function mapImportPreviewResponse(response: ApiImportPreviewResponse): ImportPreviewData {
+  const mappingPreflight: ImportMappingPreflight | null = response.mappingPreflight
+    ? {
+        supported: Boolean(response.mappingPreflight.supported),
+        strategy: response.mappingPreflight.strategy ? safeString(response.mappingPreflight.strategy) : null,
+        delimiter: response.mappingPreflight.delimiter ? safeString(response.mappingPreflight.delimiter) : null,
+        headerRowIndex:
+          typeof response.mappingPreflight.headerRowIndex === "number"
+            ? response.mappingPreflight.headerRowIndex
+            : null,
+        headerDetectionMode: response.mappingPreflight.headerDetectionMode
+          ? safeString(response.mappingPreflight.headerDetectionMode)
+          : null,
+        availableColumns: (response.mappingPreflight.availableColumns ?? []).map((column) => ({
+          index: safeNumber(column.index),
+          header: column.header ? safeString(column.header) : null,
+          normalizedHeader: column.normalizedHeader ? safeString(column.normalizedHeader) : null,
+        })),
+        sampleRows: (response.mappingPreflight.sampleRows ?? []).map((row) => ({
+          rowIndex: safeNumber(row.rowIndex),
+          values: Array.isArray(row.values) ? row.values.map((value) => safeString(value)) : [],
+        })),
+        selectedMapping: Object.fromEntries(
+          importMappingFields.map((field) => {
+            const selected = response.mappingPreflight?.selectedMapping?.[field];
+
+            return [
+              field,
+              {
+                index: typeof selected?.index === "number" ? selected.index : null,
+                header: selected?.header ? safeString(selected.header) : null,
+              },
+            ];
+          }),
+        ) as ImportMappingPreflight["selectedMapping"],
+        missingRequiredFields: Array.isArray(response.mappingPreflight.missingRequiredFields)
+          ? response.mappingPreflight.missingRequiredFields.map((value) => safeString(value)).filter(Boolean)
+          : [],
+        requiresManualMapping: Boolean(response.mappingPreflight.requiresManualMapping),
+        canApplyMapping: Boolean(response.mappingPreflight.canApplyMapping),
+        sheetCandidates: (response.mappingPreflight.sheetCandidates ?? []).map((candidate) => ({
+          sheetName: candidate.sheetName ? safeString(candidate.sheetName) : null,
+          score: typeof candidate.score === "number" ? candidate.score : null,
+          availableColumns: (candidate.availableColumns ?? []).map((column) => ({
+            index: safeNumber(column.index),
+            header: column.header ? safeString(column.header) : null,
+            normalizedHeader: column.normalizedHeader ? safeString(column.normalizedHeader) : null,
+          })),
+          missingRequiredFields: Array.isArray(candidate.missingRequiredFields)
+            ? candidate.missingRequiredFields.map((value) => safeString(value)).filter(Boolean)
+            : [],
+          requiresManualMapping: Boolean(candidate.requiresManualMapping),
+        })),
+        selectedSheetName: response.mappingPreflight.selectedSheetName
+          ? safeString(response.mappingPreflight.selectedSheetName)
+          : null,
+      }
+    : null;
+
   return {
     previewToken: safeString(response.previewToken),
     expiresAt: safeString(response.expiresAt),
@@ -1633,6 +1704,8 @@ export function mapImportPreviewResponse(response: ApiImportPreviewResponse): Im
       duplicateRows: safeNumber(response.fileSummary?.duplicateRows),
       actionRequiredRows: safeNumber(response.fileSummary?.actionRequiredRows),
     },
+    requiresManualMapping: Boolean(response.requiresManualMapping),
+    mappingPreflight,
     items: (response.items ?? []).map(mapImportPreviewItem),
   };
 }
@@ -2446,6 +2519,11 @@ export async function previewUniversalTransactionImport(
     bankConnectionId?: number | string;
     importSource?: "bank_statement" | "credit_card_statement";
     filePassword?: string;
+    previewOptions?: {
+      preflight?: boolean;
+      columnMapping?: Partial<Record<ImportMappingField, string>>;
+      sheetName?: string;
+    };
   } = {},
 ) {
   const body = new FormData();
@@ -2453,6 +2531,10 @@ export async function previewUniversalTransactionImport(
 
   if (options.filePassword?.trim()) {
     body.set("filePassword", options.filePassword.trim());
+  }
+
+  if (options.previewOptions) {
+    body.set("options", JSON.stringify(options.previewOptions));
   }
 
   const response = await request<ApiImportPreviewResponse>(

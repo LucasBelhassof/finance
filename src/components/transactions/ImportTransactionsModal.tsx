@@ -44,6 +44,8 @@ import type {
   CreateCategoryInput,
   ImportCommitData,
   ImportCommitItem,
+  ImportMappingField,
+  ImportMappingPreflight,
   ImportPreviewData,
   ImportPreviewItem,
   ImportReviewDraft,
@@ -57,7 +59,7 @@ type ImportTransactionsModalProps = {
   banks: BankItem[];
 };
 
-type StepState = "upload" | "processing" | "preview" | "result";
+type StepState = "upload" | "processing" | "mapping" | "preview" | "result";
 type PreviewFilter = "all" | "valid" | "warnings" | "errors" | "duplicates" | "ignored";
 
 type ModalState = {
@@ -81,7 +83,7 @@ type ModalAction =
   | { type: "set-password-required"; value: boolean }
   | { type: "set-global-bank"; value: string }
   | { type: "set-step"; value: StepState }
-  | { type: "set-preview"; preview: ImportPreviewData; drafts: Record<string, ImportReviewDraft> }
+  | { type: "set-preview"; preview: ImportPreviewData; drafts: Record<string, ImportReviewDraft>; step?: StepState }
   | { type: "patch-draft"; rowKey: string; patch: Partial<ImportReviewDraft> }
   | { type: "set-result"; result: ImportCommitData }
   | { type: "set-search"; value: string }
@@ -106,6 +108,16 @@ const filterOptions: Array<{ value: PreviewFilter; label: string }> = [
   { value: "errors", label: "Erros" },
   { value: "duplicates", label: "Duplicatas" },
   { value: "ignored", label: "Ignoradas" },
+];
+const mappingFieldOptions: Array<{ field: ImportMappingField; label: string; required?: boolean }> = [
+  { field: "date", label: "Date", required: true },
+  { field: "description", label: "Description", required: true },
+  { field: "amount", label: "Signed amount" },
+  { field: "debit", label: "Debit / outflow" },
+  { field: "credit", label: "Credit / inflow" },
+  { field: "balance", label: "Balance" },
+  { field: "currency", label: "Currency" },
+  { field: "externalId", label: "Reference / external ID" },
 ];
 
 const initialState: ModalState = {
@@ -148,6 +160,10 @@ function formatFileSize(size: number) {
 
 function formatConfidenceLabel(value: number | null) {
   return value === null ? "n/d" : `${Math.round(value * 100)}%`;
+}
+
+function getMappingFieldLabel(field: ImportMappingField) {
+  return mappingFieldOptions.find((option) => option.field === field)?.label ?? field;
 }
 
 function getSourceKindLabel(sourceKind: ImportSourceKind) {
@@ -204,6 +220,27 @@ function buildDrafts(preview: ImportPreviewData): Record<string, ImportReviewDra
       },
     ]),
   );
+}
+
+function buildInitialMappingSelection(preflight: ImportMappingPreflight | null) {
+  return {
+    date: preflight?.selectedMapping.date.header ?? "",
+    description: preflight?.selectedMapping.description.header ?? "",
+    amount: preflight?.selectedMapping.amount.header ?? "",
+    debit: preflight?.selectedMapping.debit.header ?? "",
+    credit: preflight?.selectedMapping.credit.header ?? "",
+    balance: preflight?.selectedMapping.balance.header ?? "",
+    currency: preflight?.selectedMapping.currency.header ?? "",
+    externalId: preflight?.selectedMapping.externalId.header ?? "",
+  } satisfies Record<ImportMappingField, string>;
+}
+
+function buildColumnMappingPayload(selection: Record<ImportMappingField, string>) {
+  return Object.fromEntries(
+    Object.entries(selection)
+      .map(([field, header]) => [field, String(header ?? "").trim()])
+      .filter(([, header]) => header.length > 0),
+  ) as Partial<Record<ImportMappingField, string>>;
 }
 
 function validateDraft(draft: ImportReviewDraft, item: ImportPreviewItem) {
@@ -283,7 +320,7 @@ function reducer(state: ModalState, action: ModalAction): ModalState {
         ...state,
         preview: action.preview,
         drafts: action.drafts,
-        step: "preview",
+        step: action.step ?? "preview",
         result: null,
       };
     case "patch-draft":
@@ -395,6 +432,18 @@ export default function ImportTransactionsModal({
   const [state, dispatch] = useReducer(reducer, initialState);
   const [dragActive, setDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [mappingSelection, setMappingSelection] = useState<Record<ImportMappingField, string>>({
+    date: "",
+    description: "",
+    amount: "",
+    debit: "",
+    credit: "",
+    balance: "",
+    currency: "",
+    externalId: "",
+  });
+  const [mappingSheetName, setMappingSheetName] = useState("");
+  const [mappingError, setMappingError] = useState<string | null>(null);
   const [bulkAccountValue, setBulkAccountValue] = useState("");
   const [bulkTypeValue, setBulkTypeValue] = useState<"income" | "expense" | "unknown" | "">("");
   const [bulkCategoryValue, setBulkCategoryValue] = useState("");
@@ -416,6 +465,18 @@ export default function ImportTransactionsModal({
       dispatch({ type: "reset" });
       setDragActive(false);
       setSubmitting(false);
+      setMappingSelection({
+        date: "",
+        description: "",
+        amount: "",
+        debit: "",
+        credit: "",
+        balance: "",
+        currency: "",
+        externalId: "",
+      });
+      setMappingSheetName("");
+      setMappingError(null);
       setBulkAccountValue("");
       setBulkTypeValue("");
       setBulkCategoryValue("");
@@ -435,8 +496,18 @@ export default function ImportTransactionsModal({
     return () => window.clearInterval(interval);
   }, [state.step]);
 
+  useEffect(() => {
+    if (state.step !== "mapping") {
+      return;
+    }
+
+    setMappingSelection(buildInitialMappingSelection(state.preview?.mappingPreflight ?? null));
+    setMappingSheetName(state.preview?.mappingPreflight?.selectedSheetName ?? "");
+    setMappingError(null);
+  }, [state.preview, state.step]);
+
   const rows = useMemo<ImportTransactionCardRow[]>(() => {
-    if (!state.preview) {
+    if (!state.preview || state.step !== "preview") {
       return [];
     }
 
@@ -510,7 +581,12 @@ export default function ImportTransactionsModal({
     dispatch({ type: "set-file", file: event.dataTransfer.files?.[0] ?? null });
   };
 
-  const handlePreview = async () => {
+  const handlePreview = async (previewOptions?: {
+    columnMapping?: Partial<Record<ImportMappingField, string>>;
+    sheetName?: string;
+  }) => {
+    const fallbackStep: StepState = state.step === "mapping" ? "mapping" : "upload";
+
     if (!state.selectedFile) {
       toast.error("Selecione um arquivo para gerar o preview.");
       return;
@@ -528,11 +604,22 @@ export default function ImportTransactionsModal({
         file: state.selectedFile,
         bankConnectionId: state.globalBankConnectionId || undefined,
         filePassword: state.filePassword,
+        previewOptions: {
+          preflight: true,
+          ...(previewOptions?.columnMapping ? { columnMapping: previewOptions.columnMapping } : {}),
+          ...(previewOptions?.sheetName ? { sheetName: previewOptions.sheetName } : {}),
+        },
       });
-      dispatch({ type: "set-preview", preview, drafts: buildDrafts(preview) });
-      toast.success("Preview gerado com sucesso.");
+      const shouldOpenMapping = preview.requiresManualMapping && Boolean(preview.mappingPreflight?.canApplyMapping);
+      dispatch({
+        type: "set-preview",
+        preview,
+        drafts: shouldOpenMapping ? {} : buildDrafts(preview),
+        step: shouldOpenMapping ? "mapping" : "preview",
+      });
+      toast.success(shouldOpenMapping ? "Mapeamento manual necessário." : "Preview gerado com sucesso.");
     } catch (error) {
-      dispatch({ type: "set-step", value: "upload" });
+      dispatch({ type: "set-step", value: fallbackStep });
       const errorCode = error instanceof Error && "code" in error ? String(error.code) : "";
 
       if (errorCode === "import_pdf_password_required" || errorCode === "import_pdf_password_invalid") {
@@ -544,6 +631,28 @@ export default function ImportTransactionsModal({
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
     }
+  };
+
+  const handleMappingPreview = async () => {
+    const hasAmount = Boolean(mappingSelection.amount.trim());
+    const hasDebit = Boolean(mappingSelection.debit.trim());
+    const hasCredit = Boolean(mappingSelection.credit.trim());
+
+    if (!mappingSelection.date.trim() || !mappingSelection.description.trim()) {
+      setMappingError("Mapeie date e description antes de gerar o preview.");
+      return;
+    }
+
+    if (!hasAmount && !(hasDebit && hasCredit)) {
+      setMappingError("Mapeie signed amount ou informe debit e credit.");
+      return;
+    }
+
+    setMappingError(null);
+    await handlePreview({
+      columnMapping: buildColumnMappingPayload(mappingSelection),
+      sheetName: mappingSheetName || undefined,
+    });
   };
 
   const patchRows = (targetRows: ImportTransactionCardRow[], patch: Partial<ImportReviewDraft>) => {
@@ -671,7 +780,9 @@ export default function ImportTransactionsModal({
             "flex max-h-[90vh] flex-col overflow-hidden p-0",
             state.step === "upload" || state.step === "processing"
               ? "sm:max-w-2xl"
-              : "h-[92vh] max-w-[92vw] sm:max-w-6xl",
+              : state.step === "mapping"
+                ? "sm:max-w-4xl"
+                : "h-[92vh] max-w-[92vw] sm:max-w-6xl",
           )}
         >
           <div className="border-b border-border/70 px-5 py-3">
@@ -899,6 +1010,175 @@ export default function ImportTransactionsModal({
                       {label}
                     </Badge>
                   ))}
+                </div>
+              </div>
+            ) : null}
+
+            {state.step === "mapping" && state.preview?.mappingPreflight ? (
+              <div data-testid="import-mapping-step" className="flex h-full min-h-0 flex-col gap-4">
+                <div className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">Manual mapping required</p>
+                      <p className="text-xs text-muted-foreground">
+                        This file uses unknown headers or an ambiguous sheet. Map the required columns below and then
+                        generate the preview again.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+                  <div className="min-h-0 rounded-2xl border border-border/70 bg-background/70 p-4">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {state.preview.mappingPreflight.headerDetectionMode ?? "manual"}
+                      </Badge>
+                      {state.preview.mappingPreflight.headerRowIndex ? (
+                        <Badge variant="outline" className="text-xs">
+                          Header row {state.preview.mappingPreflight.headerRowIndex}
+                        </Badge>
+                      ) : null}
+                      {state.preview.mappingPreflight.selectedSheetName ? (
+                        <Badge variant="outline" className="text-xs">
+                          Sheet {state.preview.mappingPreflight.selectedSheetName}
+                        </Badge>
+                      ) : null}
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {state.preview.mappingPreflight.sheetCandidates.length > 1 ? (
+                        <label className="space-y-1 text-sm text-foreground sm:col-span-2">
+                          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Sheet
+                          </span>
+                          <select
+                            data-testid="mapping-sheet-select"
+                            value={mappingSheetName}
+                            onChange={(event) => setMappingSheetName(event.target.value)}
+                            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                          >
+                            <option value="">Use best detected sheet</option>
+                            {state.preview.mappingPreflight.sheetCandidates.map((candidate) =>
+                              candidate.sheetName ? (
+                                <option key={candidate.sheetName} value={candidate.sheetName}>
+                                  {candidate.sheetName}
+                                </option>
+                              ) : null,
+                            )}
+                          </select>
+                        </label>
+                      ) : null}
+
+                      {mappingFieldOptions.map((option) => (
+                        <label key={option.field} className="space-y-1 text-sm text-foreground">
+                          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {option.label}
+                            {option.required ? " *" : ""}
+                          </span>
+                          <select
+                            data-testid={`mapping-select:${option.field}`}
+                            value={mappingSelection[option.field]}
+                            onChange={(event) =>
+                              setMappingSelection((current) => ({
+                                ...current,
+                                [option.field]: event.target.value,
+                              }))
+                            }
+                            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                          >
+                            <option value="">Not mapped</option>
+                            {state.preview.mappingPreflight.availableColumns.map((column) => (
+                              <option
+                                key={`${option.field}:${column.index}:${column.header ?? "column"}`}
+                                value={column.header ?? ""}
+                              >
+                                {column.header || `Column ${column.index + 1}`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-border/70">
+                      <div className="border-b border-border/70 px-3 py-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sample rows</p>
+                      </div>
+                      <ScrollArea className="max-h-[260px]">
+                        <div className="min-w-full">
+                          <div
+                            className="grid items-center gap-2 border-b border-border/70 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                            style={{
+                              gridTemplateColumns: `60px repeat(${Math.max(
+                                state.preview.mappingPreflight.availableColumns.length,
+                                1,
+                              )}, minmax(120px, 1fr))`,
+                            }}
+                          >
+                            <span>Row</span>
+                            {state.preview.mappingPreflight.availableColumns.map((column) => (
+                              <span key={`mapping-column:${column.index}`}>
+                                {column.header || `Column ${column.index + 1}`}
+                              </span>
+                            ))}
+                          </div>
+                          {state.preview.mappingPreflight.sampleRows.map((row) => (
+                            <div
+                              key={`mapping-row:${row.rowIndex}`}
+                              className="grid items-start gap-2 border-b border-border/50 px-3 py-2 text-sm last:border-b-0"
+                              style={{
+                                gridTemplateColumns: `60px repeat(${Math.max(
+                                  state.preview.mappingPreflight.availableColumns.length,
+                                  1,
+                                )}, minmax(120px, 1fr))`,
+                              }}
+                            >
+                              <span className="text-xs font-medium text-muted-foreground">#{row.rowIndex}</span>
+                              {state.preview.mappingPreflight.availableColumns.map((column) => (
+                                <span key={`mapping-cell:${row.rowIndex}:${column.index}`} className="break-words">
+                                  {row.values[column.index] || "—"}
+                                </span>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4 rounded-2xl border border-border/70 bg-background/70 p-4">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Review rules</p>
+                      <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
+                        <li>Date and description are required.</li>
+                        <li>Map either a single signed amount column or both debit and credit columns.</li>
+                        <li>Balance, currency, and reference columns are optional.</li>
+                      </ul>
+                    </div>
+
+                    {state.preview.mappingPreflight.missingRequiredFields.length > 0 ? (
+                      <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                        Missing fields:{" "}
+                        {state.preview.mappingPreflight.missingRequiredFields
+                          .map((field) => getMappingFieldLabel(field as ImportMappingField))
+                          .join(", ")}
+                      </div>
+                    ) : null}
+
+                    {mappingError ? (
+                      <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                        {mappingError}
+                      </div>
+                    ) : null}
+
+                    {state.preview.warnings.length > 0 ? (
+                      <div className="rounded-2xl border border-border/70 bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
+                        {state.preview.warnings[0]}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -1196,6 +1476,23 @@ export default function ImportTransactionsModal({
                       <Upload className="mr-2 h-4 w-4" />
                     )}
                     Gerar preview
+                  </Button>
+                </>
+              ) : state.step === "mapping" ? (
+                <>
+                  <Button type="button" variant="link" onClick={() => dispatch({ type: "reset" })}>
+                    Nova importação
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => dispatch({ type: "set-step", value: "upload" })}
+                  >
+                    Voltar
+                  </Button>
+                  <Button type="button" onClick={() => void handleMappingPreview()} disabled={previewImport.isPending}>
+                    {previewImport.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Gerar preview com mapeamento
                   </Button>
                 </>
               ) : state.step === "preview" ? (

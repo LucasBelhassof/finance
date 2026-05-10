@@ -22,6 +22,7 @@ import type {
   CreateTransactionInput,
   DeleteTransactionInput,
   ImportCommitItem,
+  ImportMappingField,
   ImportPreviewData,
   UpdateCategoryInput,
   UpdateTransactionInput,
@@ -163,12 +164,18 @@ export function useUniversalImportPreview() {
       bankConnectionId,
       importSource,
       filePassword,
+      previewOptions,
     }: {
       file: File;
       bankConnectionId?: number | string;
       importSource?: "bank_statement" | "credit_card_statement";
       filePassword?: string;
-    }) => previewUniversalTransactionImport(file, { bankConnectionId, importSource, filePassword }),
+      previewOptions?: {
+        preflight?: boolean;
+        columnMapping?: Partial<Record<ImportMappingField, string>>;
+        sheetName?: string;
+      };
+    }) => previewUniversalTransactionImport(file, { bankConnectionId, importSource, filePassword, previewOptions }),
   });
 }
 

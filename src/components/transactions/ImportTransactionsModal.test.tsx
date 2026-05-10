@@ -129,6 +129,8 @@ const previewData: ImportPreviewData = {
     duplicateRows: 0,
     actionRequiredRows: 1,
   },
+  requiresManualMapping: false,
+  mappingPreflight: null,
   items: [
     {
       rowIndex: 15,
@@ -457,6 +459,43 @@ const categoryResolutionPreviewData: ImportPreviewData = {
   ],
 };
 
+const mappingRequiredPreviewData: ImportPreviewData = {
+  ...previewData,
+  requiresManualMapping: true,
+  mappingPreflight: {
+    supported: true,
+    strategy: "tabular_columns",
+    delimiter: ",",
+    headerRowIndex: 1,
+    headerDetectionMode: "fallback",
+    availableColumns: [
+      { index: 0, header: "posted_at", normalizedHeader: "posted at" },
+      { index: 1, header: "narrative", normalizedHeader: "narrative" },
+      { index: 2, header: "outflow", normalizedHeader: "outflow" },
+      { index: 3, header: "inflow", normalizedHeader: "inflow" },
+    ],
+    sampleRows: [{ rowIndex: 1, values: ["2026-03-28", "Coffee", "12.90", ""] }],
+    selectedMapping: {
+      date: { index: null, header: null },
+      description: { index: null, header: null },
+      amount: { index: null, header: null },
+      debit: { index: null, header: null },
+      credit: { index: null, header: null },
+      balance: { index: null, header: null },
+      currency: { index: null, header: null },
+      externalId: { index: null, header: null },
+    },
+    missingRequiredFields: ["date", "description", "amount"],
+    requiresManualMapping: true,
+    canApplyMapping: true,
+    sheetCandidates: [
+      { sheetName: "Imports", score: 12, availableColumns: [], missingRequiredFields: [], requiresManualMapping: true },
+    ],
+    selectedSheetName: "Imports",
+  },
+  items: [],
+};
+
 function hasChip(label: string, value: number) {
   return screen.queryByText((_, node) => node?.textContent === `${value}${label}`) !== null;
 }
@@ -531,6 +570,9 @@ describe("ImportTransactionsModal", () => {
       file: expect.any(File),
       bankConnectionId: "2",
       filePassword: "",
+      previewOptions: {
+        preflight: true,
+      },
     });
   });
 
@@ -553,6 +595,60 @@ describe("ImportTransactionsModal", () => {
     expect(screen.getByText("88%")).toBeInTheDocument();
     expect(screen.getByText("Nubank")).toBeInTheDocument();
     expect(screen.getByText(/revise as linhas com baixa confiança/i)).toBeInTheDocument();
+  });
+
+  it("opens manual mapping when the backend requires column resolution and reruns preview with mapping", async () => {
+    previewMutateAsync.mockResolvedValueOnce(mappingRequiredPreviewData).mockResolvedValueOnce({
+      ...previewData,
+      warnings: [],
+    });
+
+    render(<ImportTransactionsModal open onOpenChange={vi.fn()} categories={[]} banks={banks} />);
+
+    const fileInput = screen.getByTestId("import-file-input") as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["posted_at,narrative,outflow,inflow"], "unknown.csv", { type: "text/csv" })],
+      },
+    });
+
+    selectBankItau();
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-mapping-step")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByTestId("mapping-select:date"), { target: { value: "posted_at" } });
+    fireEvent.change(screen.getByTestId("mapping-select:description"), { target: { value: "narrative" } });
+    fireEvent.change(screen.getByTestId("mapping-select:debit"), { target: { value: "outflow" } });
+    fireEvent.change(screen.getByTestId("mapping-select:credit"), { target: { value: "inflow" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /gerar preview com mapeamento/i }));
+
+    await waitFor(() => expect(screen.getByTestId("import-preview-body")).toBeInTheDocument());
+
+    expect(previewMutateAsync).toHaveBeenNthCalledWith(1, {
+      file: expect.any(File),
+      bankConnectionId: "2",
+      filePassword: "",
+      previewOptions: {
+        preflight: true,
+      },
+    });
+    expect(previewMutateAsync).toHaveBeenNthCalledWith(2, {
+      file: expect.any(File),
+      bankConnectionId: "2",
+      filePassword: "",
+      previewOptions: {
+        preflight: true,
+        columnMapping: {
+          date: "posted_at",
+          description: "narrative",
+          debit: "outflow",
+          credit: "inflow",
+        },
+        sheetName: "Imports",
+      },
+    });
   });
 
   it("allows rows to be excluded and restored from preview", async () => {

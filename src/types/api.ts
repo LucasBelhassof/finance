@@ -658,6 +658,45 @@ export interface ApiImportPreviewResponse {
     duplicateRows?: number;
     actionRequiredRows?: number;
   };
+  requiresManualMapping?: boolean;
+  mappingPreflight?: {
+    supported?: boolean;
+    strategy?: string | null;
+    delimiter?: string | null;
+    headerRowIndex?: number | null;
+    headerDetectionMode?: string | null;
+    availableColumns?: Array<{
+      index?: number;
+      header?: string | null;
+      normalizedHeader?: string | null;
+    }>;
+    sampleRows?: Array<{
+      rowIndex?: number;
+      values?: string[];
+    }>;
+    selectedMapping?: Record<
+      string,
+      {
+        index?: number | null;
+        header?: string | null;
+      }
+    >;
+    missingRequiredFields?: string[];
+    requiresManualMapping?: boolean;
+    canApplyMapping?: boolean;
+    sheetCandidates?: Array<{
+      sheetName?: string | null;
+      score?: number | null;
+      availableColumns?: Array<{
+        index?: number;
+        header?: string | null;
+        normalizedHeader?: string | null;
+      }>;
+      missingRequiredFields?: string[];
+      requiresManualMapping?: boolean;
+    }>;
+    selectedSheetName?: string | null;
+  } | null;
   items?: ApiImportPreviewItem[];
 }
 
@@ -843,6 +882,56 @@ export interface ImportPreviewSummary {
   actionRequiredRows: number;
 }
 
+export type ImportMappingField =
+  | "date"
+  | "description"
+  | "amount"
+  | "debit"
+  | "credit"
+  | "balance"
+  | "currency"
+  | "externalId";
+
+export interface ImportMappingColumnOption {
+  index: number;
+  header: string | null;
+  normalizedHeader: string | null;
+}
+
+export interface ImportMappingSampleRow {
+  rowIndex: number;
+  values: string[];
+}
+
+export interface ImportSheetCandidate {
+  sheetName: string | null;
+  score: number | null;
+  availableColumns: ImportMappingColumnOption[];
+  missingRequiredFields: string[];
+  requiresManualMapping: boolean;
+}
+
+export interface ImportMappingSelection {
+  index: number | null;
+  header: string | null;
+}
+
+export interface ImportMappingPreflight {
+  supported: boolean;
+  strategy: string | null;
+  delimiter: string | null;
+  headerRowIndex: number | null;
+  headerDetectionMode: string | null;
+  availableColumns: ImportMappingColumnOption[];
+  sampleRows: ImportMappingSampleRow[];
+  selectedMapping: Record<ImportMappingField, ImportMappingSelection>;
+  missingRequiredFields: string[];
+  requiresManualMapping: boolean;
+  canApplyMapping: boolean;
+  sheetCandidates: ImportSheetCandidate[];
+  selectedSheetName: string | null;
+}
+
 export interface ImportPreviewData {
   previewToken: string;
   expiresAt: string;
@@ -865,6 +954,8 @@ export interface ImportPreviewData {
     statementReferenceMonth: string | null;
   };
   fileSummary: ImportPreviewSummary;
+  requiresManualMapping: boolean;
+  mappingPreflight: ImportMappingPreflight | null;
   items: ImportPreviewItem[];
 }
 

@@ -15,6 +15,7 @@ import {
   mapSpendingResponse,
   mapTransaction,
   previewTransactionImport,
+  previewUniversalTransactionImport,
 } from "@/lib/api";
 
 describe("api mappers", () => {
@@ -106,6 +107,59 @@ describe("api mappers", () => {
 
     expect(body.get("file")).toBeInstanceOf(File);
     expect(body.get("filePassword")).toBe("123456");
+  });
+
+  it("sends preview options in universal import preview form data when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: async () =>
+        JSON.stringify({
+          previewToken: "preview-2",
+          expiresAt: "2026-04-06T10:15:00.000Z",
+          importSource: "bank_statement",
+          bankConnectionId: 2,
+          bankConnectionName: "Itau",
+          fileSummary: {
+            totalRows: 0,
+            importableRows: 0,
+            errorRows: 0,
+            duplicateRows: 0,
+            actionRequiredRows: 0,
+          },
+          items: [],
+        }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await previewUniversalTransactionImport(new File(["date,desc"], "extrato.csv", { type: "text/csv" }), {
+      bankConnectionId: 2,
+      previewOptions: {
+        preflight: true,
+        columnMapping: {
+          date: "posted_at",
+          description: "memo",
+          amount: "gross",
+        },
+        sheetName: "Imports",
+      },
+    });
+
+    const requestInit = fetchMock.mock.calls[0][1] as RequestInit;
+    const body = requestInit.body as FormData;
+
+    expect(body.get("options")).toBe(
+      JSON.stringify({
+        preflight: true,
+        columnMapping: {
+          date: "posted_at",
+          description: "memo",
+          amount: "gross",
+        },
+        sheetName: "Imports",
+      }),
+    );
   });
 
   it("maps transactions and falls back to a safe icon", () => {
@@ -351,6 +405,35 @@ describe("api mappers", () => {
         duplicateRows: 1,
         actionRequiredRows: 2,
       },
+      requiresManualMapping: true,
+      mappingPreflight: {
+        supported: true,
+        strategy: "tabular_columns",
+        delimiter: ",",
+        headerRowIndex: 1,
+        headerDetectionMode: "fallback",
+        availableColumns: [
+          { index: 0, header: "posted_at", normalizedHeader: "posted at" },
+          { index: 1, header: "memo", normalizedHeader: "memo" },
+          { index: 2, header: "gross", normalizedHeader: "gross" },
+        ],
+        sampleRows: [{ rowIndex: 1, values: ["2026-04-06", "iFood", "-67.90"] }],
+        selectedMapping: {
+          date: { index: null, header: null },
+          description: { index: null, header: null },
+          amount: { index: null, header: null },
+          debit: { index: null, header: null },
+          credit: { index: null, header: null },
+          balance: { index: null, header: null },
+          currency: { index: null, header: null },
+          externalId: { index: null, header: null },
+        },
+        missingRequiredFields: ["date", "description", "amount"],
+        requiresManualMapping: true,
+        canApplyMapping: true,
+        sheetCandidates: [{ sheetName: "Imports", score: 12 }],
+        selectedSheetName: "Imports",
+      },
       items: [
         {
           rowIndex: 1,
@@ -444,6 +527,10 @@ describe("api mappers", () => {
     expect(preview.fileMetadata.statementDueDate).toBe("2026-03-27");
     expect(preview.fileMetadata.statementReferenceMonth).toBe("2026-03");
     expect(preview.fileSummary.duplicateRows).toBe(1);
+    expect(preview.requiresManualMapping).toBe(true);
+    expect(preview.mappingPreflight?.availableColumns[0].header).toBe("posted_at");
+    expect(preview.mappingPreflight?.missingRequiredFields).toEqual(["date", "description", "amount"]);
+    expect(preview.mappingPreflight?.selectedSheetName).toBe("Imports");
     expect(preview.items[0].matchedRuleId).toBe("merchant:ifood");
     expect(preview.items[0].possibleDuplicate).toBe(true);
     expect(preview.items[0].suggestionSource).toBe("rule");

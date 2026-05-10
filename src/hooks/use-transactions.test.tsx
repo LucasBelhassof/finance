@@ -163,6 +163,16 @@ describe("useUniversalImportPreview", () => {
         bankConnectionId: 20,
         importSource: "credit_card_statement",
         filePassword: "123456",
+        previewOptions: {
+          preflight: true,
+          columnMapping: {
+            date: "posted_at",
+            description: "memo_text",
+            debit: "outflow",
+            credit: "inflow",
+          },
+          sheetName: "Imports",
+        },
       });
     });
 
@@ -170,6 +180,16 @@ describe("useUniversalImportPreview", () => {
       bankConnectionId: 20,
       importSource: "credit_card_statement",
       filePassword: "123456",
+      previewOptions: {
+        preflight: true,
+        columnMapping: {
+          date: "posted_at",
+          description: "memo_text",
+          debit: "outflow",
+          credit: "inflow",
+        },
+        sheetName: "Imports",
+      },
     });
   });
 });

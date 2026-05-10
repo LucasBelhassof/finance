@@ -86,6 +86,7 @@ const categoryKeyResolvers = {
 };
 
 const categoryKeys = Object.keys(categoryKeyResolvers);
+const DEFAULT_SALARY_CATEGORY_SLUG = "salario";
 const ptShortMonthMap = new Map([
   ["jan", 1],
   ["fev", 2],
@@ -121,6 +122,17 @@ const matchKeyNoiseTokens = new Set([
   "banco",
   "sa",
 ]);
+const clearReceivedIncomePatterns = [
+  "pix recebido",
+  "deposito",
+  "transferencia recebida",
+  "ted recebido",
+  "doc recebido",
+  "pagamento recebido",
+  "recebimento",
+  "credito recebido",
+  "entrada",
+];
 
 const importRules = [
   {
@@ -1073,6 +1085,22 @@ function isCreditCardPaymentReceived(normalizedDescriptionValue) {
   return normalizedDescriptionValue.includes("pagamento recebido");
 }
 
+function isClearReceivedIncomeDescription(normalizedDescriptionValue, importLayout) {
+  const normalized = String(normalizedDescriptionValue ?? "").trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return clearReceivedIncomePatterns.some((pattern) => {
+    if (pattern === "pagamento recebido" && importLayout === "credit_card_statement") {
+      return false;
+    }
+
+    return normalized.includes(pattern);
+  });
+}
+
 export function parseAmountInput(rawValue) {
   const original = String(rawValue ?? "").trim();
 
@@ -1184,6 +1212,18 @@ function resolveCategoryForKey(categoryKey, categories) {
   return null;
 }
 
+function getSalaryCategory(categories) {
+  return (
+    categories.find(
+      (item) => item.transactionType === "income" && String(item.slug ?? "") === DEFAULT_SALARY_CATEGORY_SLUG,
+    ) ?? null
+  );
+}
+
+function getDefaultIncomeCategory(categories) {
+  return getSalaryCategory(categories) ?? categories.find((item) => item.transactionType === "income") ?? null;
+}
+
 function isCategoryCompatibleWithType(category, type) {
   if (!category || !type) {
     return false;
@@ -1230,12 +1270,15 @@ function suggestCategory(normalizedDescriptionValue, categories) {
   };
 }
 
-function chooseHistoricalMatch(matchKey, categories, historicalMatches, recurringRuleMatches) {
+function chooseHistoricalMatch(matchKey, categories, historicalMatches, recurringRuleMatches, options = {}) {
+  const preferredType =
+    options.preferredType === "income" || options.preferredType === "expense" ? options.preferredType : null;
+
   if (recurringRuleMatches?.has(matchKey)) {
     const match = recurringRuleMatches.get(matchKey);
     const category = categories.find((item) => Number(item.id) === Number(match.categoryId));
 
-    if (isCategoryCompatibleWithType(category, match.type)) {
+    if (isCategoryCompatibleWithType(category, match.type) && (!preferredType || match.type === preferredType)) {
       return {
         category,
         typeOverride: match.type,
@@ -1248,7 +1291,7 @@ function chooseHistoricalMatch(matchKey, categories, historicalMatches, recurrin
     const match = historicalMatches.get(matchKey);
     const category = categories.find((item) => Number(item.id) === Number(match.categoryId));
 
-    if (isCategoryCompatibleWithType(category, match.type)) {
+    if (isCategoryCompatibleWithType(category, match.type) && (!preferredType || match.type === preferredType)) {
       return {
         category,
         typeOverride: match.type,
@@ -1352,14 +1395,27 @@ function buildPreviewItem({
     errors.push(error.message);
   }
 
+  const clearReceivedIncome =
+    errors.length === 0 && isClearReceivedIncomeDescription(normalizedDescriptionValue, importLayout);
+
+  if (clearReceivedIncome) {
+    type = "income";
+  }
+
   const suggestion = suggestCategory(normalizedDescriptionValue, categories);
   const historicalSuggestion =
-    !suggestion.category && categorizationMatchKey
-      ? chooseHistoricalMatch(categorizationMatchKey, categories, historicalMatches, recurringRuleMatches)
+    categorizationMatchKey && (clearReceivedIncome || !suggestion.category)
+      ? chooseHistoricalMatch(categorizationMatchKey, categories, historicalMatches, recurringRuleMatches, {
+          preferredType: clearReceivedIncome ? "income" : null,
+        })
       : null;
 
   if (suggestion.typeOverride || historicalSuggestion?.typeOverride) {
     type = historicalSuggestion?.typeOverride ?? suggestion.typeOverride;
+  }
+
+  if (clearReceivedIncome) {
+    type = "income";
   }
 
   if (importLayout === "credit_card_statement") {
@@ -1390,6 +1446,12 @@ function buildPreviewItem({
 
   let normalizedAmount = absoluteAmount !== null ? normalizeAmountString(absoluteAmount) : "";
   let signedAmount = absoluteAmount !== null ? signedAmountFromType(type, absoluteAmount) : null;
+
+  if (clearReceivedIncome && absoluteAmount !== null) {
+    absoluteAmount = Math.abs(absoluteAmount);
+    normalizedAmount = normalizeAmountString(absoluteAmount);
+    signedAmount = signedAmountFromType("income", absoluteAmount);
+  }
 
   let possibleDuplicate = false;
   let duplicateReason = "";
@@ -1428,8 +1490,22 @@ function buildPreviewItem({
     seenFingerprints.add(fingerprint);
   }
 
-  const finalSuggestedCategory = historicalSuggestion?.category ?? suggestion.category ?? null;
-  const finalSuggestionSource = historicalSuggestion?.source ?? (suggestion.category ? "rule" : null);
+  let finalSuggestedCategory =
+    clearReceivedIncome && historicalSuggestion?.category
+      ? historicalSuggestion.category
+      : (historicalSuggestion?.category ?? suggestion.category ?? null);
+  let finalSuggestionSource =
+    clearReceivedIncome && historicalSuggestion?.source
+      ? historicalSuggestion.source
+      : (historicalSuggestion?.source ?? (suggestion.category ? "rule" : null));
+
+  if (clearReceivedIncome) {
+    if (!isCategoryCompatibleWithType(finalSuggestedCategory, "income")) {
+      finalSuggestedCategory = getDefaultIncomeCategory(categories);
+      finalSuggestionSource = finalSuggestedCategory ? "default_income" : null;
+    }
+  }
+
   const finalRequiresCategorySelection = !defaultExclude && type === "income" && !finalSuggestedCategory;
 
   if (finalRequiresCategorySelection) {

@@ -66,6 +66,7 @@ const categories = [
   { id: 1, slug: "restaurantes", label: "Restaurantes", transactionType: "expense" },
   { id: 2, slug: "transporte", label: "Transporte", transactionType: "expense" },
   { id: 3, slug: "salario", label: "Salario", transactionType: "income" },
+  { id: 10, slug: "freelance", label: "Freelance", transactionType: "income" },
   { id: 4, slug: "outros-despesas", label: "Outros", transactionType: "expense" },
   { id: 5, slug: "supermercado", label: "Supermercado", transactionType: "expense" },
   { id: 6, slug: "compras", label: "Compras", transactionType: "expense" },
@@ -408,6 +409,126 @@ describe("transaction import helpers", () => {
     expect(preview.items[0].suggestionSource).toBe("history");
   });
 
+  it("classifies clear received transactions as income and defaults them to Salario", async () => {
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;Pix recebido de cliente;396,00",
+      "06/04/2026;deposito em conta;150,00",
+      "06/04/2026;transferencia recebida via TED;250,00",
+    ].join("\n");
+
+    const preview = await createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+
+    expect(preview.items[0]).toMatchObject({
+      type: "income",
+      amount: "396.00",
+      suggestedCategoryId: 3,
+      suggestedCategoryLabel: "Salario",
+      canImport: true,
+      requiresCategorySelection: false,
+    });
+    expect(preview.items[1]).toMatchObject({
+      type: "income",
+      suggestedCategoryId: 3,
+    });
+    expect(preview.items[2]).toMatchObject({
+      type: "income",
+      suggestedCategoryId: 3,
+    });
+  });
+
+  it("normalizes accidentally negative received transactions to positive income rows", async () => {
+    const csv = ["Data;Descricao;Valor", "06/04/2026;Pix recebido de cliente;-396,00"].join("\n");
+
+    const preview = await createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+
+    expect(preview.items[0]).toMatchObject({
+      type: "income",
+      amount: "396.00",
+      suggestedCategoryId: 3,
+    });
+  });
+
+  it("reuses prior income categories for the same received source", async () => {
+    const csv = ["Data;Descricao;Valor", "06/04/2026;Pix recebido de cliente ACME;396,00"].join("\n");
+
+    const preview = await createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      historicalRows: [
+        {
+          description: "Pix recebido de cliente ACME",
+          amount: 400,
+          category_id: 10,
+          occurred_on: "2026-03-06",
+          transaction_type: "income",
+        },
+      ],
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+
+    expect(preview.items[0]).toMatchObject({
+      type: "income",
+      suggestedCategoryId: 10,
+      suggestionSource: "history",
+    });
+  });
+
+  it("ignores prior expense categories for clear received transactions and falls back to Salario", async () => {
+    const csv = ["Data;Descricao;Valor", "06/04/2026;Transferencia recebida ACME;396,00"].join("\n");
+
+    const preview = await createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      historicalRows: [
+        {
+          description: "Transferencia recebida ACME",
+          amount: -396,
+          category_id: 2,
+          occurred_on: "2026-03-06",
+          transaction_type: "expense",
+        },
+      ],
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+
+    expect(preview.items[0]).toMatchObject({
+      type: "income",
+      suggestedCategoryId: 3,
+    });
+    expect(preview.items[0].suggestionSource).not.toBe("history");
+  });
+
+  it("keeps expense behavior for sent payments and purchases", async () => {
+    const csv = [
+      "Data;Descricao;Valor",
+      "06/04/2026;Pix enviado para fornecedor;-67,90",
+      "06/04/2026;Compra no debito padaria;-25,00",
+      "06/04/2026;pagamento de boleto energia;-120,00",
+    ].join("\n");
+
+    const preview = await createImportPreview({
+      categories,
+      existingFingerprints: new Set(),
+      fileBuffer: Buffer.from(csv, "utf8"),
+      userId: 1,
+    });
+
+    expect(preview.items.map((item) => item.type)).toEqual(["expense", "expense", "expense"]);
+  });
+
   it("prioritizes recurring rules over transaction history", async () => {
     const csv = [
       "Data;Descricao;Valor",
@@ -490,6 +611,22 @@ describe("transaction import helpers", () => {
     ).toThrow("Categoria obrigatoria para receitas.");
   });
 
+  it("preserves manual income category overrides during commit validation", () => {
+    const line = validateCommitLine(
+      {
+        description: "Pix recebido de cliente ACME",
+        amount: "396.00",
+        occurredOn: "2026-04-06",
+        type: "income",
+        categoryId: 10,
+      },
+      categories,
+    );
+
+    expect(line.categoryId).toBe(10);
+    expect(line.signedAmount).toBe(396);
+  });
+
   it("rejects a category that does not match the transaction type", () => {
     expect(() =>
       validateCommitLine(
@@ -538,9 +675,9 @@ describe("transaction import helpers", () => {
     expect(result.items[0].rowIndex).toBe(1);
     expect(result.items[0].aiStatus).toBe("no_match");
     expect(result.items[1].rowIndex).toBe(2);
-    expect(result.items[1].aiStatus).toBe("suggested");
-    expect(result.items[1].aiSuggestedType).toBe("income");
-    expect(result.summary.suggestedRows).toBe(1);
+    expect(result.items[1].aiStatus).toBe("no_match");
+    expect(result.items[1].aiSuggestedType).toBeNull();
+    expect(result.summary.suggestedRows).toBe(0);
   });
 
   it("rejects invalid AI categories outside the whitelist", () => {
@@ -587,8 +724,8 @@ describe("transaction import helpers", () => {
     ).toBe(false);
   });
 
-  it("caches AI suggestions inside the preview session", async () => {
-    const csv = ["Data;Descricao;Valor", "06/04/2026;Transferencia recebida;396,00"].join("\n");
+  it("caches AI suggestions inside the preview session for rows without local categorization", async () => {
+    const csv = ["Data;Descricao;Valor", "06/04/2026;Receita projeto XPTO;396,00"].join("\n");
     const preview = await createImportPreview({
       categories,
       existingFingerprints: new Set(),
@@ -605,7 +742,7 @@ describe("transaction import helpers", () => {
         suggestedType: "income",
         categoryKey: "salary",
         confidence: 0.94,
-        reason: "Recebimento com alta semelhanca.",
+        reason: "Receita reconhecida por semelhanca.",
         status: "suggested",
       }));
     };

@@ -1,31 +1,49 @@
-import { parseCsvLikeBuffer } from "./parsers/csv-parser.js";
+import { analyzeCsvLikeBuffer } from "./parsers/csv-parser.js";
 import { parseJsonBuffer } from "./parsers/json-parser.js";
 import { parseOfxBuffer } from "./parsers/ofx-parser.js";
 import { parsePdfTextBuffer } from "./parsers/pdf-text-parser.js";
 import { parseQifBuffer } from "./parsers/qif-parser.js";
-import { parseSpreadsheetBuffer } from "./parsers/spreadsheet-parser.js";
+import { analyzeSpreadsheetBuffer } from "./parsers/spreadsheet-parser.js";
 import { parseTextBuffer } from "./parsers/text-parser.js";
 
 export const UNIVERSAL_IMPORT_PARSERS = {
   csv: {
     parserId: "csv-delimited",
     parserLabel: "CSV/TSV parser",
-    parse: (input) => parseCsvLikeBuffer(input.fileBuffer, { source: input.filename }),
+    parse: (input) =>
+      analyzeCsvLikeBuffer(input.fileBuffer, {
+        source: input.filename,
+        columnMapping: input.previewOptions?.columnMapping,
+      }),
   },
   tsv: {
     parserId: "csv-delimited",
     parserLabel: "CSV/TSV parser",
-    parse: (input) => parseCsvLikeBuffer(input.fileBuffer, { source: input.filename }),
+    parse: (input) =>
+      analyzeCsvLikeBuffer(input.fileBuffer, {
+        source: input.filename,
+        columnMapping: input.previewOptions?.columnMapping,
+      }),
   },
   xlsx: {
     parserId: "spreadsheet-workbook",
     parserLabel: "Spreadsheet parser",
-    parse: (input) => parseSpreadsheetBuffer(input.fileBuffer, { filename: input.filename }),
+    parse: (input) =>
+      analyzeSpreadsheetBuffer(input.fileBuffer, {
+        filename: input.filename,
+        columnMapping: input.previewOptions?.columnMapping,
+        sheetName: input.previewOptions?.sheetName,
+      }),
   },
   xls: {
     parserId: "spreadsheet-workbook",
     parserLabel: "Spreadsheet parser",
-    parse: (input) => parseSpreadsheetBuffer(input.fileBuffer, { filename: input.filename }),
+    parse: (input) =>
+      analyzeSpreadsheetBuffer(input.fileBuffer, {
+        filename: input.filename,
+        columnMapping: input.previewOptions?.columnMapping,
+        sheetName: input.previewOptions?.sheetName,
+      }),
   },
   ofx: {
     parserId: "ofx-basic",

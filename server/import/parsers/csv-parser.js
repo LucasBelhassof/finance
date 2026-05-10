@@ -3,10 +3,14 @@ import {
   decodeTextBuffer,
   detectDelimiter,
   findHeaderRowIndex,
+  findPotentialHeaderRowIndex,
+  getMissingRequiredMappingFields,
   isLikelyNoiseRow,
+  normalizeHeaderKey,
   normalizeAmountInput,
   normalizeDateInput,
   resolveHeaderIndexes,
+  summarizeResolvedMapping,
   splitDelimitedLine,
 } from "./tabular-utils.js";
 
@@ -47,6 +51,49 @@ function inferColumnIndexes(cells) {
   };
 }
 
+function buildSampleRows(rows, count = 3) {
+  return rows
+    .slice(0, count)
+    .map((cells, rowIndex) => ({
+      rowIndex: rowIndex + 1,
+      values: Array.isArray(cells) ? cells.map((cell) => String(cell ?? "")) : [],
+    }))
+    .filter((row) => row.values.length > 0);
+}
+
+function mergeColumnIndexes(cells, headerIndexes) {
+  const inferredIndexes = inferColumnIndexes(cells);
+
+  if (!headerIndexes) {
+    return inferredIndexes;
+  }
+
+  const mergedIndexes = { ...inferredIndexes };
+  const hasResolvedAmount = Number.isInteger(headerIndexes.amount) && headerIndexes.amount >= 0;
+  const hasResolvedDebitCreditPair =
+    Number.isInteger(headerIndexes.debit) &&
+    headerIndexes.debit >= 0 &&
+    Number.isInteger(headerIndexes.credit) &&
+    headerIndexes.credit >= 0;
+
+  for (const [key, value] of Object.entries(headerIndexes)) {
+    if (Number.isInteger(value) && value >= 0) {
+      mergedIndexes[key] = value;
+    }
+  }
+
+  if (hasResolvedDebitCreditPair) {
+    mergedIndexes.amount = -1;
+  }
+
+  if (hasResolvedAmount) {
+    mergedIndexes.debit = -1;
+    mergedIndexes.credit = -1;
+  }
+
+  return mergedIndexes;
+}
+
 function resolveSignedAmount(cells, indexes) {
   if (indexes.amount >= 0) {
     return normalizeAmountInput(cells[indexes.amount]);
@@ -67,20 +114,27 @@ function resolveSignedAmount(cells, indexes) {
 }
 
 function normalizeTabularRows(rows, source, options = {}) {
-  const headerRowIndex = findHeaderRowIndex(rows);
-  const headerRow = headerRowIndex >= 0 ? rows[headerRowIndex] : [];
-  const headers = headerRowIndex >= 0 ? headerRow.map((value) => String(value ?? "").trim()) : [];
-  const headerIndexes = headerRowIndex >= 0 ? resolveHeaderIndexes(headerRow) : null;
-  const dataRows = rows.slice(headerRowIndex >= 0 ? headerRowIndex + 1 : 0);
+  const detectedHeaderRowIndex = findHeaderRowIndex(rows);
+  const fallbackHeaderRowIndex =
+    detectedHeaderRowIndex >= 0 ? detectedHeaderRowIndex : findPotentialHeaderRowIndex(rows);
+  const shouldUseFallbackHeader = detectedHeaderRowIndex < 0 && fallbackHeaderRowIndex >= 0;
+  const metadataHeaderRowIndex = fallbackHeaderRowIndex;
+  const parsingHeaderRowIndex = fallbackHeaderRowIndex;
+  const headerRow = metadataHeaderRowIndex >= 0 ? rows[metadataHeaderRowIndex] : [];
+  const headers = metadataHeaderRowIndex >= 0 ? headerRow.map((value) => String(value ?? "").trim()) : [];
+  const headerIndexes = metadataHeaderRowIndex >= 0 ? resolveHeaderIndexes(headerRow, options) : null;
+  const dataRows = rows.slice(parsingHeaderRowIndex >= 0 ? parsingHeaderRowIndex + 1 : 0);
+  const preflightSampleRows = rows.slice(metadataHeaderRowIndex >= 0 ? metadataHeaderRowIndex + 1 : 0);
   const output = [];
   let previousOccurredOn = null;
+  const hasResolvedRequiredMapping = getMissingRequiredMappingFields(headerIndexes ?? {}).length === 0;
 
   dataRows.forEach((cells, index) => {
     if (!Array.isArray(cells) || cells.every((cell) => !String(cell ?? "").trim())) {
       return;
     }
 
-    const columnIndexes = headerIndexes ?? inferColumnIndexes(cells);
+    const columnIndexes = mergeColumnIndexes(cells, headerIndexes);
     const occurredOn = columnIndexes.date >= 0 ? normalizeDateInput(cells[columnIndexes.date], options) : null;
     const description = columnIndexes.description >= 0 ? String(cells[columnIndexes.description] ?? "").trim() : "";
     const signedAmount = resolveSignedAmount(cells, columnIndexes);
@@ -139,7 +193,7 @@ function normalizeTabularRows(rows, source, options = {}) {
       externalId: columnIndexes.externalId >= 0 ? String(cells[columnIndexes.externalId] ?? "").trim() || null : null,
       currency: columnIndexes.currency >= 0 ? String(cells[columnIndexes.currency] ?? "").trim() || null : null,
       balanceAfter: columnIndexes.balance >= 0 ? normalizeAmountInput(cells[columnIndexes.balance]) : null,
-      confidence: issues.length > 0 ? 0.45 : headerIndexes ? 0.92 : 0.65,
+      confidence: issues.length > 0 ? 0.45 : hasResolvedRequiredMapping ? 0.92 : 0.65,
       issues,
       sourceRow: buildRawRow(headers, cells, index + 1, source),
       raw: {
@@ -149,7 +203,26 @@ function normalizeTabularRows(rows, source, options = {}) {
     });
   });
 
-  return output;
+  return {
+    rows: output,
+    preflight: {
+      supported: true,
+      strategy: "tabular_columns",
+      delimiter: options.delimiter ?? null,
+      headerRowIndex: metadataHeaderRowIndex >= 0 ? metadataHeaderRowIndex + 1 : null,
+      headerDetectionMode: detectedHeaderRowIndex >= 0 ? "recognized" : shouldUseFallbackHeader ? "fallback" : "none",
+      availableColumns: headers.map((header, index) => ({
+        index,
+        header,
+        normalizedHeader: normalizeHeaderKey(header),
+      })),
+      sampleRows: buildSampleRows(preflightSampleRows),
+      selectedMapping: summarizeResolvedMapping(headers, headerIndexes ?? {}),
+      missingRequiredFields: getMissingRequiredMappingFields(headerIndexes ?? {}),
+      requiresManualMapping: Boolean(headers.length) && getMissingRequiredMappingFields(headerIndexes ?? {}).length > 0,
+      canApplyMapping: Boolean(headers.length),
+    },
+  };
 }
 
 export function parseCsvLikeText(text, source = "csv") {
@@ -165,15 +238,34 @@ export function parseCsvLikeText(text, source = "csv") {
     .map((line) => splitDelimitedLine(line, delimiter))
     .filter((cells) => cells.some((cell) => String(cell ?? "").trim()));
 
-  return normalizeTabularRows(rows, source);
+  return normalizeTabularRows(rows, source).rows;
 }
 
 export function parseCsvLikeBuffer(fileBuffer, options = {}) {
+  return analyzeCsvLikeBuffer(fileBuffer, options).rows;
+}
+
+export function analyzeCsvLikeBuffer(fileBuffer, options = {}) {
   const text = decodeTextBuffer(fileBuffer);
   const lines = text.split(/\r?\n/).map((line) => line.replace(/\r/g, ""));
 
   if (!lines.some((line) => line.trim())) {
-    return [];
+    return {
+      rows: [],
+      preflight: {
+        supported: true,
+        strategy: "tabular_columns",
+        delimiter: null,
+        headerRowIndex: null,
+        headerDetectionMode: "none",
+        availableColumns: [],
+        sampleRows: [],
+        selectedMapping: {},
+        missingRequiredFields: ["date", "description", "amount"],
+        requiresManualMapping: false,
+        canApplyMapping: false,
+      },
+    };
   }
 
   const delimiter = detectDelimiter(lines.filter((line) => line.trim()));
@@ -181,9 +273,16 @@ export function parseCsvLikeBuffer(fileBuffer, options = {}) {
     .map((line) => splitDelimitedLine(line, delimiter))
     .filter((cells) => cells.some((cell) => String(cell ?? "").trim()));
 
-  return normalizeTabularRows(rows, options.source ?? "csv", options);
+  return normalizeTabularRows(rows, options.source ?? "csv", {
+    ...options,
+    delimiter,
+  });
 }
 
 export function normalizeTabularGrid(rows, options = {}) {
+  return analyzeTabularGrid(rows, options).rows;
+}
+
+export function analyzeTabularGrid(rows, options = {}) {
   return normalizeTabularRows(rows, options.source ?? "sheet", options);
 }

@@ -2921,6 +2921,7 @@ export async function previewTransactionImport(
   filename,
   contentType,
   filePassword,
+  previewOptions,
 ) {
   const resolvedUserId = await requireUserId(userId);
   const parsedBankConnectionId =
@@ -2991,6 +2992,7 @@ export async function previewTransactionImport(
     filePassword,
     filename,
     historicalRows,
+    previewOptions,
     requestedImportSource: hasExplicitImportSource ? importSource : undefined,
     recurringRules,
     userId: resolvedUserId,

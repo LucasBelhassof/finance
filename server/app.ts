@@ -153,6 +153,19 @@ function resolveIncomingRequestId(request: Request) {
   return randomUUID();
 }
 
+function parseImportPreviewOptions(rawOptions: string | undefined) {
+  if (!rawOptions) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(rawOptions);
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function createApp() {
   const app = express();
   const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -388,6 +401,7 @@ export function createApp() {
         upload.filename,
         upload.contentType,
         upload.filePassword,
+        parseImportPreviewOptions(upload.options),
       );
 
       response.status(201).json(preview);
@@ -414,6 +428,7 @@ export function createApp() {
         upload.filename,
         upload.contentType,
         upload.filePassword,
+        parseImportPreviewOptions(upload.options),
       );
 
       response.status(201).json(preview);

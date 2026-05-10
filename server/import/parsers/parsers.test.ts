@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
 
-import { parseCsvLikeBuffer } from "./csv-parser.js";
+import { analyzeCsvLikeBuffer, parseCsvLikeBuffer } from "./csv-parser.js";
 import { parseJsonBuffer } from "./json-parser.js";
 import { parseOfxBuffer } from "./ofx-parser.js";
 import { parsePdfTextBuffer } from "./pdf-text-parser.js";
@@ -57,6 +57,49 @@ describe("universal import parsers", () => {
       description: "Padaria",
       amount: -25,
     });
+  });
+
+  it("builds preflight metadata for unknown CSV headers", () => {
+    const csv = ["posted_at,narrative,gross", "2026-04-06,Coffee,-12.90"].join("\n");
+    const parsed = analyzeCsvLikeBuffer(Buffer.from(csv, "utf8"), { source: "unknown.csv" });
+
+    expect(parsed.preflight).toMatchObject({
+      headerDetectionMode: "fallback",
+      requiresManualMapping: true,
+      missingRequiredFields: ["date", "description", "amount"],
+    });
+    expect(parsed.preflight.availableColumns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ header: "posted_at" }),
+        expect.objectContaining({ header: "narrative" }),
+        expect.objectContaining({ header: "gross" }),
+      ]),
+    );
+  });
+
+  it("applies explicit CSV column mapping overrides", () => {
+    const csv = ["posted_at,narrative,outflow,inflow", "2026-04-06,Coffee,12.90,", "2026-04-05,Salary,,5000.00"].join(
+      "\n",
+    );
+    const parsed = analyzeCsvLikeBuffer(Buffer.from(csv, "utf8"), {
+      source: "mapped.csv",
+      columnMapping: {
+        date: "posted_at",
+        description: "narrative",
+        debit: "outflow",
+        credit: "inflow",
+      },
+    });
+
+    expect(parsed.preflight.requiresManualMapping).toBe(false);
+    expect(parsed.preflight.selectedMapping).toMatchObject({
+      date: { header: "posted_at" },
+      description: { header: "narrative" },
+      debit: { header: "outflow" },
+      credit: { header: "inflow" },
+    });
+    expect(parsed.rows[0].amount).toBe(-12.9);
+    expect(parsed.rows[1].amount).toBe(5000);
   });
 
   it("parses TSV content", () => {

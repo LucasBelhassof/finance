@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import * as XLSX from "xlsx";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const runMigrationsMock = vi.hoisted(() => vi.fn());
@@ -401,6 +402,20 @@ function createDbState() {
       throw new Error(`Unhandled SQL in test: ${normalizedSql}`);
     },
   };
+}
+
+function buildWorkbookBuffer(sheets: Record<string, string[][]>, bookType: "xlsx" | "xls" = "xlsx") {
+  const workbook = XLSX.utils.book_new();
+
+  for (const [sheetName, rows] of Object.entries(sheets)) {
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  }
+
+  return XLSX.write(workbook, {
+    type: "buffer",
+    bookType,
+  });
 }
 
 function buildUniversalSessionRow(overrides: Partial<Record<string, unknown>> = {}) {
@@ -1368,6 +1383,129 @@ describe("transaction import commit dispatcher", () => {
     await expect(
       previewTransactionImport(7, Buffer.from("fake file"), "bank_statement", 20, "extrato.csv", "text/csv", undefined),
     ).rejects.toThrow("O extrato bancário precisa ser vinculado a uma conta não-cartão.");
+  });
+
+  it("returns mapping preflight details for unknown CSV headers", async () => {
+    const { previewTransactionImport } = await loadDatabaseModule();
+    const csv = ["posted_at,narrative,gross", "2026-04-06,Coffee,-12.90", "2026-04-05,Salary,5000.00"].join("\n");
+
+    const result = await previewTransactionImport(
+      7,
+      Buffer.from(csv, "utf8"),
+      undefined,
+      10,
+      "unknown-columns.csv",
+      "text/csv",
+      undefined,
+      { preflight: true },
+    );
+
+    expect(result.mappingPreflight).toMatchObject({
+      supported: true,
+      headerDetectionMode: "fallback",
+      requiresManualMapping: true,
+      missingRequiredFields: ["date", "description", "amount"],
+    });
+    expect(result.mappingPreflight.availableColumns).toHaveLength(3);
+    expect(result.mappingPreflight.sampleRows[0]).toMatchObject({
+      rowIndex: 1,
+      values: ["2026-04-06", "Coffee", "-12.90"],
+    });
+  });
+
+  it("applies explicit column mapping overrides for unknown debit and credit headers", async () => {
+    const { previewTransactionImport } = await loadDatabaseModule();
+    const csv = ["posted_at,narrative,outflow,inflow", "2026-04-06,Coffee,12.90,", "2026-04-05,Salary,,5000.00"].join(
+      "\n",
+    );
+
+    const result = await previewTransactionImport(
+      7,
+      Buffer.from(csv, "utf8"),
+      undefined,
+      10,
+      "mapped-columns.csv",
+      "text/csv",
+      undefined,
+      {
+        preflight: true,
+        columnMapping: {
+          date: "posted_at",
+          description: "narrative",
+          debit: "outflow",
+          credit: "inflow",
+        },
+      },
+    );
+
+    expect(result.mappingPreflight).toMatchObject({
+      requiresManualMapping: false,
+      missingRequiredFields: [],
+    });
+    expect(result.mappingPreflight.selectedMapping).toMatchObject({
+      date: { header: "posted_at" },
+      description: { header: "narrative" },
+      debit: { header: "outflow" },
+      credit: { header: "inflow" },
+    });
+    expect(result.items[0]).toMatchObject({
+      description: "Coffee",
+      amount: "12.90",
+      type: "expense",
+    });
+    expect(result.items[1]).toMatchObject({
+      description: "Salary",
+      amount: "5000.00",
+      type: "income",
+    });
+  });
+
+  it("returns spreadsheet preflight metadata including candidate sheets", async () => {
+    const { previewTransactionImport } = await loadDatabaseModule();
+    const buffer = buildWorkbookBuffer({
+      Summary: [
+        ["Resumo", "Valor"],
+        ["Total", "100"],
+      ],
+      Imports: [
+        ["posted_at", "memo_text", "outflow", "inflow"],
+        ["2026-04-06", "Coffee", "12.90", ""],
+        ["2026-04-05", "Salary", "", "5000.00"],
+      ],
+    });
+
+    const result = await previewTransactionImport(
+      7,
+      buffer,
+      undefined,
+      10,
+      "import.xlsx",
+      "application/vnd.ms-excel",
+      undefined,
+      {
+        preflight: true,
+        columnMapping: {
+          date: "posted_at",
+          description: "memo_text",
+          debit: "outflow",
+          credit: "inflow",
+        },
+        sheetName: "Imports",
+      },
+    );
+
+    expect(result.mappingPreflight).toMatchObject({
+      supported: true,
+      selectedSheetName: "Imports",
+      requiresManualMapping: false,
+    });
+    expect(result.mappingPreflight.sheetCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sheetName: "Summary" }),
+        expect.objectContaining({ sheetName: "Imports" }),
+      ]),
+    );
+    expect(result.items[0].description).toBe("Coffee");
   });
 
   it("surfaces invalid preview tokens for commit", async () => {

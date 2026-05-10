@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 
-import { normalizeTabularGrid } from "./csv-parser.js";
+import { analyzeTabularGrid, normalizeTabularGrid } from "./csv-parser.js";
 
 function scoreSheet(rows) {
   if (!rows.length) {
@@ -12,6 +12,10 @@ function scoreSheet(rows) {
 }
 
 export function parseSpreadsheetBuffer(fileBuffer) {
+  return analyzeSpreadsheetBuffer(fileBuffer).rows;
+}
+
+export function analyzeSpreadsheetBuffer(fileBuffer, options = {}) {
   const workbook = XLSX.read(fileBuffer, {
     type: "buffer",
     cellDates: false,
@@ -19,6 +23,8 @@ export function parseSpreadsheetBuffer(fileBuffer) {
   });
   let bestRows = [];
   let bestScore = -1;
+  let bestSheetName = null;
+  const sheetCandidates = [];
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
@@ -39,6 +45,21 @@ export function parseSpreadsheetBuffer(fileBuffer) {
     }
 
     const score = scoreSheet(grid);
+    const analyzedGrid = analyzeTabularGrid(grid, {
+      source: sheetName,
+      columnMapping: options.columnMapping,
+    });
+    sheetCandidates.push({
+      sheetName,
+      score,
+      availableColumns: analyzedGrid.preflight.availableColumns,
+      missingRequiredFields: analyzedGrid.preflight.missingRequiredFields,
+      requiresManualMapping: analyzedGrid.preflight.requiresManualMapping,
+    });
+
+    if (options.sheetName && sheetName !== options.sheetName) {
+      continue;
+    }
 
     if (score <= bestScore) {
       continue;
@@ -46,6 +67,7 @@ export function parseSpreadsheetBuffer(fileBuffer) {
 
     const rows = normalizeTabularGrid(grid, {
       source: sheetName,
+      columnMapping: options.columnMapping,
     }).map((row) => ({
       ...row,
       raw: {
@@ -61,8 +83,30 @@ export function parseSpreadsheetBuffer(fileBuffer) {
     if (rows.length > 0) {
       bestRows = rows;
       bestScore = score;
+      bestSheetName = sheetName;
     }
   }
 
-  return bestRows;
+  return {
+    rows: bestRows,
+    metadata: {
+      selectedSheetName: bestSheetName,
+      sheetCandidates,
+      preflight:
+        bestSheetName && workbook.Sheets[bestSheetName]
+          ? analyzeTabularGrid(
+              XLSX.utils.sheet_to_json(workbook.Sheets[bestSheetName], {
+                header: 1,
+                defval: "",
+                raw: false,
+                blankrows: false,
+              }),
+              {
+                source: bestSheetName,
+                columnMapping: options.columnMapping,
+              },
+            ).preflight
+          : null,
+    },
+  };
 }

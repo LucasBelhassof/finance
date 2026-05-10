@@ -13,10 +13,10 @@ function formatAmount(amount) {
 }
 
 function serializeCanonicalRowsToCsv(rows) {
-  const header = "data,descricao,valor";
+  const header = "data;descricao;valor";
   const lines = rows.map((row) => {
     const cells = [row.occurredOn, `"${String(row.description ?? "").replace(/"/g, '""')}"`, formatAmount(row.amount)];
-    return cells.join(",");
+    return cells.join(";");
   });
 
   return Buffer.from([header, ...lines].join("\n"), "utf8");
@@ -166,6 +166,30 @@ function buildPreviewConfidence(item, canonicalRow) {
   return item.possibleDuplicate ? 0.55 : 0.85;
 }
 
+function buildMappingPreflight(parsedResult) {
+  const preflight = parsedResult.preflight ?? parsedResult.metadata?.preflight ?? null;
+
+  if (!preflight) {
+    return null;
+  }
+
+  return {
+    supported: Boolean(preflight.supported),
+    strategy: preflight.strategy ?? "tabular_columns",
+    delimiter: preflight.delimiter ?? null,
+    headerRowIndex: preflight.headerRowIndex ?? null,
+    headerDetectionMode: preflight.headerDetectionMode ?? "none",
+    availableColumns: Array.isArray(preflight.availableColumns) ? preflight.availableColumns : [],
+    sampleRows: Array.isArray(preflight.sampleRows) ? preflight.sampleRows : [],
+    selectedMapping: preflight.selectedMapping ?? {},
+    missingRequiredFields: Array.isArray(preflight.missingRequiredFields) ? preflight.missingRequiredFields : [],
+    requiresManualMapping: Boolean(preflight.requiresManualMapping),
+    canApplyMapping: Boolean(preflight.canApplyMapping),
+    sheetCandidates: Array.isArray(parsedResult.metadata?.sheetCandidates) ? parsedResult.metadata.sheetCandidates : [],
+    selectedSheetName: parsedResult.metadata?.selectedSheetName ?? null,
+  };
+}
+
 function buildUniversalSession({
   preview,
   metadata,
@@ -274,6 +298,8 @@ async function enrichPreviewResponse(preview, metadata, canonicalRows) {
     detectedFileType: metadata.detectedFileType,
     detectedSourceKind: metadata.detectedSourceKind,
     sourceKindConfidence: normalizeConfidence(metadata.sourceKindConfidence),
+    requiresManualMapping: Boolean(metadata.mappingPreflight?.requiresManualMapping),
+    mappingPreflight: metadata.mappingPreflight ?? null,
     selectedBankConnectionId: metadata.selectedBankConnectionId,
     institutionName: metadata.institutionName,
     accountHint: metadata.accountHint,
@@ -319,6 +345,7 @@ export async function createUniversalImportPreview({
   fileBuffer,
   filePassword,
   filename,
+  previewOptions,
   requestedImportSource,
 }) {
   if (!Buffer.isBuffer(fileBuffer) || !fileBuffer.length) {
@@ -347,6 +374,7 @@ export async function createUniversalImportPreview({
       filePassword,
       filename,
       contentType,
+      previewOptions,
     }),
     parserEntry,
     detectedFileType,
@@ -404,6 +432,7 @@ export async function createUniversalImportPreview({
       statementReferenceMonth: parsedResult.metadata?.statementReferenceMonth ?? null,
       statementDueDate: parsedResult.metadata?.statementDueDate ?? null,
       warnings: [...parsedResult.warnings, ...sourceDetection.warnings],
+      mappingPreflight: buildMappingPreflight(parsedResult),
       userId,
     },
     canonicalRows,

@@ -7,6 +7,10 @@ function sanitizeParserMetadata(metadata) {
   return metadata && typeof metadata === "object" ? metadata : {};
 }
 
+function sanitizePreflight(preflight) {
+  return preflight && typeof preflight === "object" ? preflight : null;
+}
+
 export function normalizeConfidence(value) {
   if (value === null || value === undefined) {
     return null;
@@ -152,5 +156,6 @@ export function normalizeCanonicalParserResult(parsedResult, parserEntry, detect
     sourceKind: parsedObject.sourceKind ?? null,
     sourceKindConfidence: normalizeConfidence(parsedObject.sourceKindConfidence),
     accountHint: parsedObject.accountHint ?? null,
+    preflight: sanitizePreflight(parsedObject.preflight ?? parsedObject.metadata?.preflight),
   };
 }

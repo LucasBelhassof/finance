@@ -50,6 +50,18 @@ export const HEADER_ALIASES = {
   externalId: ["fitid", "id", "external id", "externalid", "transaction id"],
 };
 
+export const TABULAR_MAPPING_FIELDS = [
+  "date",
+  "description",
+  "amount",
+  "debit",
+  "credit",
+  "balance",
+  "currency",
+  "externalId",
+];
+export const TABULAR_REQUIRED_FIELDS = ["date", "description"];
+
 function stripBom(value) {
   return value.replace(/^\uFEFF/, "");
 }
@@ -130,6 +142,32 @@ export function normalizeHeaderKey(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+export function findPotentialHeaderRowIndex(rows) {
+  for (let index = 0; index < Math.min(rows.length, 5); index += 1) {
+    const row = Array.isArray(rows[index]) ? rows[index] : [];
+    const nextRow = Array.isArray(rows[index + 1]) ? rows[index + 1] : [];
+    const values = row.map((cell) => String(cell ?? "").trim()).filter(Boolean);
+
+    if (values.length < 2) {
+      continue;
+    }
+
+    const rowLooksLikeLabels = values.every(
+      (value) => normalizeDateInput(value) === null && normalizeAmountInput(value) === null,
+    );
+    const nextRowHasDataSignals = nextRow.some((cell) => {
+      const value = String(cell ?? "").trim();
+      return Boolean(value) && (normalizeDateInput(value) !== null || normalizeAmountInput(value) !== null);
+    });
+
+    if (rowLooksLikeLabels && nextRowHasDataSignals) {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 export function normalizeDateInput(value, options = {}) {
@@ -248,20 +286,40 @@ export function normalizeAmountInput(value) {
   return negative ? -Math.abs(amount) : amount;
 }
 
-export function resolveHeaderIndexes(headers) {
+export function resolveHeaderIndexes(headers, options = {}) {
   const normalizedHeaders = headers.map(normalizeHeaderKey);
   const findIndex = (aliases) => normalizedHeaders.findIndex((header) => aliases.includes(header));
+  const explicitMapping =
+    options?.columnMapping && typeof options.columnMapping === "object" ? options.columnMapping : undefined;
+  const mappingIndexFor = (key, aliases) => {
+    const mappedValue = explicitMapping?.[key];
+
+    if (typeof mappedValue === "number" && mappedValue >= 0 && mappedValue < headers.length) {
+      return mappedValue;
+    }
+
+    if (typeof mappedValue === "string") {
+      const normalizedMappedValue = normalizeHeaderKey(mappedValue);
+      const explicitIndex = normalizedHeaders.findIndex((header) => header === normalizedMappedValue);
+
+      if (explicitIndex >= 0) {
+        return explicitIndex;
+      }
+    }
+
+    return findIndex(aliases);
+  };
 
   return {
-    date: findIndex(HEADER_ALIASES.date),
-    description: findIndex(HEADER_ALIASES.description),
-    amount: findIndex(HEADER_ALIASES.amount),
-    debit: findIndex(HEADER_ALIASES.debit),
-    credit: findIndex(HEADER_ALIASES.credit),
-    balance: findIndex(HEADER_ALIASES.balance),
-    type: findIndex(HEADER_ALIASES.type),
-    currency: findIndex(HEADER_ALIASES.currency),
-    externalId: findIndex(HEADER_ALIASES.externalId),
+    date: mappingIndexFor("date", HEADER_ALIASES.date),
+    description: mappingIndexFor("description", HEADER_ALIASES.description),
+    amount: mappingIndexFor("amount", HEADER_ALIASES.amount),
+    debit: mappingIndexFor("debit", HEADER_ALIASES.debit),
+    credit: mappingIndexFor("credit", HEADER_ALIASES.credit),
+    balance: mappingIndexFor("balance", HEADER_ALIASES.balance),
+    type: mappingIndexFor("type", HEADER_ALIASES.type),
+    currency: mappingIndexFor("currency", HEADER_ALIASES.currency),
+    externalId: mappingIndexFor("externalId", HEADER_ALIASES.externalId),
   };
 }
 
@@ -304,6 +362,37 @@ export function findHeaderRowIndex(rows) {
   }
 
   return bestScore >= 4 ? bestIndex : -1;
+}
+
+export function summarizeResolvedMapping(headers, indexes) {
+  return Object.fromEntries(
+    TABULAR_MAPPING_FIELDS.map((field) => {
+      const index = indexes?.[field];
+      const headerLabel = typeof index === "number" && index >= 0 ? String(headers[index] ?? "").trim() : null;
+
+      return [
+        field,
+        {
+          index: typeof index === "number" && index >= 0 ? index : null,
+          header: headerLabel || null,
+        },
+      ];
+    }),
+  );
+}
+
+export function getMissingRequiredMappingFields(indexes) {
+  const missing = TABULAR_REQUIRED_FIELDS.filter((field) => !Number.isInteger(indexes?.[field]) || indexes[field] < 0);
+
+  const hasAmount = Number.isInteger(indexes?.amount) && indexes.amount >= 0;
+  const hasDebitCreditPair =
+    Number.isInteger(indexes?.debit) && indexes.debit >= 0 && Number.isInteger(indexes?.credit) && indexes.credit >= 0;
+
+  if (!hasAmount && !hasDebitCreditPair) {
+    missing.push("amount");
+  }
+
+  return missing;
 }
 
 export function isLikelyNoiseText(value) {

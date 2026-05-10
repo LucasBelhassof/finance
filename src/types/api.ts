@@ -2134,3 +2134,8 @@ export interface CreateAdminNotificationInput {
     userIds?: Array<number | string>;
   };
 }
+
+export interface AdminUserAccessInput {
+  role?: "user" | "admin";
+  isPremium?: boolean;
+}

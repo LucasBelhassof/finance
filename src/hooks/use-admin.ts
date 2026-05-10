@@ -10,8 +10,9 @@ import {
   getAdminSubscriptionMetrics,
   getAdminUsers,
   postAdminNotification,
+  patchAdminUserAccess,
 } from "@/lib/api";
-import type { CreateAdminNotificationInput } from "@/types/api";
+import type { AdminUserAccessInput, CreateAdminNotificationInput } from "@/types/api";
 
 export function useAdminOverview() {
   return useQuery({
@@ -84,6 +85,18 @@ export function useCreateAdminNotification() {
     mutationFn: (input: CreateAdminNotificationInput) => postAdminNotification(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "notifications"] });
+    },
+  });
+}
+
+export function useUpdateAdminUserAccess() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, input }: { userId: number | string; input: AdminUserAccessInput }) =>
+      patchAdminUserAccess(userId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }

@@ -692,3 +692,193 @@ export async function getAdminUsers(input: {
     })),
   };
 }
+
+export interface AdminUserAccessInput {
+  role?: "user" | "admin";
+  isPremium?: boolean;
+}
+
+export async function updateAdminUserAccess(
+  actingUserId: number,
+  targetUserId: number,
+  input: AdminUserAccessInput,
+  auditMeta: { ipAddress: string | null; userAgent: string | null },
+) {
+  const { insertAuditEvent, revokeUserSessions } = await import("../auth/repository.js");
+  const { ForbiddenError } = await import("../../shared/errors.js");
+
+  const currentResult = await db.query(
+    `SELECT id, name, email, role, status, is_premium, premium_since FROM users WHERE id = $1`,
+    [targetUserId],
+  );
+
+  if (currentResult.rows.length === 0) {
+    throw new Error("User not found");
+  }
+
+  const current = currentResult.rows[0]!;
+  const prevRole: "user" | "admin" = current.role === "admin" ? "admin" : "user";
+  const prevIsPremium = Boolean(current.is_premium);
+  const nextRole: "user" | "admin" = input.role !== undefined ? (input.role === "admin" ? "admin" : "user") : prevRole;
+  const nextIsPremium = input.isPremium !== undefined ? Boolean(input.isPremium) : prevIsPremium;
+
+  // Nothing to update
+  if (nextRole === prevRole && nextIsPremium === prevIsPremium) {
+    return loadUserWithMetrics(targetUserId);
+  }
+
+  // Safety: admin cannot demote themselves
+  if (actingUserId === targetUserId && nextRole === "user" && prevRole === "admin") {
+    await insertAuditEvent({
+      userId: actingUserId,
+      email: current.email ?? null,
+      eventType: "admin_user_access_update_denied",
+      success: false,
+      ipAddress: auditMeta.ipAddress,
+      userAgent: auditMeta.userAgent,
+      metadata: {
+        reason: "self_demotion",
+        targetUserId,
+        prevRole,
+        nextRole,
+        prevIsPremium,
+        nextIsPremium,
+        changedFields: ["role"],
+      },
+    });
+    throw new ForbiddenError("self_demotion", "Um administrador não pode remover seu próprio acesso de admin.");
+  }
+
+  // Safety: cannot remove the last active admin
+  if (nextRole === "user" && prevRole === "admin") {
+    const adminCountResult = await db.query(
+      `SELECT COUNT(*)::INT AS count FROM users WHERE role = 'admin' AND status != 'suspended' AND id != $1`,
+      [targetUserId],
+    );
+    const remainingAdmins = Number(adminCountResult.rows[0]?.count ?? 0);
+
+    if (remainingAdmins === 0) {
+      await insertAuditEvent({
+        userId: actingUserId,
+        email: current.email ?? null,
+        eventType: "admin_user_access_update_denied",
+        success: false,
+        ipAddress: auditMeta.ipAddress,
+        userAgent: auditMeta.userAgent,
+        metadata: {
+          reason: "last_admin",
+          targetUserId,
+          prevRole,
+          nextRole,
+          prevIsPremium,
+          nextIsPremium,
+          changedFields: ["role"],
+        },
+      });
+      throw new ForbiddenError("last_admin", "Não é possível remover o último administrador ativo.");
+    }
+  }
+
+  // Build SET clause dynamically — only touch what changed
+  const setClauses: string[] = [];
+  const values: Array<string | boolean | null> = [];
+
+  if (nextRole !== prevRole) {
+    values.push(nextRole);
+    setClauses.push(`role = $${values.length}`);
+  }
+
+  if (nextIsPremium !== prevIsPremium) {
+    values.push(nextIsPremium);
+    setClauses.push(`is_premium = $${values.length}`);
+
+    if (nextIsPremium) {
+      // Preserve existing premium_since if already set
+      setClauses.push(`premium_since = CASE WHEN premium_since IS NULL THEN NOW() ELSE premium_since END`);
+    } else {
+      setClauses.push(`premium_since = NULL`);
+    }
+  }
+
+  values.push(String(targetUserId));
+  await db.query(`UPDATE users SET ${setClauses.join(", ")}, updated_at = NOW() WHERE id = $${values.length}`, values);
+
+  // Revoke sessions when role changes so permissions refresh on next login
+  if (nextRole !== prevRole) {
+    await revokeUserSessions(targetUserId);
+  }
+
+  const changedFields: string[] = [];
+  if (nextRole !== prevRole) changedFields.push("role");
+  if (nextIsPremium !== prevIsPremium) changedFields.push("isPremium");
+
+  await insertAuditEvent({
+    userId: actingUserId,
+    email: current.email ?? null,
+    eventType: "admin_user_access_updated",
+    success: true,
+    ipAddress: auditMeta.ipAddress,
+    userAgent: auditMeta.userAgent,
+    metadata: {
+      targetUserId,
+      prevRole,
+      nextRole,
+      prevIsPremium,
+      nextIsPremium,
+      changedFields,
+      path: `/api/admin/users/${targetUserId}/access`,
+      method: "PATCH",
+    },
+  });
+
+  return loadUserWithMetrics(targetUserId);
+}
+
+async function loadUserWithMetrics(userId: number) {
+  const result = await db.query(
+    `
+      WITH last_session AS (
+        SELECT user_id, MAX(COALESCE(last_used_at, created_at)) AS last_seen_at
+        FROM auth_sessions
+        GROUP BY user_id
+      )
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.status,
+        u.is_premium,
+        u.created_at,
+        u.premium_since,
+        last_session.last_seen_at,
+        COUNT(t.*)::INT AS transaction_count,
+        COALESCE(SUM(t.amount), 0)::NUMERIC(14, 2) AS net_total
+      FROM users u
+      LEFT JOIN last_session ON last_session.user_id = u.id
+      LEFT JOIN transactions t ON t.user_id = u.id
+      WHERE u.id = $1
+      GROUP BY u.id, last_session.last_seen_at
+    `,
+    [userId],
+  );
+
+  const row = result.rows[0]!;
+
+  return {
+    id: Number(row.id),
+    name: String(row.name),
+    email: row.email ? String(row.email) : "",
+    role: row.role === "admin" ? ("admin" as const) : ("user" as const),
+    status:
+      row.status === "inactive" || row.status === "suspended"
+        ? (row.status as "inactive" | "suspended")
+        : ("active" as const),
+    isPremium: Boolean(row.is_premium),
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    premiumSince: row.premium_since ? new Date(String(row.premium_since)).toISOString() : null,
+    lastSessionAt: row.last_seen_at ? new Date(String(row.last_seen_at)).toISOString() : null,
+    transactionCount: Number(row.transaction_count ?? 0),
+    netTotal: parseNumeric(row.net_total),
+  };
+}

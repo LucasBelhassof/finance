@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { Router } from "express";
 
-import { ForbiddenError } from "../../shared/errors.js";
+import { BadRequestError, ForbiddenError } from "../../shared/errors.js";
 import { insertAuditEvent } from "../auth/repository.js";
 import {
   getAdminActivity,
@@ -10,6 +10,7 @@ import {
   getAdminSubscriptionMetrics,
   getAdminAiUsage,
   getAdminUsers,
+  updateAdminUserAccess,
 } from "./service.js";
 import {
   createAdminNotification,
@@ -159,6 +160,38 @@ export function createAdminRouter() {
     await auditAdminAccess(request, "admin_notifications_created");
     const result = await createAdminNotification(request.auth!.userId, request.body ?? {});
     response.status(201).json(result);
+  });
+
+  router.patch("/users/:userId/access", async (request, response) => {
+    const targetUserId = Number(request.params.userId);
+
+    if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+      throw new BadRequestError("invalid_user_id", "userId deve ser um número inteiro positivo.");
+    }
+
+    const body = request.body ?? {};
+    const { role, isPremium } = body as Record<string, unknown>;
+
+    if (role !== undefined && role !== "user" && role !== "admin") {
+      throw new BadRequestError("invalid_role", "role deve ser 'user' ou 'admin'.");
+    }
+
+    if (isPremium !== undefined && typeof isPremium !== "boolean") {
+      throw new BadRequestError("invalid_is_premium", "isPremium deve ser boolean.");
+    }
+
+    const meta = getRequestMetadata(request);
+    const result = await updateAdminUserAccess(
+      request.auth!.userId,
+      targetUserId,
+      {
+        role: role as "user" | "admin" | undefined,
+        isPremium: isPremium as boolean | undefined,
+      },
+      { ipAddress: meta.ipAddress, userAgent: meta.userAgent },
+    );
+
+    response.json(result);
   });
 
   return router;

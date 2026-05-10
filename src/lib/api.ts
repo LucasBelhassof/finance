@@ -73,6 +73,7 @@ import type {
   ApiTransactionsResponse,
   BankItem,
   CreateAdminNotificationInput,
+  AdminUserAccessInput,
   CategoryItem,
   ChatConversation,
   ChatMessage,
@@ -1915,6 +1916,25 @@ export async function postAdminNotification(input: CreateAdminNotificationInput)
         userIds: input.target.userIds ?? [],
       },
     }),
+  });
+}
+
+export async function patchAdminUserAccess(userId: number | string, input: AdminUserAccessInput) {
+  return request<{
+    id: number;
+    name: string;
+    email: string;
+    role: "user" | "admin";
+    status: "active" | "inactive" | "suspended";
+    isPremium: boolean;
+    createdAt: string;
+    premiumSince: string | null;
+    lastSessionAt: string | null;
+    transactionCount: number;
+    netTotal: number;
+  }>(`/api/admin/users/${userId}/access`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
   });
 }
 

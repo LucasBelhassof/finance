@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeCanonicalParserResult } from "./parser-contract.js";
+import { normalizeCanonicalParserResult, normalizeConfidence, normalizeImportIssue } from "./parser-contract.js";
 
 describe("normalizeCanonicalParserResult", () => {
   it("normalizes array parser output into the shared parser contract", () => {
@@ -52,7 +52,7 @@ describe("normalizeCanonicalParserResult", () => {
             description: "Invoice purchase",
             amount: 45,
             confidence: 0.94,
-            issues: [{ code: "ok" }],
+            issues: [{ code: "invoice_header_review", message: "Review the invoice header." }],
           },
         ],
       },
@@ -70,7 +70,29 @@ describe("normalizeCanonicalParserResult", () => {
     expect(result.rows[0]).toMatchObject({
       rowId: "row-a",
       confidence: 0.94,
-      issues: [{ code: "ok" }],
+      issues: [{ code: "invoice_header_review", provenance: "parser", severity: "warning" }],
+    });
+  });
+
+  it("normalizes issue metadata and rejects invalid confidence values", () => {
+    expect(normalizeConfidence(0.88)).toBe(0.88);
+    expect(normalizeConfidence(2)).toBeNull();
+    expect(normalizeConfidence(-1)).toBeNull();
+
+    expect(
+      normalizeImportIssue({
+        code: "import_missing_amount",
+        severity: "error",
+        message: "Amount was not detected.",
+      }),
+    ).toEqual({
+      code: "import_missing_amount",
+      level: "error",
+      severity: "error",
+      field: "amount",
+      message: "Amount was not detected.",
+      suggestedAction: "Set the transaction amount before importing.",
+      provenance: "parser",
     });
   });
 });

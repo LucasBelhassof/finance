@@ -593,7 +593,11 @@ export interface ApiImportPreviewItem {
   issues?: Array<{
     code?: string | null;
     level?: string;
+    severity?: string | null;
+    field?: string | null;
     message?: string;
+    suggestedAction?: string | null;
+    provenance?: string | null;
   }>;
   confidence?: number | null;
   sourceRow?: Record<string, unknown>;
@@ -818,7 +822,11 @@ export interface ImportPreviewItem {
   issues: Array<{
     level: "warning" | "error";
     code?: string | null;
+    severity?: "warning" | "error" | null;
+    field?: string | null;
     message: string;
+    suggestedAction?: string | null;
+    provenance?: string | null;
   }>;
   confidence: number | null;
   sourceRow?: Record<string, unknown>;

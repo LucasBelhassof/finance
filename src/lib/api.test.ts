@@ -385,6 +385,17 @@ describe("api mappers", () => {
           defaultExclude: false,
           warnings: ["Duplicata provavel encontrada."],
           errors: [],
+          issues: [
+            {
+              level: "warning",
+              severity: "warning",
+              code: "duplicate_possible",
+              field: "description",
+              message: "Duplicata provavel encontrada.",
+              suggestedAction: "Revise antes de importar.",
+              provenance: "preview",
+            },
+          ],
         },
       ],
     });
@@ -436,6 +447,14 @@ describe("api mappers", () => {
     expect(preview.items[0].matchedRuleId).toBe("merchant:ifood");
     expect(preview.items[0].possibleDuplicate).toBe(true);
     expect(preview.items[0].suggestionSource).toBe("rule");
+    expect(preview.items[0].issues[0]).toMatchObject({
+      level: "warning",
+      severity: "warning",
+      code: "duplicate_possible",
+      field: "description",
+      suggestedAction: "Revise antes de importar.",
+      provenance: "preview",
+    });
 
     expect(commit.importedCount).toBe(1);
     expect(commit.results[0].status).toBe("imported");

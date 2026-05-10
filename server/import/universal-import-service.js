@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { createImportPreview, MAX_IMPORT_BYTES } from "../transaction-import.js";
 import { createImportUnsupportedFileError } from "./errors.js";
 import { detectFileType } from "./file-type-detector.js";
-import { normalizeCanonicalParserResult } from "./parser-contract.js";
+import { normalizeCanonicalParserResult, normalizeConfidence, normalizeImportIssue } from "./parser-contract.js";
 import { resolveUniversalImportParser } from "./parser-registry.js";
 import { setUniversalPreviewMetadata, setUniversalPreviewSession } from "./preview-session-store.js";
 import { inferSourceKind } from "./source-kind-detector.js";
@@ -30,23 +30,6 @@ function resolveParsedFile(fileType, input) {
   }
 
   return parser.parse(input);
-}
-
-function normalizeIssue(issue) {
-  const severity = issue?.severity === "error" ? "error" : "warning";
-  const level = issue?.level === "error" ? "error" : issue?.level === "warning" ? "warning" : severity;
-  const message = String(issue?.message ?? "").trim();
-
-  if (!message) {
-    return null;
-  }
-
-  return {
-    code: issue?.code ? String(issue.code).trim().slice(0, 80) : null,
-    level,
-    severity,
-    message: message.slice(0, 240),
-  };
 }
 
 function pickBoundedString(value, maxLength = 120) {
@@ -113,6 +96,76 @@ function buildSafeRawFallbackHash(canonicalRow) {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
+function dedupeIssues(issues) {
+  const seen = new Set();
+
+  return issues.filter((issue) => {
+    const key = [issue.level, issue.code ?? "", issue.field ?? "", issue.message].join("|");
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function toPreviewIssue(issue, defaults = {}) {
+  const normalized = normalizeImportIssue(issue, defaults);
+
+  if (!normalized) {
+    return null;
+  }
+
+  return {
+    code: normalized.code,
+    level: normalized.level,
+    severity: normalized.severity,
+    field: normalized.field,
+    message: normalized.message,
+    suggestedAction: normalized.suggestedAction,
+    provenance: normalized.provenance,
+  };
+}
+
+function normalizePreviewIssueMessages(level, messages, defaults = {}) {
+  return messages
+    .map((message) =>
+      toPreviewIssue(
+        {
+          level,
+          severity: level,
+          message,
+        },
+        defaults,
+      ),
+    )
+    .filter(Boolean);
+}
+
+function buildPreviewIssues(item, canonicalRow) {
+  const parserIssues = (canonicalRow?.issues ?? [])
+    .map((issue) => toPreviewIssue(issue, { provenance: "parser" }))
+    .filter(Boolean);
+  const compatibilityErrors = normalizePreviewIssueMessages("error", item.errors ?? [], { provenance: "preview" });
+  const compatibilityWarnings = normalizePreviewIssueMessages("warning", item.warnings ?? [], {
+    provenance: "preview",
+  });
+
+  return dedupeIssues([...compatibilityErrors, ...compatibilityWarnings, ...parserIssues]);
+}
+
+function buildPreviewConfidence(item, canonicalRow) {
+  const parserConfidence = normalizeConfidence(canonicalRow?.confidence);
+
+  if (parserConfidence !== null) {
+    return parserConfidence;
+  }
+
+  return item.possibleDuplicate ? 0.55 : 0.85;
+}
+
 function buildUniversalSession({
   preview,
   metadata,
@@ -142,7 +195,9 @@ function buildUniversalSession({
     warnings: Array.isArray(metadata.warnings) ? metadata.warnings : [],
     items: items.map((item, index) => {
       const canonicalRow = canonicalRows[index] ?? null;
-      const normalizedIssues = (item.issues ?? []).map(normalizeIssue).filter(Boolean);
+      const normalizedIssues = (item.issues ?? [])
+        .map((issue) => toPreviewIssue(issue, { provenance: "preview" }))
+        .filter(Boolean);
 
       return {
         rowIndex: item.rowIndex,
@@ -165,7 +220,7 @@ function buildUniversalSession({
           possibleDuplicate: Boolean(item.possibleDuplicate),
           duplicateReason: item.possibleDuplicate ? "preview_duplicate" : null,
           externalId: canonicalRow?.externalId ? String(canonicalRow.externalId) : null,
-          confidence: typeof item.confidence === "number" ? item.confidence : null,
+          confidence: normalizeConfidence(item.confidence),
           issues: normalizedIssues,
           rawMetadata: buildSafeRawMetadata(canonicalRow),
           rawFallbackHash: buildSafeRawFallbackHash(canonicalRow),
@@ -189,27 +244,18 @@ function buildUniversalSession({
 async function enrichPreviewResponse(preview, metadata, canonicalRows) {
   const items = preview.items.map((item, index) => {
     const canonicalRow = canonicalRows[index];
-    const parserWarnings = (canonicalRow?.issues ?? [])
-      .filter((issue) => issue.severity !== "error")
-      .map((issue) => issue.message);
-    const parserErrors = (canonicalRow?.issues ?? [])
-      .filter((issue) => issue.severity === "error")
-      .map((issue) => issue.message);
+    const issues = buildPreviewIssues(item, canonicalRow);
+    const warnings = issues.filter((issue) => issue.level === "warning").map((issue) => issue.message);
+    const errors = issues.filter((issue) => issue.level === "error").map((issue) => issue.message);
 
     return {
       ...item,
       sourceKind: metadata.detectedSourceKind,
       sourceRow: canonicalRow?.sourceRow ?? item.sourceRow,
-      warnings: [...item.warnings, ...parserWarnings],
-      errors: [...item.errors, ...parserErrors],
-      issues: [
-        ...item.errors.map((message) => ({ level: "error", message })),
-        ...item.warnings.map((message) => ({ level: "warning", message })),
-        ...parserErrors.map((message) => ({ level: "error", message })),
-        ...parserWarnings.map((message) => ({ level: "warning", message })),
-      ],
-      confidence:
-        typeof canonicalRow?.confidence === "number" ? canonicalRow.confidence : item.possibleDuplicate ? 0.55 : 0.85,
+      warnings,
+      errors,
+      issues,
+      confidence: buildPreviewConfidence(item, canonicalRow),
       externalId: canonicalRow?.externalId ?? null,
       rawMetadata: buildSafeRawMetadata(canonicalRow),
     };
@@ -227,7 +273,7 @@ async function enrichPreviewResponse(preview, metadata, canonicalRows) {
     parserLabel: metadata.parserLabel,
     detectedFileType: metadata.detectedFileType,
     detectedSourceKind: metadata.detectedSourceKind,
-    sourceKindConfidence: metadata.sourceKindConfidence,
+    sourceKindConfidence: normalizeConfidence(metadata.sourceKindConfidence),
     selectedBankConnectionId: metadata.selectedBankConnectionId,
     institutionName: metadata.institutionName,
     accountHint: metadata.accountHint,
@@ -346,7 +392,8 @@ export async function createUniversalImportPreview({
       parserLabel: parsedResult.parserLabel,
       detectedFileType: parsedResult.detectedFileType,
       detectedSourceKind: sourceDetection.sourceKind,
-      sourceKindConfidence: parsedResult.sourceKindConfidence ?? sourceDetection.confidence,
+      sourceKindConfidence:
+        normalizeConfidence(parsedResult.sourceKindConfidence) ?? normalizeConfidence(sourceDetection.confidence),
       selectedBankConnectionId: bankConnectionId,
       filename,
       institutionName: parsedResult.metadata?.issuerName ?? null,

@@ -1555,7 +1555,11 @@ function mapImportPreviewItem(item: ApiImportPreviewItem): ImportPreviewItem {
           .map((issue) => ({
             level: issue?.level === "error" ? "error" : "warning",
             code: issue?.code ? safeString(issue.code) : null,
+            severity: issue?.severity === "error" || issue?.severity === "warning" ? issue.severity : undefined,
+            field: issue?.field ? safeString(issue.field) : null,
             message: safeString(issue?.message),
+            suggestedAction: issue?.suggestedAction ? safeString(issue.suggestedAction) : null,
+            provenance: issue?.provenance ? safeString(issue.provenance) : null,
           }))
           .filter((issue) => issue.message)
       : [],

@@ -659,6 +659,11 @@ export interface ApiImportPreviewResponse {
     actionRequiredRows?: number;
   };
   requiresManualMapping?: boolean;
+  appliedImportTemplate?: {
+    id?: number | string;
+    name?: string | null;
+    autoApplied?: boolean;
+  } | null;
   mappingPreflight?: {
     supported?: boolean;
     strategy?: string | null;
@@ -932,6 +937,42 @@ export interface ImportMappingPreflight {
   selectedSheetName: string | null;
 }
 
+export interface ApiImportMappingTemplate {
+  id?: number | string;
+  name?: string;
+  fileType?: string;
+  parserId?: string;
+  headerSignature?: string;
+  sheetName?: string | null;
+  sourceKind?: string | null;
+  institutionName?: string | null;
+  columnMapping?: Record<string, string>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ApiImportMappingTemplatesResponse {
+  templates?: ApiImportMappingTemplate[];
+}
+
+export interface ApiImportMappingTemplateResponse {
+  template?: ApiImportMappingTemplate;
+}
+
+export interface ImportMappingTemplate {
+  id: number | string;
+  name: string;
+  fileType: string;
+  parserId: string;
+  headerSignature: string;
+  sheetName: string | null;
+  sourceKind: ImportSourceKind | null;
+  institutionName: string | null;
+  columnMapping: Partial<Record<ImportMappingField, string>>;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface ImportPreviewData {
   previewToken: string;
   expiresAt: string;
@@ -955,6 +996,7 @@ export interface ImportPreviewData {
   };
   fileSummary: ImportPreviewSummary;
   requiresManualMapping: boolean;
+  appliedImportTemplate: ImportMappingTemplate | null;
   mappingPreflight: ImportMappingPreflight | null;
   items: ImportPreviewItem[];
 }

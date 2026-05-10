@@ -35,7 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
-import { useCommitTransactionImport, useCreateCategory, useUniversalImportPreview } from "@/hooks/use-transactions";
+import {
+  useCommitTransactionImport,
+  useCreateCategory,
+  useCreateImportMappingTemplate,
+  useUniversalImportPreview,
+} from "@/hooks/use-transactions";
 import { DEFAULT_CATEGORY_COLOR } from "@/lib/category-colors";
 import { cn } from "@/lib/utils";
 import type {
@@ -432,6 +437,8 @@ export default function ImportTransactionsModal({
   const [state, dispatch] = useReducer(reducer, initialState);
   const [dragActive, setDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [saveTemplateEnabled, setSaveTemplateEnabled] = useState(false);
+  const [templateName, setTemplateName] = useState("");
   const [mappingSelection, setMappingSelection] = useState<Record<ImportMappingField, string>>({
     date: "",
     description: "",
@@ -459,12 +466,15 @@ export default function ImportTransactionsModal({
   const previewImport = useUniversalImportPreview();
   const commitImport = useCommitTransactionImport();
   const createCategory = useCreateCategory();
+  const createImportTemplate = useCreateImportMappingTemplate();
 
   useEffect(() => {
     if (!open) {
       dispatch({ type: "reset" });
       setDragActive(false);
       setSubmitting(false);
+      setSaveTemplateEnabled(false);
+      setTemplateName("");
       setMappingSelection({
         date: "",
         description: "",
@@ -503,6 +513,11 @@ export default function ImportTransactionsModal({
 
     setMappingSelection(buildInitialMappingSelection(state.preview?.mappingPreflight ?? null));
     setMappingSheetName(state.preview?.mappingPreflight?.selectedSheetName ?? "");
+    setTemplateName(
+      state.preview?.institutionName ??
+        state.preview?.fileMetadata.originalFilename?.replace(/\.[^.]+$/, "") ??
+        "Saved import template",
+    );
     setMappingError(null);
   }, [state.preview, state.step]);
 
@@ -618,6 +633,7 @@ export default function ImportTransactionsModal({
         step: shouldOpenMapping ? "mapping" : "preview",
       });
       toast.success(shouldOpenMapping ? "Mapeamento manual necessário." : "Preview gerado com sucesso.");
+      return preview;
     } catch (error) {
       dispatch({ type: "set-step", value: fallbackStep });
       const errorCode = error instanceof Error && "code" in error ? String(error.code) : "";
@@ -630,6 +646,7 @@ export default function ImportTransactionsModal({
       toast.error("Não foi possível gerar o preview.", {
         description: error instanceof Error ? error.message : "Tente novamente em instantes.",
       });
+      return null;
     }
   };
 
@@ -649,10 +666,27 @@ export default function ImportTransactionsModal({
     }
 
     setMappingError(null);
-    await handlePreview({
+    const preview = await handlePreview({
       columnMapping: buildColumnMappingPayload(mappingSelection),
       sheetName: mappingSheetName || undefined,
     });
+
+    if (preview && !preview.requiresManualMapping && saveTemplateEnabled) {
+      try {
+        await createImportTemplate.mutateAsync({
+          previewToken: state.preview!.previewToken,
+          name: templateName.trim() || undefined,
+          sheetName: mappingSheetName || undefined,
+          columnMapping: buildColumnMappingPayload(mappingSelection),
+        });
+        toast.success("Template salvo para reutilização automática.");
+        setSaveTemplateEnabled(false);
+      } catch (error) {
+        toast.error("O preview foi gerado, mas não foi possível salvar o template.", {
+          description: error instanceof Error ? error.message : "Tente novamente em instantes.",
+        });
+      }
+    }
   };
 
   const patchRows = (targetRows: ImportTransactionCardRow[], patch: Partial<ImportReviewDraft>) => {
@@ -1173,6 +1207,31 @@ export default function ImportTransactionsModal({
                       </div>
                     ) : null}
 
+                    <div className="rounded-2xl border border-border/70 bg-secondary/20 px-3 py-3">
+                      <label className="flex items-start gap-2 text-sm text-foreground">
+                        <Checkbox
+                          checked={saveTemplateEnabled}
+                          onCheckedChange={(checked) => setSaveTemplateEnabled(Boolean(checked))}
+                          aria-label="Salvar template de importação"
+                        />
+                        <span className="space-y-1">
+                          <span className="block font-medium">Salvar mapeamento como template</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Reaplica automaticamente este mapeamento quando o arquivo tiver os mesmos cabeçalhos.
+                          </span>
+                        </span>
+                      </label>
+                      {saveTemplateEnabled ? (
+                        <Input
+                          data-testid="import-template-name-input"
+                          value={templateName}
+                          onChange={(event) => setTemplateName(event.target.value)}
+                          placeholder="Nome do template"
+                          className="mt-3 h-9 rounded-xl text-sm"
+                        />
+                      ) : null}
+                    </div>
+
                     {state.preview.warnings.length > 0 ? (
                       <div className="rounded-2xl border border-border/70 bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
                         {state.preview.warnings[0]}
@@ -1193,6 +1252,11 @@ export default function ImportTransactionsModal({
                   <Badge variant="secondary" className="shrink-0 text-xs">
                     {getSourceKindLabel(state.preview.detectedSourceKind)}
                   </Badge>
+                  {state.preview.appliedImportTemplate ? (
+                    <Badge variant="outline" className="shrink-0 text-xs">
+                      Template: {state.preview.appliedImportTemplate.name}
+                    </Badge>
+                  ) : null}
                   {state.preview ? (
                     <div className="flex flex-wrap gap-1.5">
                       <PreviewCountChip

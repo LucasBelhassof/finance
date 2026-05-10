@@ -13,6 +13,7 @@ import {
   createChatConversation,
   createChatReply,
   createHousing,
+  createImportMappingTemplate,
   createInvestment,
   createOrGetPlanAiDraftSession,
   createPlan,
@@ -21,6 +22,7 @@ import {
   deleteCategory,
   deleteChatConversation,
   deleteHousing,
+  deleteImportMappingTemplate,
   deleteInvestment,
   deletePlan,
   deleteTransaction,
@@ -40,6 +42,7 @@ import {
   listLatestChatMessages,
   listChatMessages,
   listHousing,
+  listImportMappingTemplates,
   listInvestments,
   listInsights,
   listPlans,
@@ -444,6 +447,24 @@ export function createApp() {
     requirePremiumFeature(request, "import_ai_suggestions");
     const result = await getTransactionImportAiSuggestions(getAuthenticatedUserId(request), request.body ?? {});
     response.status(201).json(result);
+  });
+
+  app.get("/api/transactions/import/templates", async (request, response) => {
+    const templates = await listImportMappingTemplates(getAuthenticatedUserId(request), {
+      fileType: request.query.fileType as string | undefined,
+    });
+
+    response.json({ templates });
+  });
+
+  app.post("/api/transactions/import/templates", async (request, response) => {
+    const template = await createImportMappingTemplate(getAuthenticatedUserId(request), request.body ?? {});
+    response.status(201).json({ template });
+  });
+
+  app.delete("/api/transactions/import/templates/:templateId", async (request, response) => {
+    await deleteImportMappingTemplate(getAuthenticatedUserId(request), request.params.templateId);
+    response.status(204).send();
   });
 
   app.patch("/api/transactions/:id", async (request, response) => {

@@ -4,6 +4,7 @@ import {
   commitTransactionImport,
   deleteCategory as deleteCategoryRequest,
   getImportAiSuggestions,
+  postImportMappingTemplate,
   deleteTransaction,
   getCategories,
   getTransactions,
@@ -33,6 +34,7 @@ export const transactionsQueryKey = (limit?: number) => ["transactions", limit ?
 export const categoriesQueryKey = ["categories"] as const;
 export const transactionImportPreviewQueryKey = ["transactions", "import", "preview"] as const;
 export const transactionImportAiSuggestionsQueryKey = ["transactions", "import", "ai-suggestions"] as const;
+export const transactionImportTemplatesQueryKey = ["transactions", "import", "templates"] as const;
 
 export function useTransactions(limit?: number) {
   return useQuery({
@@ -201,6 +203,17 @@ export function useCommitTransactionImport() {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.removeQueries({ queryKey: transactionImportPreviewQueryKey });
     },
+  });
+}
+
+export function useCreateImportMappingTemplate() {
+  return useMutation({
+    mutationFn: (input: {
+      previewToken: string;
+      name?: string;
+      sheetName?: string;
+      columnMapping: Partial<Record<ImportMappingField, string>>;
+    }) => postImportMappingTemplate(input),
   });
 }
 

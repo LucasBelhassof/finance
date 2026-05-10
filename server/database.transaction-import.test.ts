@@ -130,6 +130,23 @@ function createDbState() {
     { id: number; installment_count: number; purchase_occurred_on: string }
   >();
   const rules = new Map<string, { id: number; type: string; category_id: number; times_confirmed: number }>();
+  const importMappingTemplates = new Map<
+    number,
+    {
+      id: number;
+      user_id: number;
+      name: string;
+      file_type: string;
+      parser_id: string;
+      header_signature: string;
+      sheet_name: string | null;
+      source_kind: string | null;
+      institution_name: string | null;
+      column_mapping: Record<string, string>;
+      created_at: string;
+      updated_at: string;
+    }
+  >();
   const previewSessions = new Map<
     string,
     {
@@ -143,10 +160,12 @@ function createDbState() {
   >();
   let nextTransactionId = 1000;
   let nextInstallmentPurchaseId = 500;
+  let nextImportTemplateId = 1;
 
   return {
     transactionsBySeed,
     installmentPurchases,
+    importMappingTemplates,
     rules,
     previewSessions,
     inserts: [] as Array<{ seedKey: string; description: string; amount: number; occurredOn: string }>,
@@ -264,6 +283,89 @@ function createDbState() {
         normalizedSql.includes("FROM transactions t") &&
         normalizedSql.includes("INNER JOIN categories c ON c.id = t.category_id")
       ) {
+        return Promise.resolve({ rows: [], rowCount: 0 });
+      }
+
+      if (
+        normalizedSql.includes("FROM import_mapping_templates") &&
+        normalizedSql.includes("WHERE user_id = $1") &&
+        normalizedSql.includes("AND file_type = $2") &&
+        normalizedSql.includes("AND parser_id = $3") &&
+        normalizedSql.includes("AND header_signature = $4")
+      ) {
+        const rows = Array.from(importMappingTemplates.values())
+          .filter(
+            (item) =>
+              item.user_id === Number(params[0]) &&
+              item.file_type === String(params[1]) &&
+              item.parser_id === String(params[2]) &&
+              item.header_signature === String(params[3]),
+          )
+          .sort((left, right) => {
+            const leftScore =
+              (left.institution_name && left.institution_name === String(params[4] ?? "") ? 4 : 0) +
+              (left.source_kind && left.source_kind === String(params[5] ?? "") ? 2 : 0) +
+              (left.sheet_name && left.sheet_name === String(params[6] ?? "") ? 1 : 0);
+            const rightScore =
+              (right.institution_name && right.institution_name === String(params[4] ?? "") ? 4 : 0) +
+              (right.source_kind && right.source_kind === String(params[5] ?? "") ? 2 : 0) +
+              (right.sheet_name && right.sheet_name === String(params[6] ?? "") ? 1 : 0);
+
+            if (rightScore !== leftScore) {
+              return rightScore - leftScore;
+            }
+
+            return right.id - left.id;
+          });
+
+        return Promise.resolve({ rows: rows.slice(0, 1), rowCount: rows.length ? 1 : 0 });
+      }
+
+      if (
+        normalizedSql.includes("SELECT") &&
+        normalizedSql.includes("FROM import_mapping_templates") &&
+        normalizedSql.includes("AND ($2::text IS NULL OR file_type = $2)")
+      ) {
+        const rows = Array.from(importMappingTemplates.values())
+          .filter(
+            (item) =>
+              item.user_id === Number(params[0]) && (params[1] === null || item.file_type === String(params[1])),
+          )
+          .sort((left, right) => right.id - left.id);
+
+        return Promise.resolve({ rows, rowCount: rows.length });
+      }
+
+      if (normalizedSql.includes("INSERT INTO import_mapping_templates")) {
+        const id = nextImportTemplateId++;
+        const createdAt = new Date().toISOString();
+        const row = {
+          id,
+          user_id: Number(params[0]),
+          name: String(params[1]),
+          file_type: String(params[2]),
+          parser_id: String(params[3]),
+          header_signature: String(params[4]),
+          sheet_name: params[5] ? String(params[5]) : null,
+          source_kind: params[6] ? String(params[6]) : null,
+          institution_name: params[7] ? String(params[7]) : null,
+          column_mapping: JSON.parse(String(params[8])),
+          created_at: createdAt,
+          updated_at: createdAt,
+        };
+        importMappingTemplates.set(id, row);
+        return Promise.resolve({ rows: [row], rowCount: 1 });
+      }
+
+      if (normalizedSql.includes("DELETE FROM import_mapping_templates")) {
+        const templateId = Number(params[1]);
+        const existing = importMappingTemplates.get(templateId);
+
+        if (existing && existing.user_id === Number(params[0])) {
+          importMappingTemplates.delete(templateId);
+          return Promise.resolve({ rows: [], rowCount: 1 });
+        }
+
         return Promise.resolve({ rows: [], rowCount: 0 });
       }
 
@@ -1506,6 +1608,116 @@ describe("transaction import commit dispatcher", () => {
       ]),
     );
     expect(result.items[0].description).toBe("Coffee");
+  });
+
+  it("creates, lists, and deletes reusable import mapping templates", async () => {
+    const {
+      createImportMappingTemplate,
+      deleteImportMappingTemplate,
+      listImportMappingTemplates,
+      previewTransactionImport,
+    } = await loadDatabaseModule();
+    const csv = ["posted_at,narrative,outflow,inflow", "2026-04-06,Coffee,12.90,", "2026-04-05,Salary,,5000.00"].join(
+      "\n",
+    );
+
+    const preview = await previewTransactionImport(
+      7,
+      Buffer.from(csv, "utf8"),
+      undefined,
+      10,
+      "template-source.csv",
+      "text/csv",
+      undefined,
+      { preflight: true },
+    );
+
+    const template = await createImportMappingTemplate(7, {
+      previewToken: preview.previewToken,
+      name: "Unknown CSV columns",
+      columnMapping: {
+        date: "posted_at",
+        description: "narrative",
+        debit: "outflow",
+        credit: "inflow",
+      },
+    });
+
+    expect(template).toMatchObject({
+      id: 1,
+      name: "Unknown CSV columns",
+      fileType: "csv",
+      parserId: "csv-delimited",
+    });
+
+    const templates = await listImportMappingTemplates(7, { fileType: "csv" });
+    expect(templates).toHaveLength(1);
+    expect(templates[0].columnMapping).toMatchObject({
+      date: "posted_at",
+      description: "narrative",
+      debit: "outflow",
+      credit: "inflow",
+    });
+
+    await deleteImportMappingTemplate(7, template.id);
+    await expect(deleteImportMappingTemplate(7, template.id)).rejects.toThrow("Template de importação não encontrado.");
+  });
+
+  it("auto-applies a saved import mapping template for recurring unknown CSV headers", async () => {
+    const { createImportMappingTemplate, previewTransactionImport } = await loadDatabaseModule();
+    const csv = ["posted_at,narrative,outflow,inflow", "2026-04-06,Coffee,12.90,", "2026-04-05,Salary,,5000.00"].join(
+      "\n",
+    );
+
+    const initialPreview = await previewTransactionImport(
+      7,
+      Buffer.from(csv, "utf8"),
+      undefined,
+      10,
+      "template-auto.csv",
+      "text/csv",
+      undefined,
+      { preflight: true },
+    );
+
+    await createImportMappingTemplate(7, {
+      previewToken: initialPreview.previewToken,
+      name: "Auto apply CSV",
+      columnMapping: {
+        date: "posted_at",
+        description: "narrative",
+        debit: "outflow",
+        credit: "inflow",
+      },
+    });
+
+    const autoAppliedPreview = await previewTransactionImport(
+      7,
+      Buffer.from(csv, "utf8"),
+      undefined,
+      10,
+      "template-auto.csv",
+      "text/csv",
+      undefined,
+      { preflight: true },
+    );
+
+    expect(autoAppliedPreview.requiresManualMapping).toBe(false);
+    expect(autoAppliedPreview.appliedImportTemplate).toMatchObject({
+      id: 1,
+      name: "Auto apply CSV",
+      autoApplied: true,
+    });
+    expect(autoAppliedPreview.items[0]).toMatchObject({
+      description: "Coffee",
+      amount: "12.90",
+      type: "expense",
+    });
+    expect(autoAppliedPreview.items[1]).toMatchObject({
+      description: "Salary",
+      amount: "5000.00",
+      type: "income",
+    });
   });
 
   it("surfaces invalid preview tokens for commit", async () => {

@@ -8,6 +8,7 @@ import {
   mapImportAiSuggestionsResponse,
   mapImportCommitResponse,
   mapImportPreviewResponse,
+  postImportMappingTemplate,
   mapInstallmentsOverviewResponse,
   mapChatMessagesResponse,
   mapChatReplyResponse,
@@ -405,6 +406,23 @@ describe("api mappers", () => {
         duplicateRows: 1,
         actionRequiredRows: 2,
       },
+      appliedImportTemplate: {
+        id: 4,
+        name: "Known CSV template",
+        fileType: "csv",
+        parserId: "csv-delimited",
+        headerSignature: "posted at|memo|gross",
+        sheetName: null,
+        sourceKind: "credit_card_statement",
+        institutionName: "Nubank",
+        columnMapping: {
+          date: "posted_at",
+          description: "memo",
+          amount: "gross",
+        },
+        createdAt: "2026-04-01T10:00:00.000Z",
+        updatedAt: "2026-04-02T10:00:00.000Z",
+      },
       requiresManualMapping: true,
       mappingPreflight: {
         supported: true,
@@ -528,6 +546,7 @@ describe("api mappers", () => {
     expect(preview.fileMetadata.statementReferenceMonth).toBe("2026-03");
     expect(preview.fileSummary.duplicateRows).toBe(1);
     expect(preview.requiresManualMapping).toBe(true);
+    expect(preview.appliedImportTemplate?.name).toBe("Known CSV template");
     expect(preview.mappingPreflight?.availableColumns[0].header).toBe("posted_at");
     expect(preview.mappingPreflight?.missingRequiredFields).toEqual(["date", "description", "amount"]);
     expect(preview.mappingPreflight?.selectedSheetName).toBe("Imports");
@@ -549,6 +568,55 @@ describe("api mappers", () => {
     expect(commit.results[0].transaction?.account.name).toBe("Nubank");
     expect(commit.results[0].transaction?.installmentNumber).toBe(2);
     expect(commit.results[0].transaction?.purchaseOccurredOn).toBe("2026-03-15");
+  });
+
+  it("posts import mapping templates", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: async () =>
+        JSON.stringify({
+          template: {
+            id: 7,
+            name: "Unknown CSV template",
+            fileType: "csv",
+            parserId: "csv-delimited",
+            headerSignature: "posted at|narrative|outflow|inflow",
+            sheetName: "Imports",
+            sourceKind: "bank_statement",
+            institutionName: "Itau",
+            columnMapping: {
+              date: "posted_at",
+              description: "narrative",
+              debit: "outflow",
+              credit: "inflow",
+            },
+            createdAt: "2026-04-06T10:00:00.000Z",
+            updatedAt: "2026-04-06T10:00:00.000Z",
+          },
+        }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const template = await postImportMappingTemplate({
+      previewToken: "preview-1",
+      name: "Unknown CSV template",
+      sheetName: "Imports",
+      columnMapping: {
+        date: "posted_at",
+        description: "narrative",
+        debit: "outflow",
+        credit: "inflow",
+      },
+    });
+
+    expect(template.name).toBe("Unknown CSV template");
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({
+      previewToken: "preview-1",
+      name: "Unknown CSV template",
+      sheetName: "Imports",
+    });
   });
 
   it("maps preview suggestion sources from history and recurring rules", () => {

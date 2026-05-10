@@ -8,6 +8,7 @@ import type { ImportPreviewData } from "@/types/api";
 const previewMutateAsync = vi.fn();
 const commitMutateAsync = vi.fn();
 const createCategoryMutateAsync = vi.fn();
+const createImportTemplateMutateAsync = vi.fn();
 
 vi.mock("@/hooks/use-transactions", () => ({
   useUniversalImportPreview: () => ({
@@ -20,6 +21,10 @@ vi.mock("@/hooks/use-transactions", () => ({
   }),
   useCreateCategory: () => ({
     mutateAsync: createCategoryMutateAsync,
+    isPending: false,
+  }),
+  useCreateImportMappingTemplate: () => ({
+    mutateAsync: createImportTemplateMutateAsync,
     isPending: false,
   }),
 }));
@@ -131,6 +136,7 @@ const previewData: ImportPreviewData = {
   },
   requiresManualMapping: false,
   mappingPreflight: null,
+  appliedImportTemplate: null,
   items: [
     {
       rowIndex: 15,
@@ -505,12 +511,17 @@ describe("ImportTransactionsModal", () => {
     previewMutateAsync.mockReset();
     commitMutateAsync.mockReset();
     createCategoryMutateAsync.mockReset();
+    createImportTemplateMutateAsync.mockReset();
     previewMutateAsync.mockResolvedValue(previewData);
     commitMutateAsync.mockResolvedValue({
       importedCount: 1,
       skippedCount: 0,
       failedCount: 0,
       results: [],
+    });
+    createImportTemplateMutateAsync.mockResolvedValue({
+      id: 1,
+      name: "Saved template",
     });
   });
 
@@ -621,6 +632,10 @@ describe("ImportTransactionsModal", () => {
     fireEvent.change(screen.getByTestId("mapping-select:description"), { target: { value: "narrative" } });
     fireEvent.change(screen.getByTestId("mapping-select:debit"), { target: { value: "outflow" } });
     fireEvent.change(screen.getByTestId("mapping-select:credit"), { target: { value: "inflow" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /salvar template de importação/i }));
+    fireEvent.change(screen.getByTestId("import-template-name-input"), {
+      target: { value: "Unknown CSV template" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /gerar preview com mapeamento/i }));
 
@@ -647,6 +662,17 @@ describe("ImportTransactionsModal", () => {
           credit: "inflow",
         },
         sheetName: "Imports",
+      },
+    });
+    expect(createImportTemplateMutateAsync).toHaveBeenCalledWith({
+      previewToken: "preview-1",
+      name: "Unknown CSV template",
+      sheetName: "Imports",
+      columnMapping: {
+        date: "posted_at",
+        description: "narrative",
+        debit: "outflow",
+        credit: "inflow",
       },
     });
   });

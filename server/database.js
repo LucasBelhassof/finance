@@ -19,11 +19,17 @@ import { getImportAiConfig, suggestImportCategories } from "./import-ai-service.
 import {
   createUniversalImportPreview,
   deleteUniversalPreviewSession,
+  getUniversalPreviewMetadata,
   getUniversalPreviewSession,
   hasUniversalPreviewSession,
   setLegacyPreviewSession,
   setUniversalPreviewSession,
 } from "./import/index.js";
+import {
+  buildImportHeaderSignature,
+  normalizeImportTemplateName,
+  validateImportTemplateColumnMapping,
+} from "./import/template-utils.js";
 import { buildInstallmentsOverviewResponse } from "./installments-overview.js";
 import { buildDashboardSummaryCards } from "./dashboard-summary.js";
 import { normalizeDashboardFilters, shiftDashboardDateKey } from "./dashboard-filters.js";
@@ -2913,6 +2919,195 @@ export async function deleteTransaction(userId, transactionId, input = {}) {
   }
 }
 
+function mapImportMappingTemplateRow(row) {
+  return {
+    id: Number(row.id),
+    name: String(row.name ?? "").trim(),
+    fileType: String(row.file_type ?? "").trim(),
+    parserId: String(row.parser_id ?? "").trim(),
+    headerSignature: String(row.header_signature ?? "").trim(),
+    sheetName: row.sheet_name ? String(row.sheet_name).trim() : null,
+    sourceKind: row.source_kind ? String(row.source_kind).trim() : null,
+    institutionName: row.institution_name ? String(row.institution_name).trim() : null,
+    columnMapping: row.column_mapping && typeof row.column_mapping === "object" ? { ...row.column_mapping } : {},
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+  };
+}
+
+function normalizeImportTemplateMetadata(metadata) {
+  return metadata && typeof metadata === "object" ? metadata : null;
+}
+
+async function findBestImportMappingTemplate(userId, criteria, client = pool) {
+  const headerSignature = String(criteria?.headerSignature ?? "").trim();
+  const fileType = String(criteria?.fileType ?? "").trim();
+  const parserId = String(criteria?.parserId ?? "").trim();
+
+  if (!headerSignature || !fileType || !parserId) {
+    return null;
+  }
+
+  const result = await client.query(
+    `
+      SELECT
+        id,
+        name,
+        file_type,
+        parser_id,
+        header_signature,
+        sheet_name,
+        source_kind,
+        institution_name,
+        column_mapping,
+        created_at,
+        updated_at
+      FROM import_mapping_templates
+      WHERE user_id = $1
+        AND file_type = $2
+        AND parser_id = $3
+        AND header_signature = $4
+      ORDER BY
+        CASE WHEN institution_name IS NOT NULL AND institution_name = $5 THEN 4 ELSE 0 END +
+        CASE WHEN source_kind IS NOT NULL AND source_kind = $6 THEN 2 ELSE 0 END +
+        CASE WHEN sheet_name IS NOT NULL AND sheet_name = $7 THEN 1 ELSE 0 END DESC,
+        updated_at DESC,
+        id DESC
+      LIMIT 1
+    `,
+    [
+      userId,
+      fileType,
+      parserId,
+      headerSignature,
+      criteria?.institutionName ? String(criteria.institutionName).trim() : null,
+      criteria?.sourceKind ? String(criteria.sourceKind).trim() : null,
+      criteria?.sheetName ? String(criteria.sheetName).trim() : null,
+    ],
+  );
+
+  return result.rows[0] ? mapImportMappingTemplateRow(result.rows[0]) : null;
+}
+
+export async function listImportMappingTemplates(userId, filters = {}, client = pool) {
+  const resolvedUserId = await requireUserId(userId);
+  const fileType = filters?.fileType ? String(filters.fileType).trim() : null;
+  const result = await client.query(
+    `
+      SELECT
+        id,
+        name,
+        file_type,
+        parser_id,
+        header_signature,
+        sheet_name,
+        source_kind,
+        institution_name,
+        column_mapping,
+        created_at,
+        updated_at
+      FROM import_mapping_templates
+      WHERE user_id = $1
+        AND ($2::text IS NULL OR file_type = $2)
+      ORDER BY updated_at DESC, id DESC
+    `,
+    [resolvedUserId, fileType],
+  );
+
+  return result.rows.map(mapImportMappingTemplateRow);
+}
+
+export async function createImportMappingTemplate(userId, input, client = pool) {
+  const resolvedUserId = await requireUserId(userId);
+  const previewToken = String(input?.previewToken ?? "").trim();
+  await getUniversalPreviewSession(previewToken, resolvedUserId);
+  const previewMetadata = normalizeImportTemplateMetadata(await getUniversalPreviewMetadata(previewToken));
+  const mappingPreflight = normalizeImportTemplateMetadata(previewMetadata?.mappingPreflight);
+  const availableColumns = Array.isArray(mappingPreflight?.availableColumns) ? mappingPreflight.availableColumns : [];
+  const headerSignature = buildImportHeaderSignature(availableColumns);
+
+  if (!previewToken || !previewMetadata || !mappingPreflight || !headerSignature) {
+    throw new DatabaseBadRequestError("invalid_import_template_preview", "Prévia inválida para salvar o template.");
+  }
+
+  const columnMapping = validateImportTemplateColumnMapping(input?.columnMapping ?? {});
+  const name = normalizeImportTemplateName(input?.name, previewMetadata?.institutionName ?? "Saved import template");
+  const fileType = String(previewMetadata?.detectedFileType ?? "").trim();
+  const parserId = String(previewMetadata?.parserId ?? "").trim();
+
+  if (!fileType || !parserId) {
+    throw new DatabaseBadRequestError(
+      "invalid_import_template_metadata",
+      "A prévia não possui metadados suficientes para salvar o template.",
+    );
+  }
+
+  const result = await client.query(
+    `
+      INSERT INTO import_mapping_templates (
+        user_id,
+        name,
+        file_type,
+        parser_id,
+        header_signature,
+        sheet_name,
+        source_kind,
+        institution_name,
+        column_mapping,
+        created_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), NOW())
+      RETURNING
+        id,
+        name,
+        file_type,
+        parser_id,
+        header_signature,
+        sheet_name,
+        source_kind,
+        institution_name,
+        column_mapping,
+        created_at,
+        updated_at
+    `,
+    [
+      resolvedUserId,
+      name,
+      fileType,
+      parserId,
+      headerSignature,
+      input?.sheetName ? String(input.sheetName).trim() : (mappingPreflight.selectedSheetName ?? null),
+      previewMetadata?.detectedSourceKind ? String(previewMetadata.detectedSourceKind).trim() : null,
+      previewMetadata?.institutionName ? String(previewMetadata.institutionName).trim() : null,
+      JSON.stringify(columnMapping),
+    ],
+  );
+
+  return mapImportMappingTemplateRow(result.rows[0]);
+}
+
+export async function deleteImportMappingTemplate(userId, templateId, client = pool) {
+  const resolvedUserId = await requireUserId(userId);
+  const normalizedTemplateId = Number(templateId);
+
+  if (!Number.isInteger(normalizedTemplateId)) {
+    throw new DatabaseBadRequestError("invalid_import_template_id", "Template de importação inválido.");
+  }
+
+  const result = await client.query(
+    `
+      DELETE FROM import_mapping_templates
+      WHERE user_id = $1 AND id = $2
+    `,
+    [resolvedUserId, normalizedTemplateId],
+  );
+
+  if (!result.rowCount) {
+    throw createDatabaseNotFoundError("import_template_not_found", "Template de importação não encontrado.");
+  }
+}
+
 export async function previewTransactionImport(
   userId,
   fileBuffer,
@@ -2993,6 +3188,7 @@ export async function previewTransactionImport(
     filename,
     historicalRows,
     previewOptions,
+    resolveImportMappingTemplate: (criteria) => findBestImportMappingTemplate(resolvedUserId, criteria),
     requestedImportSource: hasExplicitImportSource ? importSource : undefined,
     recurringRules,
     userId: resolvedUserId,

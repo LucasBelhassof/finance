@@ -41,6 +41,9 @@ import type {
   ApiImportCommitResponse,
   ApiImportAiSuggestionsResponse,
   ApiImportAiSuggestionItem,
+  ApiImportMappingTemplate,
+  ApiImportMappingTemplateResponse,
+  ApiImportMappingTemplatesResponse,
   ImportMappingField,
   ApiImportPreviewItem,
   ApiImportPreviewResponse,
@@ -94,6 +97,7 @@ import type {
   ImportAiSuggestionsData,
   ImportAiSuggestionItem,
   ImportMappingPreflight,
+  ImportMappingTemplate,
   ImportPreviewData,
   ImportPreviewItem,
   ImportSourceKind,
@@ -319,6 +323,29 @@ const importMappingFields: ImportMappingField[] = [
   "currency",
   "externalId",
 ];
+
+function mapImportMappingTemplate(template: ApiImportMappingTemplate): ImportMappingTemplate {
+  return {
+    id: template.id ?? 0,
+    name: safeString(template.name, "Saved import template"),
+    fileType: safeString(template.fileType),
+    parserId: safeString(template.parserId),
+    headerSignature: safeString(template.headerSignature),
+    sheetName: template.sheetName ? safeString(template.sheetName) : null,
+    sourceKind: template.sourceKind ? normalizeImportSourceKind(template.sourceKind) : null,
+    institutionName: template.institutionName ? safeString(template.institutionName) : null,
+    columnMapping:
+      template.columnMapping && typeof template.columnMapping === "object"
+        ? Object.fromEntries(
+            Object.entries(template.columnMapping)
+              .map(([key, value]) => [key, safeString(value)])
+              .filter(([, value]) => value.length > 0),
+          )
+        : {},
+    createdAt: template.createdAt ? safeString(template.createdAt) : null,
+    updatedAt: template.updatedAt ? safeString(template.updatedAt) : null,
+  };
+}
 
 function normalizeHousingExpenseType(type?: string): HousingExpenseType {
   switch (type) {
@@ -1705,6 +1732,9 @@ export function mapImportPreviewResponse(response: ApiImportPreviewResponse): Im
       actionRequiredRows: safeNumber(response.fileSummary?.actionRequiredRows),
     },
     requiresManualMapping: Boolean(response.requiresManualMapping),
+    appliedImportTemplate: response.appliedImportTemplate
+      ? mapImportMappingTemplate(response.appliedImportTemplate)
+      : null,
     mappingPreflight,
     items: (response.items ?? []).map(mapImportPreviewItem),
   };
@@ -2549,6 +2579,36 @@ export async function previewUniversalTransactionImport(
   );
 
   return mapImportPreviewResponse(response);
+}
+
+export async function getImportMappingTemplates(fileType?: string) {
+  const response = await request<ApiImportMappingTemplatesResponse>(
+    buildPath("/api/transactions/import/templates", {
+      fileType: fileType?.trim() ? fileType.trim() : undefined,
+    }),
+  );
+
+  return (response.templates ?? []).map(mapImportMappingTemplate);
+}
+
+export async function postImportMappingTemplate(input: {
+  previewToken: string;
+  name?: string;
+  sheetName?: string;
+  columnMapping: Partial<Record<ImportMappingField, string>>;
+}) {
+  const response = await request<ApiImportMappingTemplateResponse>("/api/transactions/import/templates", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+  return mapImportMappingTemplate(response.template ?? {});
+}
+
+export async function deleteImportMappingTemplate(templateId: number | string) {
+  await request<null>(`/api/transactions/import/templates/${encodeURIComponent(String(templateId))}`, {
+    method: "DELETE",
+  });
 }
 
 export async function commitTransactionImport(

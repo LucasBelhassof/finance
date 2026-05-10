@@ -5,6 +5,7 @@ import { createImportUnsupportedFileError } from "./errors.js";
 import { detectFileType } from "./file-type-detector.js";
 import { normalizeCanonicalParserResult, normalizeConfidence, normalizeImportIssue } from "./parser-contract.js";
 import { resolveUniversalImportParser } from "./parser-registry.js";
+import { buildImportHeaderSignature } from "./template-utils.js";
 import { setUniversalPreviewMetadata, setUniversalPreviewSession } from "./preview-session-store.js";
 import { inferSourceKind } from "./source-kind-detector.js";
 
@@ -190,6 +191,18 @@ function buildMappingPreflight(parsedResult) {
   };
 }
 
+function buildAppliedImportTemplate(template) {
+  if (!template) {
+    return null;
+  }
+
+  return {
+    id: Number(template.id),
+    name: String(template.name ?? "").trim() || "Saved import template",
+    autoApplied: Boolean(template.autoApplied),
+  };
+}
+
 function buildUniversalSession({
   preview,
   metadata,
@@ -303,6 +316,7 @@ async function enrichPreviewResponse(preview, metadata, canonicalRows) {
     selectedBankConnectionId: metadata.selectedBankConnectionId,
     institutionName: metadata.institutionName,
     accountHint: metadata.accountHint,
+    appliedImportTemplate: metadata.appliedImportTemplate ?? null,
     warnings: metadata.warnings,
     fileMetadata: {
       ...preview.fileMetadata,
@@ -347,6 +361,7 @@ export async function createUniversalImportPreview({
   filename,
   previewOptions,
   requestedImportSource,
+  resolveImportMappingTemplate,
 }) {
   if (!Buffer.isBuffer(fileBuffer) || !fileBuffer.length) {
     throw new Error("Nenhum arquivo foi enviado.");
@@ -368,7 +383,7 @@ export async function createUniversalImportPreview({
     throw createImportUnsupportedFileError(filename);
   }
 
-  const parsedResult = normalizeCanonicalParserResult(
+  let parsedResult = normalizeCanonicalParserResult(
     await resolveParsedFile(detectedFileType, {
       fileBuffer,
       filePassword,
@@ -379,10 +394,61 @@ export async function createUniversalImportPreview({
     parserEntry,
     detectedFileType,
   );
-  const canonicalRows = parsedResult.rows;
+  let canonicalRows = parsedResult.rows;
 
   if (canonicalRows.length === 0) {
     throw new Error("Não foi possível localizar transações válidas no arquivo.");
+  }
+
+  const initialSourceDetection = inferSourceKind(canonicalRows, {
+    filename,
+    requestedImportSource,
+    issuerName: parsedResult.metadata?.issuerName ?? null,
+  });
+  let appliedImportTemplate = null;
+  const hasExplicitColumnMapping = Boolean(
+    previewOptions?.columnMapping && Object.keys(previewOptions.columnMapping).length,
+  );
+  const initialMappingPreflight = buildMappingPreflight(parsedResult);
+
+  if (
+    !hasExplicitColumnMapping &&
+    initialMappingPreflight?.canApplyMapping &&
+    typeof resolveImportMappingTemplate === "function"
+  ) {
+    const matchedTemplate = await resolveImportMappingTemplate({
+      userId,
+      fileType: detectedFileType,
+      parserId: parsedResult.parserId,
+      headerSignature: buildImportHeaderSignature(initialMappingPreflight.availableColumns),
+      sheetName: initialMappingPreflight.selectedSheetName,
+      sourceKind: initialSourceDetection.sourceKind,
+      institutionName: parsedResult.metadata?.issuerName ?? null,
+    });
+
+    if (matchedTemplate?.columnMapping && Object.keys(matchedTemplate.columnMapping).length > 0) {
+      parsedResult = normalizeCanonicalParserResult(
+        await resolveParsedFile(detectedFileType, {
+          fileBuffer,
+          filePassword,
+          filename,
+          contentType,
+          previewOptions: {
+            ...(previewOptions ?? {}),
+            columnMapping: matchedTemplate.columnMapping,
+            sheetName: previewOptions?.sheetName ?? matchedTemplate.sheetName ?? undefined,
+          },
+        }),
+        parserEntry,
+        detectedFileType,
+      );
+      canonicalRows = parsedResult.rows;
+      appliedImportTemplate = {
+        id: matchedTemplate.id,
+        name: matchedTemplate.name,
+        autoApplied: true,
+      };
+    }
   }
 
   const sourceDetection = inferSourceKind(canonicalRows, {
@@ -431,8 +497,13 @@ export async function createUniversalImportPreview({
         null,
       statementReferenceMonth: parsedResult.metadata?.statementReferenceMonth ?? null,
       statementDueDate: parsedResult.metadata?.statementDueDate ?? null,
-      warnings: [...parsedResult.warnings, ...sourceDetection.warnings],
+      warnings: [
+        ...parsedResult.warnings,
+        ...(appliedImportTemplate ? [`Template "${appliedImportTemplate.name}" aplicado automaticamente.`] : []),
+        ...sourceDetection.warnings,
+      ],
       mappingPreflight: buildMappingPreflight(parsedResult),
+      appliedImportTemplate: buildAppliedImportTemplate(appliedImportTemplate),
       userId,
     },
     canonicalRows,

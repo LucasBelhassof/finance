@@ -637,14 +637,14 @@ export default function TransactionsPage() {
     }
 
     return (
-      <Table className="min-w-[1080px]">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Transacao</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead>Conta</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead className="text-center">Status</TableHead>
+            <TableHead className="hidden sm:table-cell">Categoria</TableHead>
+            <TableHead className="hidden md:table-cell">Conta</TableHead>
+            <TableHead className="hidden md:table-cell">Data</TableHead>
+            <TableHead className="hidden lg:table-cell text-center">Status</TableHead>
             <TableHead className="text-right">Valor</TableHead>
             <TableHead className="w-[96px] text-right">Acoes</TableHead>
           </TableRow>
@@ -688,9 +688,23 @@ export default function TransactionsPage() {
                         <span>Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}</span>
                       ) : null}
                     </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
+                      <span className="font-medium" style={{ color: categoryColor.text }}>
+                        {transaction.category.label}
+                      </span>
+                      <span>&middot;</span>
+                      <span>{transaction.account.name}</span>
+                      <span>&middot;</span>
+                      <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
+                    </div>
+                    <div className="mt-0.5 hidden text-xs text-muted-foreground sm:block md:hidden">
+                      <span>{transaction.account.name}</span>
+                      <span className="mx-1">&middot;</span>
+                      <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
+                    </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   {isEditingCategory ? (
                     <div className="min-w-[168px]">
                       <Select
@@ -734,9 +748,11 @@ export default function TransactionsPage() {
                     </button>
                   )}
                 </TableCell>
-                <TableCell>{transaction.account.name}</TableCell>
-                <TableCell>{transaction.occurredOn.split("-").reverse().join("/")}</TableCell>
-                <TableCell className="text-center text-sm text-muted-foreground">
+                <TableCell className="hidden md:table-cell">{transaction.account.name}</TableCell>
+                <TableCell className="hidden md:table-cell">
+                  {transaction.occurredOn.split("-").reverse().join("/")}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-center text-sm text-muted-foreground">
                   {transaction.amount >= 0 ? "Receita" : "Despesa"}
                 </TableCell>
                 <TableCell className={cn("text-right font-semibold", accentColor)}>

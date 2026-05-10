@@ -74,17 +74,25 @@ export default function AdminFinancialMetricsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Usuário</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Transações</TableHead>
+                <TableHead className="hidden sm:table-cell">Email</TableHead>
+                <TableHead className="hidden md:table-cell">Transações</TableHead>
                 <TableHead>Volume</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(data?.topUsers ?? []).map((user) => (
                 <TableRow key={String(user.id)}>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.transactionCount}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-xs text-muted-foreground sm:hidden">{user.email}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground md:hidden sm:block hidden">
+                        {user.transactionCount} transações
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
+                  <TableCell className="hidden md:table-cell">{user.transactionCount}</TableCell>
                   <TableCell>{currencyFormatter.format(user.transactedVolume)}</TableCell>
                 </TableRow>
               ))}

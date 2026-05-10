@@ -970,15 +970,15 @@ export default function HousingPage() {
           </div>
         ) : (
           <>
-            <Table className="min-w-[980px]">
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Despesa</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Conta</TableHead>
-                  <TableHead>Inicio</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Ocorrencias</TableHead>
+                  <TableHead className="hidden sm:table-cell">Tipo</TableHead>
+                  <TableHead className="hidden md:table-cell">Conta</TableHead>
+                  <TableHead className="hidden md:table-cell">Inicio</TableHead>
+                  <TableHead className="hidden lg:table-cell">Vencimento</TableHead>
+                  <TableHead className="hidden lg:table-cell">Ocorrencias</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="w-[132px] text-right">Acoes</TableHead>
                 </TableRow>
@@ -999,17 +999,31 @@ export default function HousingPage() {
                               ? `${expense.installmentCount} parcelas planejadas`
                               : "Recorrencia mensal continua"}
                           </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
+                            <span>{option?.label ?? getExpenseTypeLabel(expense.expenseType)}</span>
+                            <span>&middot;</span>
+                            <span>{expense.bank.name}</span>
+                            <span>&middot;</span>
+                            <span>{expense.startDate.split("-").reverse().join("/")}</span>
+                          </div>
+                          <div className="mt-0.5 hidden text-xs text-muted-foreground sm:block md:hidden">
+                            <span>{expense.bank.name}</span>
+                            <span className="mx-1">&middot;</span>
+                            <span>{expense.startDate.split("-").reverse().join("/")}</span>
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <span className="rounded-full bg-secondary px-2 py-1 text-xs font-medium text-foreground">
                           {option?.label ?? getExpenseTypeLabel(expense.expenseType)}
                         </span>
                       </TableCell>
-                      <TableCell>{expense.bank.name}</TableCell>
-                      <TableCell>{expense.startDate.split("-").reverse().join("/")}</TableCell>
-                      <TableCell>Dia {expense.dueDay}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">{expense.bank.name}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {expense.startDate.split("-").reverse().join("/")}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">Dia {expense.dueDay}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <div className="space-y-1">
                           <div className="font-medium text-foreground">{rows.length} no período</div>
                           <div className="text-xs text-muted-foreground">

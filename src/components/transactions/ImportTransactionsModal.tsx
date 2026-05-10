@@ -811,12 +811,12 @@ export default function ImportTransactionsModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className={cn(
-            "flex max-h-[90vh] flex-col overflow-hidden p-0",
+            "flex max-h-[90dvh] flex-col overflow-hidden p-0",
             state.step === "upload" || state.step === "processing"
-              ? "sm:max-w-2xl"
+              ? "w-[calc(100%-1rem)] sm:max-w-2xl"
               : state.step === "mapping"
-                ? "sm:max-w-4xl"
-                : "h-[92vh] max-w-[92vw] sm:max-w-6xl",
+                ? "w-[calc(100%-1rem)] sm:max-w-4xl"
+                : "h-[90dvh] w-[95vw] sm:max-w-6xl",
           )}
         >
           <div className="border-b border-border/70 px-5 py-3">

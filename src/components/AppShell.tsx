@@ -30,7 +30,7 @@ export default function AppShell({ title, description, children, headerContent, 
 
         <main className="min-w-0 flex-1 overflow-y-auto scrollbar-thin">
           <header
-            className="sticky top-0 z-10 border-b border-border/50 bg-background/80 px-4 py-4 backdrop-blur-lg sm:px-6"
+            className="sm:sticky sm:top-0 z-10 border-b border-border/50 bg-background/80 px-4 py-4 backdrop-blur-lg sm:px-6"
             data-tour-id="app-header"
           >
             <div className="flex flex-col gap-4">
@@ -65,7 +65,7 @@ export default function AppShell({ title, description, children, headerContent, 
           </header>
 
           {shouldShowPremiumBar ? (
-            <div className="sticky top-[97px] z-[9] border-b border-primary/15 bg-primary/10 px-4 py-3 backdrop-blur-lg sm:px-6">
+            <div className="sm:sticky sm:top-[97px] z-[9] border-b border-primary/15 bg-primary/10 px-4 py-3 backdrop-blur-lg sm:px-6">
               <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-background/85 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground">

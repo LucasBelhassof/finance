@@ -849,15 +849,17 @@ export default function RecurringIncomePage() {
           </div>
         ) : (
           <>
-            <Table className="min-w-[940px]">
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Receita</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Conta</TableHead>
-                  <TableHead>{isYearlyTable ? "Período" : "Ocorrência"}</TableHead>
-                  <TableHead>Serie</TableHead>
-                  <TableHead className="text-center">{isYearlyTable ? "Ocorrencias" : "Tipo"}</TableHead>
+                  <TableHead className="hidden sm:table-cell">Categoria</TableHead>
+                  <TableHead className="hidden md:table-cell">Conta</TableHead>
+                  <TableHead className="hidden md:table-cell">{isYearlyTable ? "Período" : "Ocorrência"}</TableHead>
+                  <TableHead className="hidden lg:table-cell">Serie</TableHead>
+                  <TableHead className="hidden lg:table-cell text-center">
+                    {isYearlyTable ? "Ocorrencias" : "Tipo"}
+                  </TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="w-[132px] text-right">Acoes</TableHead>
                 </TableRow>
@@ -882,17 +884,31 @@ export default function RecurringIncomePage() {
                             ) : null}
                           </div>
                           <p className="text-xs text-muted-foreground">Serie #{row.sourceTransactionId}</p>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
+                            <span className="font-medium" style={{ color: categoryColor.text }}>
+                              {row.categoryLabel}
+                            </span>
+                            <span>&middot;</span>
+                            <span>{row.accountName}</span>
+                            <span>&middot;</span>
+                            <span>{row.occurredOnLabel}</span>
+                          </div>
+                          <div className="mt-0.5 hidden text-xs text-muted-foreground sm:block md:hidden">
+                            <span>{row.accountName}</span>
+                            <span className="mx-1">&middot;</span>
+                            <span>{row.occurredOnLabel}</span>
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <span className="font-medium" style={{ color: categoryColor.text }}>
                           {row.categoryLabel}
                         </span>
                       </TableCell>
-                      <TableCell>{row.accountName}</TableCell>
-                      <TableCell>{row.occurredOnLabel}</TableCell>
-                      <TableCell>{row.seriesLabel}</TableCell>
-                      <TableCell className="text-center text-sm text-muted-foreground">
+                      <TableCell className="hidden md:table-cell">{row.accountName}</TableCell>
+                      <TableCell className="hidden md:table-cell">{row.occurredOnLabel}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{row.seriesLabel}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-center text-sm text-muted-foreground">
                         {isYearlyTable
                           ? `${row.occurrenceCount}x`
                           : row.representativeTransaction.isRecurringProjection

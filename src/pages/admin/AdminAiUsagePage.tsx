@@ -437,14 +437,14 @@ export default function AdminAiUsagePage() {
                 <TableRow>
                   <TableHead>Usuário</TableHead>
                   <TableHead>Requisições</TableHead>
-                  <TableHead>Sucessos</TableHead>
-                  <TableHead>Falhas</TableHead>
-                  <TableHead>Mensagens</TableHead>
-                  <TableHead>Tokens entrada</TableHead>
-                  <TableHead>Tokens saída</TableHead>
+                  <TableHead className="hidden lg:table-cell">Sucessos</TableHead>
+                  <TableHead className="hidden md:table-cell">Falhas</TableHead>
+                  <TableHead className="hidden lg:table-cell">Mensagens</TableHead>
+                  <TableHead className="hidden xl:table-cell">Tokens entrada</TableHead>
+                  <TableHead className="hidden xl:table-cell">Tokens saída</TableHead>
                   <TableHead>Tokens totais</TableHead>
                   <TableHead>Custo</TableHead>
-                  <TableHead>Último uso</TableHead>
+                  <TableHead className="hidden lg:table-cell">Último uso</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -454,17 +454,26 @@ export default function AdminAiUsagePage() {
                       <div>
                         <p className="font-medium">{item.name}</p>
                         <p className="text-xs text-muted-foreground">{item.email}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground md:hidden">
+                          {numberFormatter.format(item.failedRequests)} falhas
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell>{numberFormatter.format(item.requests)}</TableCell>
-                    <TableCell>{numberFormatter.format(item.successfulRequests)}</TableCell>
-                    <TableCell>{numberFormatter.format(item.failedRequests)}</TableCell>
-                    <TableCell>{numberFormatter.format(item.assistantMessages)}</TableCell>
-                    <TableCell>{numberFormatter.format(item.inputTokens)}</TableCell>
-                    <TableCell>{numberFormatter.format(item.outputTokens)}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {numberFormatter.format(item.successfulRequests)}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {numberFormatter.format(item.failedRequests)}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {numberFormatter.format(item.assistantMessages)}
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">{numberFormatter.format(item.inputTokens)}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{numberFormatter.format(item.outputTokens)}</TableCell>
                     <TableCell>{numberFormatter.format(item.totalTokens)}</TableCell>
                     <TableCell>{usdFormatter.format(item.estimatedCostUsd)}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       {item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString("pt-BR") : "Sem uso"}
                     </TableCell>
                   </TableRow>

@@ -84,7 +84,7 @@ export default function PageFiltersPanel({
       className={cn("glass-card rounded-[28px] border border-border/40 p-4", className)}
     >
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end">
+        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
           <TransactionsMonthYearFilter
             selectedMonthIndex={selectedMonthIndex}
             selectedYear={selectedYear}
@@ -106,7 +106,7 @@ export default function PageFiltersPanel({
             <Select value={accountFilter.value} onValueChange={accountFilter.onChange}>
               <SelectTrigger
                 data-testid={accountFilter.triggerTestId}
-                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:min-w-[220px] xl:flex-1"
+                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 lg:min-w-[220px] lg:flex-1"
               >
                 <SelectValue placeholder={accountFilter.placeholder} />
               </SelectTrigger>
@@ -124,7 +124,7 @@ export default function PageFiltersPanel({
             <Select value={categoryFilter.value} onValueChange={categoryFilter.onChange}>
               <SelectTrigger
                 data-testid={categoryFilter.triggerTestId}
-                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 xl:min-w-[220px] xl:flex-1"
+                className="h-11 w-full min-w-0 rounded-xl border-border/60 bg-secondary/35 lg:min-w-[220px] lg:flex-1"
               >
                 <SelectValue placeholder={categoryFilter.placeholder} />
               </SelectTrigger>
@@ -139,7 +139,7 @@ export default function PageFiltersPanel({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           {shouldRenderSearch ? (
             <div className="relative flex-1">
               <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -152,7 +152,7 @@ export default function PageFiltersPanel({
             </div>
           ) : null}
           {inlineFilters}
-          {searchActions ? <div className="grid grid-cols-3 gap-2 xl:flex xl:flex-wrap">{searchActions}</div> : null}
+          {searchActions ? <div className="grid grid-cols-3 gap-2 lg:flex lg:flex-wrap">{searchActions}</div> : null}
         </div>
 
         {advancedFilters && isAdvancedOpen ? <div className="w-full">{advancedFilters}</div> : null}

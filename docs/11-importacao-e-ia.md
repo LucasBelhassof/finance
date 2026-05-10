@@ -46,7 +46,17 @@ O rebuild universal preserva o fluxo antigo de preview/commit, mas agora aceita 
 - CSV/TSV continuam usando normalizacao tabular com aliases de cabecalho
 - XLSX/XLS, OFX, QIF, JSON e TXT sao normalizados para o mesmo contrato interno do preview
 - PDFs continuam usando `pdf-parse`
+- PDFs com texto selecionavel agora tentam, nesta ordem:
+  1. parser conhecido de fatura/cartao
+  2. fallback generico para extratos com datas agrupadas, palavras-chave bancarias e saldo por linha
+  3. fallback generico antigo de linhas `data + descricao + valor`
 - OCR continua fora de escopo; PDF sem texto selecionavel deve falhar com erro explicito
+- o fallback generico de extrato suporta:
+  - cabecalhos de data em portugues, inclusive `1 de Marco de 2026`
+  - datas curtas como `10/05`, `10/05/2026` e `2026-05-10`
+  - linhas com um valor monetario ou com `valor + saldo apos a transacao`
+  - inferencia conservadora de debito/credito por sinal explicito e palavras-chave
+- o parser continua sem persistir arquivo bruto ou texto bruto de PDF
 
 ## Parcelamentos e dedupe
 

@@ -2,6 +2,11 @@ import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
 
 import { analyzeCsvLikeBuffer, parseCsvLikeBuffer } from "./csv-parser.js";
+import {
+  inferFallbackStatementSourceKind,
+  parseFallbackStatementLines,
+  parseStatementDateHeader,
+} from "./fallback-statement-parser.js";
 import { parseJsonBuffer } from "./json-parser.js";
 import { parseOfxBuffer } from "./ofx-parser.js";
 import { parsePdfTextBuffer } from "./pdf-text-parser.js";
@@ -210,6 +215,102 @@ describe("universal import parsers", () => {
     expect(rows[1].description).toBe("Salario");
   });
 
+  it("parses grouped-date bank statement rows with running balance", () => {
+    const rows = parseFallbackStatementLines(
+      [
+        "27 de Fevereiro de 2026 Saldo do dia: R$ 115,00",
+        'Pix recebido: "Cp :18236120-LUCAS SOBRINHO BELHASSOF LEAO 16660042784" R$ 115,00 R$ 115,00',
+      ],
+      {
+        referenceYear: 2026,
+      },
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      occurredOn: "2026-02-27",
+      description: 'Pix recebido: "Cp :18236120-LUCAS SOBRINHO BELHASSOF LEAO 16660042784"',
+      amount: 115,
+      balanceAfter: 115,
+    });
+  });
+
+  it("parses negative PIX transfers with running balance", () => {
+    const rows = parseFallbackStatementLines(
+      [
+        "16 de Março de 2026 Saldo do dia: R$ 0,00",
+        'Pix enviado: "Cp :18236120-Lucas Sobrinho Belhassof Leao 16660042784" -R$ 132,00 R$ 438,00',
+      ],
+      {
+        referenceYear: 2026,
+      },
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      occurredOn: "2026-03-16",
+      amount: -132,
+      balanceAfter: 438,
+    });
+  });
+
+  it("parses debit card purchase rows as negative transactions", () => {
+    const rows = parseFallbackStatementLines(
+      [
+        "22 de Março de 2026 Saldo do dia: R$ 86,00",
+        'Compra no debito: "No estabelecimento POSTO HAWAI RIO DE JANEIR BRA" -R$ 60,00 R$ 86,00',
+      ],
+      {
+        referenceYear: 2026,
+      },
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      occurredOn: "2026-03-22",
+      amount: -60,
+      balanceAfter: 86,
+    });
+  });
+
+  it("parses Portuguese month names with accents in statement headers", () => {
+    const header = parseStatementDateHeader("1 de Março de 2026", {
+      referenceYear: 2026,
+    });
+
+    expect(header).toMatchObject({
+      occurredOn: "2026-03-01",
+    });
+  });
+
+  it("filters statement footer and support noise lines", () => {
+    const rows = parseFallbackStatementLines(
+      [
+        "Fale com a gente",
+        "SAC: 0800 940 9999 (opção 09)",
+        "Ouvidoria: 0800 940 7772",
+        "Deficiência de fala e audição: 0800 979 7099",
+        "-- 1 of 5 --",
+      ],
+      {
+        referenceYear: 2026,
+      },
+    );
+
+    expect(rows).toHaveLength(0);
+  });
+
+  it("does not create parsed rows without prior date context", () => {
+    const rows = parseFallbackStatementLines(
+      ['Pix recebido: "Cp :18236120-LUCAS SOBRINHO BELHASSOF LEAO 16660042784" R$ 115,00 R$ 115,00'],
+      {
+        referenceYear: 2026,
+      },
+    );
+
+    expect(rows).toHaveLength(0);
+  });
+
   it("keeps low-confidence CSV rows with inferred dates and row issues", () => {
     const csv = ["05/04/2026;Cafe;-12,90", ";Uber;-45,00"].join("\n");
     const rows = parseCsvLikeBuffer(Buffer.from(csv, "utf8"));
@@ -299,6 +400,35 @@ describe("universal import parsers", () => {
     expect(parsed.metadata.issuerName).toBeNull();
   });
 
+  it("parses realistic grouped-date PDF text fixtures before generic line fallback", async () => {
+    const parsed = await parsePdfTextBuffer(Buffer.from("%PDF-1.4", "utf8"), {
+      filename: "Extrato-Inter.pdf",
+      text: [
+        "Solicitado em: 10/05/2026 - 15h46",
+        "CPF/CNPJ: 47.304.326/0001-76, Instituição: Banco Inter, Agência: 0001-9, Conta: 51503659-5",
+        "27 de Fevereiro de 2026 Saldo do dia: R$ 115,00",
+        'Pix recebido: "Cp :18236120-LUCAS SOBRINHO BELHASSOF LEAO 16660042784" R$ 115,00 R$ 115,00',
+        "16 de Março de 2026 Saldo do dia: R$ 0,00",
+        'Pix enviado: "Cp :18236120-Lucas Sobrinho Belhassof Leao 16660042784" -R$ 132,00 R$ 438,00',
+        "Fale com a gente",
+        "-- 1 of 5 --",
+      ].join("\n"),
+    });
+
+    expect(parsed.rows).toHaveLength(2);
+    expect(parsed.rows[0]).toMatchObject({
+      occurredOn: "2026-02-27",
+      amount: 115,
+      balanceAfter: 115,
+      raw: expect.objectContaining({
+        source: "pdf:inter",
+      }),
+    });
+    expect(parsed.sourceKind).toBe("bank_statement");
+    expect(parsed.sourceKindConfidence).toBeGreaterThanOrEqual(0.78);
+    expect(parsed.metadata.issuerName).toBe("Inter");
+  });
+
   it("infers bank statement and credit card source kinds conservatively", () => {
     const bankKind = inferSourceKind([
       { description: "PIX RECEBIDO", amount: 1234.56, balanceAfter: 5000 },
@@ -311,5 +441,22 @@ describe("universal import parsers", () => {
 
     expect(bankKind.sourceKind).toBe("bank_statement");
     expect(cardKind.sourceKind).toBe("credit_card_statement");
+  });
+
+  it("classifies fallback statement rows conservatively", () => {
+    const bankKind = inferFallbackStatementSourceKind([
+      { description: "Pix recebido", amount: 115, balanceAfter: 115 },
+      { description: "Pix enviado", amount: -132, balanceAfter: 438 },
+    ]);
+    const genericKind = inferFallbackStatementSourceKind([
+      { description: "Reembolso de compra", amount: 20, balanceAfter: null },
+    ]);
+
+    expect(bankKind).toMatchObject({
+      sourceKind: "bank_statement",
+    });
+    expect(genericKind).toMatchObject({
+      sourceKind: "generic_transactions",
+    });
   });
 });

@@ -7,6 +7,7 @@ import {
   parseCreditCardPdfStatement,
 } from "../../transaction-import.js";
 import { ImportHttpError } from "../errors.js";
+import { inferFallbackStatementSourceKind, parseFallbackStatementLines } from "./fallback-statement-parser.js";
 import { parseTextLines } from "./text-parser.js";
 
 const PDF_PAGE_JOINER = "\n-- page_number of total_number --\n";
@@ -87,6 +88,32 @@ export async function parsePdfTextBuffer(fileBuffer, options = {}) {
     }
   } catch {
     // Fallback to generic line parser below.
+  }
+
+  const fallbackStatementRows = parseFallbackStatementLines(text.split(/\r?\n/), {
+    referenceYear: options.referenceYear,
+  });
+
+  if (fallbackStatementRows.length > 0) {
+    const issuer = detectPdfIssuer(text, options.filename);
+    const sourceKind = inferFallbackStatementSourceKind(fallbackStatementRows);
+
+    return {
+      rows: fallbackStatementRows.map((row) => ({
+        ...row,
+        raw: {
+          ...row.raw,
+          source: issuer ? `pdf:${issuer}` : "pdf",
+        },
+      })),
+      metadata: {
+        issuerName: issuer === "inter" ? "Inter" : issuer === "itau" ? "Itau" : null,
+        statementDueDate: null,
+        statementReferenceMonth: null,
+      },
+      sourceKind: sourceKind.sourceKind,
+      sourceKindConfidence: sourceKind.confidence,
+    };
   }
 
   const rows = parseTextLines(text.split(/\r?\n/), {

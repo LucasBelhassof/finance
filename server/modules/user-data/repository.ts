@@ -362,9 +362,7 @@ export async function executeAccountDeletion(userId: number): Promise<void> {
     await client.query("BEGIN");
 
     // Delete in FK-safe order (leaf → root)
-    await client.query(`DELETE FROM plan_chat_summaries WHERE plan_id IN (SELECT id FROM plans WHERE user_id = $1)`, [
-      userId,
-    ]);
+    await client.query(`DELETE FROM plan_chat_summaries WHERE user_id = $1`, [userId]);
     await client.query(`DELETE FROM plan_ai_assessments WHERE plan_id IN (SELECT id FROM plans WHERE user_id = $1)`, [
       userId,
     ]);

@@ -89,8 +89,8 @@ function mockAuth() {
   });
 }
 
-function mockAuthUnauthorized() {
-  const { UnauthorizedError } = require("../../shared/errors.js");
+async function mockAuthUnauthorized() {
+  const { UnauthorizedError } = await import("../../shared/errors.js");
   verifyAccessTokenMock.mockRejectedValue(new UnauthorizedError("unauthorized", "Authentication is required."));
 }
 

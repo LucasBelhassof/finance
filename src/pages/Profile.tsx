@@ -145,23 +145,6 @@ function formatDateLabel(value?: string | null) {
   }).format(parsedDate);
 }
 
-function formatMonthReference(value?: string | null) {
-  if (!value) {
-    return "--";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    month: "long",
-    year: "numeric",
-  }).format(parsedDate);
-}
-
 function normalizeProgress(progress?: AuthOnboardingProgress | null): AuthOnboardingProgress {
   const completedSteps = ONBOARDING_STEP_IDS.filter((stepId) =>
     (progress?.completedSteps ?? []).some((step) => normalizeOnboardingStep(step) === stepId),
@@ -191,10 +174,6 @@ function getStatusMeta(status?: "active" | "inactive" | "suspended") {
   }
 }
 
-function getRoleLabel(role?: "user" | "admin") {
-  return role === "admin" ? "Administrador" : "Usuário";
-}
-
 function getPlanMeta(isPremium?: boolean, premiumSince?: string | null) {
   if (isPremium) {
     return {
@@ -208,50 +187,6 @@ function getPlanMeta(isPremium?: boolean, premiumSince?: string | null) {
     label: "Free",
     description: "Plano padrao da conta.",
     className: "border-border/60 bg-secondary/50 text-foreground",
-  };
-}
-
-function addMonths(date: Date, amount: number) {
-  return new Date(date.getFullYear(), date.getMonth() + amount, date.getDate(), 12, 0, 0, 0);
-}
-
-function getSubscriptionSummary(isPremium?: boolean, premiumSince?: string | null) {
-  if (!isPremium || !premiumSince) {
-    return {
-      dueDayLabel: "--",
-      dueDescription: "Disponivel apenas para contas premium.",
-      referenceMonthLabel: "--",
-      paymentDescription: "Sem histórico de assinatura disponível para esta conta.",
-      renewalDescription: "Periodicidade e proxima cobranca dependem do backend de assinatura.",
-    };
-  }
-
-  const activationDate = new Date(premiumSince);
-
-  if (Number.isNaN(activationDate.getTime())) {
-    return {
-      dueDayLabel: "--",
-      dueDescription: "Não foi possível interpretar a data da assinatura premium.",
-      referenceMonthLabel: "--",
-      paymentDescription: "Último pagamento indisponível.",
-      renewalDescription: "Periodicidade e proxima cobranca dependem do backend de assinatura.",
-    };
-  }
-
-  const today = new Date();
-  const dueDay = activationDate.getDate();
-  const currentCycleStart =
-    today.getDate() >= dueDay
-      ? new Date(today.getFullYear(), today.getMonth(), dueDay, 12, 0, 0, 0)
-      : new Date(today.getFullYear(), today.getMonth() - 1, dueDay, 12, 0, 0, 0);
-  const nextRenewal = addMonths(currentCycleStart, 1);
-
-  return {
-    dueDayLabel: String(dueDay).padStart(2, "0"),
-    dueDescription: "Dia estimado a partir da data de ativacao premium.",
-    referenceMonthLabel: formatMonthReference(currentCycleStart.toISOString()),
-    paymentDescription: `Ultimo registro premium em ${formatDateLabel(premiumSince)}.`,
-    renewalDescription: `Sem marcador de plano anual no backend. Renovacao estimada para ${formatDateLabel(nextRenewal.toISOString())}.`,
   };
 }
 
@@ -332,7 +267,6 @@ export default function ProfilePage() {
     : Math.round((onboardingStepsDone / ONBOARDING_STEP_IDS.length) * 100);
   const insightsCount = data?.insights.length ?? 0;
   const isPremiumUser = Boolean(user?.isPremium);
-  const subscriptionSummary = getSubscriptionSummary(user?.isPremium, user?.premiumSince);
 
   const handlePreferenceToggle = (key: keyof ProfilePreferences, checked: boolean) => {
     setPreferences((current) => ({
@@ -441,70 +375,40 @@ export default function ProfilePage() {
                     <p className="text-lg font-semibold text-foreground">{planMeta.label}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{planMeta.description}</p>
-                  {!isPremiumUser ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3 rounded-xl border-border/60 bg-secondary/20"
-                      onClick={() => navigate(appRoutes.pricing)}
-                    >
-                      Conhecer planos
-                    </Button>
-                  ) : null}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="relative overflow-hidden rounded-xl border border-border/40 bg-secondary/20 p-4">
-                    <div className={!isPremiumUser ? "pointer-events-none select-none blur-sm" : undefined}>
-                      <p className="text-sm text-muted-foreground">Vencimento do plano</p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">
-                        Dia {subscriptionSummary.dueDayLabel}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">{subscriptionSummary.dueDescription}</p>
-                    </div>
-                    {!isPremiumUser ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-card/35 px-3 text-center text-xs font-medium text-muted-foreground backdrop-blur-[2px]">
-                        Assinatura online ainda não está conectada.
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="relative overflow-hidden rounded-xl border border-border/40 bg-secondary/20 p-4">
-                    <div className={!isPremiumUser ? "pointer-events-none select-none blur-sm" : undefined}>
-                      <p className="text-sm text-muted-foreground">Insights</p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">{insightsCount}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {isPremiumUser
-                          ? "Insights disponiveis para a conta atual."
-                          : "Recurso liberado apenas para assinantes premium."}
-                      </p>
-                    </div>
-                    {!isPremiumUser ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-card/35 px-3 text-center text-xs font-medium text-muted-foreground backdrop-blur-[2px]">
-                        Liberado no premium
-                      </div>
-                    ) : null}
-                  </div>
+                  {isPremiumUser ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Assinatura online ainda não está conectada. O acesso Premium pode ter sido ativado manualmente
+                      pela administração.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mt-2 text-xs text-muted-foreground">Assinatura online em breve.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 rounded-xl border-border/60 bg-secondary/20"
+                        onClick={() => navigate(appRoutes.pricing)}
+                      >
+                        Conhecer planos
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 <div className="relative overflow-hidden rounded-xl border border-border/40 bg-secondary/20 p-4">
                   <div className={!isPremiumUser ? "pointer-events-none select-none blur-sm" : undefined}>
-                    <p className="text-sm text-muted-foreground">Mes de referencia</p>
-                    <p className="mt-2 text-lg font-semibold capitalize text-foreground">
-                      {subscriptionSummary.referenceMonthLabel}
+                    <p className="text-sm text-muted-foreground">Insights</p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">{insightsCount}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isPremiumUser
+                        ? "Insights disponiveis para a conta atual."
+                        : "Recurso liberado apenas para assinantes premium."}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">{subscriptionSummary.paymentDescription}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{subscriptionSummary.renewalDescription}</p>
                   </div>
                   {!isPremiumUser ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-card/35 px-3 text-center text-xs font-medium text-muted-foreground backdrop-blur-[2px]">
-                      Histórico de assinatura indisponível no plano free
+                      Liberado no premium
                     </div>
-                  ) : null}
-                  {isPremiumUser ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Valores estimados. Assinatura online ainda não está conectada.
-                    </p>
                   ) : null}
                 </div>
               </div>

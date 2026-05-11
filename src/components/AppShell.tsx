@@ -76,7 +76,7 @@ export default function AppShell({ title, description, children, headerContent, 
                     Desbloqueie chat com IA, insights e planejamentos gerados com base em suas conversas!
                   </p>
                 </div>
-                <Button type="button" className="shrink-0" onClick={() => navigate(appRoutes.profile)}>
+                <Button type="button" className="shrink-0" onClick={() => navigate(appRoutes.pricing)}>
                   <Sparkles size={16} />
                   Conhecer Premium
                 </Button>

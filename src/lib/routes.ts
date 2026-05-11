@@ -33,4 +33,10 @@ export const appRoutes = {
   adminNotifications: "/admin/notifications",
   profile: "/profile",
   settings: "/settings",
+  pricing: "/pricing",
+  legalTerms: "/legal/terms",
+  legalPrivacy: "/legal/privacy",
+  legalCancellation: "/legal/cancellation",
+  billingSuccess: "/billing/success",
+  billingCancel: "/billing/cancel",
 } as const;

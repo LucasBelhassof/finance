@@ -41,6 +41,10 @@ const PlansPage = lazy(() => import("./pages/Plans.tsx"));
 const ProfilePage = lazy(() => import("./pages/Profile.tsx"));
 const SettingsPage = lazy(() => import("./pages/Settings.tsx"));
 const TransactionsPage = lazy(() => import("./pages/Transactions.tsx"));
+const PricingPage = lazy(() => import("./pages/Pricing.tsx"));
+const LegalPage = lazy(() => import("./pages/LegalPage.tsx"));
+const BillingSuccessPage = lazy(() => import("./pages/BillingSuccess.tsx"));
+const BillingCancelPage = lazy(() => import("./pages/BillingCancel.tsx"));
 
 function PageLoader() {
   return (
@@ -291,6 +295,55 @@ const App = () => (
                   }
                 />
               </Route>
+
+              <Route
+                path={appRoutes.pricing}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PricingPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.legalTerms}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegalPage type="terms" />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.legalPrivacy}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegalPage type="privacy" />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.legalCancellation}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <LegalPage type="cancellation" />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.billingSuccess}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <BillingSuccessPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.billingCancel}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <BillingCancelPage />
+                  </Suspense>
+                }
+              />
 
               <Route
                 path="*"

@@ -441,6 +441,16 @@ export default function ProfilePage() {
                     <p className="text-lg font-semibold text-foreground">{planMeta.label}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{planMeta.description}</p>
+                  {!isPremiumUser ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 rounded-xl border-border/60 bg-secondary/20"
+                      onClick={() => navigate(appRoutes.pricing)}
+                    >
+                      Conhecer planos
+                    </Button>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -454,7 +464,7 @@ export default function ProfilePage() {
                     </div>
                     {!isPremiumUser ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-card/35 px-3 text-center text-xs font-medium text-muted-foreground backdrop-blur-[2px]">
-                        Disponivel apenas no premium
+                        Assinatura online ainda não está conectada.
                       </div>
                     ) : null}
                   </div>
@@ -490,6 +500,11 @@ export default function ProfilePage() {
                     <div className="absolute inset-0 flex items-center justify-center bg-card/35 px-3 text-center text-xs font-medium text-muted-foreground backdrop-blur-[2px]">
                       Histórico de assinatura indisponível no plano free
                     </div>
+                  ) : null}
+                  {isPremiumUser ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Valores estimados. Assinatura online ainda não está conectada.
+                    </p>
                   ) : null}
                 </div>
               </div>

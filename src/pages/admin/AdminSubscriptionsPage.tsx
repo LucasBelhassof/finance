@@ -11,6 +11,14 @@ export default function AdminSubscriptionsPage() {
 
   return (
     <AdminLayout title="Assinaturas" description="Panorama de premium, conversao e atividade recente de autenticacao.">
+      <div className="rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
+        Billing ainda não está conectado. Premium pode ser gerenciado manualmente pelo{" "}
+        <a href="/admin/users" className="underline">
+          painel de usuários
+        </a>
+        .
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">

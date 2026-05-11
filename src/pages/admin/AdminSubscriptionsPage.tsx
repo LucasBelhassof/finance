@@ -11,7 +11,7 @@ export default function AdminSubscriptionsPage() {
 
   return (
     <AdminLayout title="Assinaturas" description="Panorama de premium, conversao e atividade recente de autenticacao.">
-      <div className="rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
+      <div className="min-w-0 break-words rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
         Billing ainda não está conectado. Premium pode ser gerenciado manualmente pelo{" "}
         <a href="/admin/users" className="underline">
           painel de usuários
@@ -73,9 +73,9 @@ export default function AdminSubscriptionsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {(activityData?.events ?? []).slice(0, 8).map((event) => (
-            <div key={String(event.id)} className="rounded-lg border border-border/60 px-4 py-3">
-              <p className="font-medium">{event.eventType}</p>
-              <p className="text-xs text-muted-foreground">
+            <div key={String(event.id)} className="min-w-0 rounded-lg border border-border/60 px-4 py-3">
+              <p className="break-words font-medium">{event.eventType}</p>
+              <p className="break-words text-xs text-muted-foreground">
                 {new Date(event.createdAt).toLocaleString("pt-BR")}
                 {event.user ? ` • ${event.user.name}` : ""}
                 {event.email ? ` • ${event.email}` : ""}

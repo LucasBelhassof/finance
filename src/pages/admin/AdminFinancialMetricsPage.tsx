@@ -65,11 +65,11 @@ export default function AdminFinancialMetricsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Usuários com mais transações</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -82,16 +82,16 @@ export default function AdminFinancialMetricsPage() {
             <TableBody>
               {(data?.topUsers ?? []).map((user) => (
                 <TableRow key={String(user.id)}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-xs text-muted-foreground sm:hidden">{user.email}</p>
+                  <TableCell className="min-w-0">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{user.name}</p>
+                      <p className="break-all text-xs text-muted-foreground sm:hidden">{user.email}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground md:hidden sm:block hidden">
                         {user.transactionCount} transações
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
+                  <TableCell className="hidden break-all sm:table-cell">{user.email}</TableCell>
                   <TableCell className="hidden md:table-cell">{user.transactionCount}</TableCell>
                   <TableCell>{currencyFormatter.format(user.transactedVolume)}</TableCell>
                 </TableRow>

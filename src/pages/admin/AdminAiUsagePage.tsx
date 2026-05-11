@@ -229,7 +229,7 @@ export default function AdminAiUsagePage() {
       title="Consumo de IA"
       description="Leitura operacional da IA por período, com foco em volume diário de requisições por modelo."
     >
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Período</CardTitle>
         </CardHeader>
@@ -267,7 +267,7 @@ export default function AdminAiUsagePage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
-          <Card key={card.label}>
+          <Card key={card.label} className="min-w-0">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle>
             </CardHeader>
@@ -276,7 +276,7 @@ export default function AdminAiUsagePage() {
         ))}
       </div>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader className="gap-2">
           <CardTitle>Uso diário da IA</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -284,8 +284,8 @@ export default function AdminAiUsagePage() {
             separada.
           </p>
         </CardHeader>
-        <CardContent>
-          <div className="h-[380px] w-full">
+        <CardContent className="min-w-0">
+          <div className="h-[320px] w-full sm:h-[380px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ left: 8, right: 20, top: 12, bottom: 8 }}>
                 <CartesianGrid vertical={false} />
@@ -317,11 +317,11 @@ export default function AdminAiUsagePage() {
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Uso por modelo</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -334,10 +334,10 @@ export default function AdminAiUsagePage() {
               <TableBody>
                 {(data?.byModel ?? []).map((item) => (
                   <TableRow key={`${item.provider}:${item.model}`}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{formatModelLabel(item.provider, item.model)}</p>
-                        <p className="text-xs text-muted-foreground">
+                    <TableCell className="min-w-0">
+                      <div className="min-w-0">
+                        <p className="break-words font-medium">{formatModelLabel(item.provider, item.model)}</p>
+                        <p className="break-words text-xs text-muted-foreground">
                           {item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString("pt-BR") : "Sem uso recente"}
                         </p>
                       </div>
@@ -352,13 +352,13 @@ export default function AdminAiUsagePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Série agregada do período</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {(data?.dailySeries ?? []).map((item) => (
-              <div key={item.date} className="rounded-lg border border-border/60 px-4 py-3">
+              <div key={item.date} className="min-w-0 rounded-lg border border-border/60 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium">{item.date}</p>
                   <Badge variant={item.failures > 0 ? "destructive" : "outline"}>{item.failures} falhas</Badge>
@@ -374,11 +374,11 @@ export default function AdminAiUsagePage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Uso por fluxo</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -391,7 +391,7 @@ export default function AdminAiUsagePage() {
               <TableBody>
                 {(data?.byOperation ?? []).map((item) => (
                   <TableRow key={`${item.surface}:${item.operation}`}>
-                    <TableCell>{formatSurfaceLabel(item.surface, item.operation)}</TableCell>
+                    <TableCell className="break-words">{formatSurfaceLabel(item.surface, item.operation)}</TableCell>
                     <TableCell>{numberFormatter.format(item.requests)}</TableCell>
                     <TableCell>{numberFormatter.format(item.failures)}</TableCell>
                     <TableCell>{usdFormatter.format(item.estimatedCostUsd)}</TableCell>
@@ -402,22 +402,22 @@ export default function AdminAiUsagePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Falhas recentes</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {(data?.recentFailures ?? []).map((item, index) => (
-              <div key={`${item.createdAt}-${index}`} className="rounded-lg border border-border/60 px-4 py-3">
+              <div key={`${item.createdAt}-${index}`} className="min-w-0 rounded-lg border border-border/60 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium">{formatSurfaceLabel(item.surface, item.operation)}</p>
+                  <p className="break-words font-medium">{formatSurfaceLabel(item.surface, item.operation)}</p>
                   <Badge variant="destructive">{item.errorCode ?? "erro"}</Badge>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="break-words mt-2 text-sm text-muted-foreground">
                   {formatModelLabel(item.provider ?? "", item.model ?? "")} • {item.user?.name ?? "Usuário"} •{" "}
                   {new Date(item.createdAt).toLocaleString("pt-BR")}
                 </p>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="break-words mt-2 text-sm text-muted-foreground">
                   {item.errorMessage ?? "Falha sem detalhe adicional."}
                 </p>
               </div>
@@ -426,12 +426,12 @@ export default function AdminAiUsagePage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Tabela de uso por usuários</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+        <CardContent className="min-w-0">
+          <div className="max-w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -450,10 +450,10 @@ export default function AdminAiUsagePage() {
               <TableBody>
                 {(data?.userUsage ?? []).map((item) => (
                   <TableRow key={`user-usage-${String(item.id)}`}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.email}</p>
+                    <TableCell className="min-w-0">
+                      <div className="min-w-0">
+                        <p className="break-words font-medium">{item.name}</p>
+                        <p className="break-all text-xs text-muted-foreground">{item.email}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground md:hidden">
                           {numberFormatter.format(item.failedRequests)} falhas
                         </p>

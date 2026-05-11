@@ -16,17 +16,19 @@ export default function AdminActivityPage() {
           {(data?.events ?? []).map((event) => (
             <div
               key={String(event.id)}
-              className="flex flex-col gap-2 rounded-lg border border-border/60 px-4 py-3 md:flex-row md:items-center md:justify-between"
+              className="flex min-w-0 flex-col gap-2 rounded-lg border border-border/60 px-4 py-3 md:flex-row md:items-center md:justify-between"
             >
-              <div>
-                <p className="font-medium">{event.eventType}</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="min-w-0">
+                <p className="break-words font-medium">{event.eventType}</p>
+                <p className="break-words text-xs text-muted-foreground">
                   {new Date(event.createdAt).toLocaleString("pt-BR")}
                   {event.user ? ` • ${event.user.name} (${event.user.role})` : ""}
                   {event.email ? ` • ${event.email}` : ""}
                 </p>
               </div>
-              <Badge variant={event.success ? "default" : "destructive"}>{event.success ? "success" : "failure"}</Badge>
+              <Badge variant={event.success ? "default" : "destructive"} className="self-start md:self-center">
+                {event.success ? "success" : "failure"}
+              </Badge>
             </div>
           ))}
         </CardContent>

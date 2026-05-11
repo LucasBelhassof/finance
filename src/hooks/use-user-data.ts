@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import { ApiError, apiBaseUrl } from "@/lib/api";
@@ -103,8 +103,9 @@ export interface DeleteAccountInput {
 }
 
 export function useDeleteAccount() {
-  const { getAccessToken } = useAuthCallbacks();
+  const { getAccessToken, clearSession } = useAuthCallbacks();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: DeleteAccountInput) => {
@@ -141,7 +142,9 @@ export function useDeleteAccount() {
       }
     },
     onSuccess: () => {
-      navigate(appRoutes.login);
+      clearSession();
+      queryClient.clear();
+      navigate(appRoutes.accountDeleted, { replace: true });
     },
   });
 }
@@ -163,5 +166,5 @@ function useAuthCallbacks() {
     clearSession();
   }, [clearSession]);
 
-  return { getAccessToken, refreshAccessToken: doRefresh, onAuthFailure };
+  return { clearSession, getAccessToken, refreshAccessToken: doRefresh, onAuthFailure };
 }

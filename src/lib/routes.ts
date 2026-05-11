@@ -37,6 +37,7 @@ export const appRoutes = {
   legalTerms: "/legal/terms",
   legalPrivacy: "/legal/privacy",
   legalCancellation: "/legal/cancellation",
+  accountDeleted: "/conta-cancelada",
   billingSuccess: "/billing/success",
   billingCancel: "/billing/cancel",
 } as const;

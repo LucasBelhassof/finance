@@ -17,6 +17,7 @@ import ResetPasswordPage from "@/modules/auth/pages/ResetPasswordPage";
 import SignupPage from "@/modules/auth/pages/SignupPage";
 
 const AccountsPage = lazy(() => import("./pages/Accounts.tsx"));
+const AccountDeletedPage = lazy(() => import("./pages/AccountDeleted.tsx"));
 const AdminActivityPage = lazy(() => import("./pages/admin/AdminActivityPage.tsx"));
 const AdminAiUsagePage = lazy(() => import("./pages/admin/AdminAiUsagePage.tsx"));
 const AdminFinancialMetricsPage = lazy(() => import("./pages/admin/AdminFinancialMetricsPage.tsx"));
@@ -325,6 +326,14 @@ const App = () => (
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <LegalPage type="cancellation" />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={appRoutes.accountDeleted}
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <AccountDeletedPage />
                   </Suspense>
                 }
               />

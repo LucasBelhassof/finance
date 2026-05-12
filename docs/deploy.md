@@ -49,6 +49,11 @@ Características do container:
 - criação de conta/categoria/transação funciona
 - usuário comum continua bloqueado em `/api/admin`
 
+## Banco
+
+- Faça um backup do Postgres antes de executar `npm run db:migrate` em produção.
+- Use o runbook em `docs/operations/backup-restore.md` para o fluxo de backup e restore.
+
 ## Rollback básico
 
 1. Volte para a imagem/tag anterior.

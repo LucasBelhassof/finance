@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { appRoutes } from "@/lib/routes";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 
 interface AppShellProps {
@@ -35,24 +35,15 @@ export default function AppShell({ title, description, children, headerContent, 
           >
             <div className="flex flex-col gap-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <SidebarTrigger
-                    className="mt-0.5 inline-flex h-10 w-10 shrink-0 rounded-lg border border-border/60 text-foreground hover:bg-secondary md:hidden"
-                    aria-label="Abrir menu de navegacao"
-                    title="Abrir menu"
-                    data-tour-id="sidebar-trigger"
-                  />
-
-                  <div className="min-w-0">
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary md:hidden">
-                      Navegacao
-                    </p>
-                    <h1 className="text-xl font-bold text-foreground">
-                      {showGreeting ? `${title}, ${user?.name ?? "UsuÃ¡rio"} ` : title}
-                      {showGreeting ? "\u{1F44B}" : null}
-                    </h1>
-                    <p className="text-sm text-muted-foreground">{description}</p>
-                  </div>
+                <div className="min-w-0">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary md:hidden">
+                    Navegacao
+                  </p>
+                  <h1 className="text-xl font-bold text-foreground">
+                    {showGreeting ? `${title}, ${user?.name ?? "UsuÃ¡rio"} ` : title}
+                    {showGreeting ? "\u{1F44B}" : null}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">{description}</p>
                 </div>
 
                 <div data-tour-id="header-notifications">

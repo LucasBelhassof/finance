@@ -550,6 +550,45 @@ describe("universal import parsers", () => {
     expect(parsed.metadata.issuerName).toBe("Inter");
   });
 
+  it("parses Mercado Pago PDF purchase rows before the generic fallback", async () => {
+    const parsed = await parsePdfTextBuffer(Buffer.from("%PDF-1.4", "utf8"), {
+      filename: "fatura-mercado-pago-2026-05.pdf",
+      text: [
+        "Cristiane Sobrinho Belhassof Leao",
+        "Essa é sua fatura de maio",
+        "Vencimento: 14/05/2026",
+        "Detalhes de consumo",
+        "Movimentações na fatura",
+        "Data Movimentações Valor em R$",
+        "14/04 Pagamento da fatura de abril/2026 R$ 1.093,89",
+        "Cartão Visa [************9553]",
+        "06/10 MERCADOLIVRE*LEVEROS Parcela 8 de 21 R$ 174,79",
+        "05/02 MP*2PRODUTOS Parcela 4 de 12 R$ 441,33",
+        "21/02 MERCADOLIVRE*DINAMICA Parcela 3 de 18 R$ 477,77",
+        "02/05 MERCADOLIVRE*MERCADOLIVRE Parcela 1 de 6 R$ 23,61",
+        "Total R$ 1.117,50",
+        "IOF internacional 3,50% do valor da compra",
+      ].join("\n"),
+    });
+
+    expect(parsed.rows).toHaveLength(4);
+    expect(parsed.rows[0]).toMatchObject({
+      occurredOn: "2025-10-06",
+      description: "MERCADOLIVRE*LEVEROS Parcela 8 de 21",
+      amount: -174.79,
+      raw: expect.objectContaining({
+        source: "Mercado Pago",
+      }),
+    });
+    expect(parsed.metadata).toEqual({
+      issuerName: "Mercado Pago",
+      statementDueDate: "2026-05-14",
+      statementReferenceMonth: "2026-05",
+    });
+    expect(parsed.sourceKind).toBe("credit_card_statement");
+    expect(parsed.sourceKindConfidence).toBeGreaterThanOrEqual(0.95);
+  });
+
   it("infers bank statement and credit card source kinds conservatively", () => {
     const bankKind = inferSourceKind([
       { description: "PIX RECEBIDO", amount: 1234.56, balanceAfter: 5000 },

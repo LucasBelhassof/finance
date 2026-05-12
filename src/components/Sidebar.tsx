@@ -1,7 +1,9 @@
 import {
   Bell,
   Building2,
+  ChevronLeft,
   ChevronDown,
+  ChevronRight,
   FolderKanban,
   PiggyBank,
   Layers3,
@@ -38,7 +40,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/sonner";
@@ -80,7 +81,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const logoutMutation = useLogout();
   const { restartTour } = useProductTour();
-  const { isMobile, openMobile, setOpenMobile, state } = useSidebar();
+  const { isMobile, openMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
   const { user } = useAuthSession();
   const previousPathnameRef = useRef(location.pathname);
   const userName = user?.name ?? "Usuário";
@@ -111,13 +112,43 @@ export default function Sidebar() {
   return (
     <SidebarRoot collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="p-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
-        <div className="flex items-center gap-3 overflow-hidden rounded-lg px-2 py-1">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">
-            <span className="text-sm font-bold text-primary-foreground">F</span>
-          </div>
+        <div className="flex items-center gap-2 overflow-hidden rounded-lg px-2 py-1 group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <button
+            type="button"
+            onClick={isCollapsed ? toggleSidebar : undefined}
+            className="group/logo relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary outline-none transition-all focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            aria-label={isCollapsed ? "Expandir sidebar" : "Logo Finly"}
+            title={isCollapsed ? "Expandir sidebar" : undefined}
+          >
+            <span
+              className={
+                isCollapsed
+                  ? "text-sm font-bold text-primary-foreground transition-opacity group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0"
+                  : "text-sm font-bold text-primary-foreground"
+              }
+            >
+              F
+            </span>
+            {isCollapsed ? (
+              <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100">
+                <ChevronRight size={16} className="text-primary-foreground" />
+              </span>
+            ) : null}
+          </button>
           <span className="truncate text-lg font-semibold text-foreground group-data-[collapsible=icon]:hidden">
             Finly
           </span>
+          {!isCollapsed ? (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="ml-auto hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring md:inline-flex"
+              aria-label="Recolher sidebar"
+              title="Recolher sidebar"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          ) : null}
         </div>
       </SidebarHeader>
 
@@ -349,12 +380,6 @@ export default function Sidebar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <SidebarTrigger
-            className="hidden h-11 w-11 shrink-0 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground md:inline-flex"
-            aria-label="Alternar sidebar"
-            title="Alternar sidebar"
-          />
         </div>
       </SidebarFooter>
     </SidebarRoot>

@@ -102,6 +102,20 @@ const ptShortMonthMap = new Map([
   ["nov", 11],
   ["dez", 12],
 ]);
+const ptFullMonthMap = new Map([
+  ["janeiro", 1],
+  ["fevereiro", 2],
+  ["marco", 3],
+  ["abril", 4],
+  ["maio", 5],
+  ["junho", 6],
+  ["julho", 7],
+  ["agosto", 8],
+  ["setembro", 9],
+  ["outubro", 10],
+  ["novembro", 11],
+  ["dezembro", 12],
+]);
 const matchKeyNoiseTokens = new Set([
   "transferencia",
   "recebida",
@@ -587,6 +601,11 @@ function parseItauDueDate(text) {
   return match ? parseOccurredOnInput(match[1]) : null;
 }
 
+function parseMercadoPagoDueDate(text) {
+  const match = text.match(/Vencimento:\s*(\d{2}\/\d{2}\/\d{4})/i);
+  return match ? parseOccurredOnInput(match[1]) : null;
+}
+
 function parseItauEmissionDate(text) {
   const match = text.match(/Emiss[aã]o:\s*(\d{2}\/\d{2}\/\d{4})/i);
 
@@ -596,6 +615,30 @@ function parseItauEmissionDate(text) {
 
   const occurredOn = parseOccurredOnInput(match[1]);
   return occurredOn.slice(0, 7);
+}
+
+function parseMercadoPagoReferenceMonth(text, statementDueDate) {
+  const normalizedText = normalizeDescription(text);
+  const monthMatch = normalizedText.match(/essa e sua fatura de ([a-z]+)/i);
+
+  if (monthMatch) {
+    const month = ptFullMonthMap.get(monthMatch[1]);
+
+    if (month) {
+      const fallbackYear =
+        statementDueDate && /^\d{4}-\d{2}-\d{2}$/.test(statementDueDate) ? Number(statementDueDate.slice(0, 4)) : null;
+
+      if (fallbackYear) {
+        return normalizeMonthReference(fallbackYear, month);
+      }
+    }
+  }
+
+  if (statementDueDate && /^\d{4}-\d{2}-\d{2}$/.test(statementDueDate)) {
+    return statementDueDate.slice(0, 7);
+  }
+
+  return null;
 }
 
 function parseItauChargeRows(text, occurredOn) {
@@ -657,6 +700,15 @@ export function detectPdfIssuer(text, filename) {
 
   if (normalizedFilename.includes("inter") || normalizedText.includes("bancointer")) {
     return "inter";
+  }
+
+  if (
+    normalizedFilename.includes("mercadopago") ||
+    (normalizedText.includes("mercadopago") &&
+      normalizedText.includes("detalhesdeconsumo") &&
+      normalizedText.includes("movimentacoesnafatura"))
+  ) {
+    return "mercado_pago";
   }
 
   if (
@@ -770,11 +822,81 @@ function parseItauCreditCardPdfText(text, referenceMonth) {
   return rows;
 }
 
+function shouldSkipMercadoPagoTransaction(description) {
+  const normalizedDescription = normalizeDescription(description);
+
+  return (
+    normalizedDescription.includes("pagamento da fatura") ||
+    normalizedDescription.includes("pagamentos e creditos devolvidos") ||
+    normalizedDescription.includes("parcelamento de fatura") ||
+    normalizedDescription.includes("juros") ||
+    normalizedDescription.includes("iof") ||
+    normalizedDescription.includes("saque")
+  );
+}
+
+function parseMercadoPagoCreditCardPdfText(text, referenceMonth) {
+  const lines = text.split(/\r?\n/).map(normalizePdfLine).filter(Boolean);
+  const rows = [];
+  let insideTransactions = false;
+
+  for (const line of lines) {
+    const compact = compactNormalizedText(line);
+
+    if (compact.includes("movimentacoesnafatura")) {
+      insideTransactions = true;
+      continue;
+    }
+
+    if (!insideTransactions) {
+      continue;
+    }
+
+    if (compact.startsWith("totalr$") && rows.length > 0) {
+      break;
+    }
+
+    if (
+      compact.startsWith("cartaovisa") ||
+      compact.startsWith("datamovimentacoesvaloremr$") ||
+      compact.startsWith("--")
+    ) {
+      continue;
+    }
+
+    const transactionMatch = line.match(/^(\d{2})\/(\d{2})\s+(.+?)\s+R\$\s*([\d\.,]+)$/i);
+
+    if (!transactionMatch) {
+      continue;
+    }
+
+    const day = Number(transactionMatch[1]);
+    const month = Number(transactionMatch[2]);
+    const year = inferYearFromReferenceMonth(day, month, referenceMonth);
+    const description = normalizeMerchantDescription(transactionMatch[3]);
+
+    if (!year || !description || shouldSkipMercadoPagoTransaction(description)) {
+      continue;
+    }
+
+    rows.push({
+      occurredOn: parseOccurredOnInput(`${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`),
+      description,
+      amount: normalizeAmountString(Math.abs(parseAmountInput(transactionMatch[4]))),
+      cardSuffix: null,
+    });
+  }
+
+  return rows;
+}
+
 export function parseCreditCardPdfStatement({ text, filename }) {
   const issuer = detectPdfIssuer(text, filename);
 
   if (!issuer) {
-    throw new Error("Não foi possível identificar o emissor da fatura PDF. Use Inter, Itaú ou exporte CSV.");
+    throw new Error(
+      "Não foi possível identificar o emissor da fatura PDF. Use Inter, Itaú, Mercado Pago ou exporte CSV.",
+    );
   }
 
   if (issuer === "inter") {
@@ -786,6 +908,22 @@ export function parseCreditCardPdfStatement({ text, filename }) {
         issuerName: "Inter",
         statementDueDate: parseInterDueDate(text),
         statementReferenceMonth: rows.length > 0 ? rows[0].occurredOn.slice(0, 7) : null,
+      },
+    };
+  }
+
+  if (issuer === "mercado_pago") {
+    const statementDueDate = parseMercadoPagoDueDate(text);
+    const statementReferenceMonth = parseMercadoPagoReferenceMonth(text, statementDueDate);
+    const rows = parseMercadoPagoCreditCardPdfText(text, statementReferenceMonth);
+
+    return {
+      issuer,
+      rows,
+      metadata: {
+        issuerName: "Mercado Pago",
+        statementDueDate,
+        statementReferenceMonth,
       },
     };
   }

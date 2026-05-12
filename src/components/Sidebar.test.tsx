@@ -29,10 +29,10 @@ vi.mock("@/modules/product-tour/use-product-tour", () => ({
   }),
 }));
 
-function renderSidebar(initialPath: string = appRoutes.dashboard) {
+function renderSidebar(initialPath: string = appRoutes.dashboard, defaultOpen: boolean = true) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={defaultOpen}>
         <Sidebar />
       </SidebarProvider>
     </MemoryRouter>,
@@ -147,5 +147,19 @@ describe("Sidebar", () => {
     renderSidebar();
 
     expect(screen.queryByText(/primeiros passos/i)).not.toBeInTheDocument();
+  });
+
+  it("toggles the collapsed control between chevrons in the header", () => {
+    renderSidebar(appRoutes.dashboard, true);
+
+    fireEvent.click(screen.getByRole("button", { name: /recolher sidebar/i }));
+
+    const expandButton = screen.getByRole("button", { name: /expandir sidebar/i });
+
+    expect(expandButton).toBeInTheDocument();
+
+    fireEvent.click(expandButton);
+
+    expect(screen.getByRole("button", { name: /recolher sidebar/i })).toBeInTheDocument();
   });
 });

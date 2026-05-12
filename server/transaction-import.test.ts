@@ -839,6 +839,12 @@ describe("transaction import helpers", () => {
 
   it("detects supported PDF issuers", () => {
     expect(detectPdfIssuer("Resumo da fatura Banco Inter", "fatura-inter-2026-03.pdf")).toBe("inter");
+    expect(
+      detectPdfIssuer(
+        "Pague sua fatura pelo app Mercado Pago\nDetalhes de consumo\nMovimentações na fatura",
+        "fatura-mercado-pago-2026-05.pdf",
+      ),
+    ).toBe("mercado_pago");
     expect(detectPdfIssuer("Fatura Itau Cartoes", "Fatura_Itau_20260407-144227.pdf")).toBe("itau");
   });
 
@@ -949,5 +955,52 @@ describe("transaction import helpers", () => {
     expect(result.rows[0].occurredOn).toBe("2025-05-14");
     expect(result.rows[1].occurredOn).toBe("2025-09-21");
     expect(result.rows[2].occurredOn).toBe("2026-02-17");
+  });
+
+  it("parses Mercado Pago credit card PDF text and ignores invoice metadata", () => {
+    const result = parseCreditCardPdfStatement({
+      filename: "fatura-mercado-pago-2026-05.pdf",
+      text: [
+        "Cristiane Sobrinho Belhassof Leao",
+        "Emitido em: 10/05/2026",
+        "Olá, Cristiane Sobrinho",
+        "Essa é sua fatura de maio",
+        "Total a pagar",
+        "R$ 1.117,50",
+        "Vence em",
+        "14/05/2026",
+        "Resumo da fatura",
+        "Pagamentos e créditos devolvidos R$ 1.093,89",
+        "Cristiane Sobrinho Belhassof Leao",
+        "Vencimento: 14/05/2026",
+        "Detalhes de consumo",
+        "Movimentações na fatura",
+        "Data Movimentações Valor em R$",
+        "14/04 Pagamento da fatura de abril/2026 R$ 1.093,89",
+        "Cartão Visa [************9553]",
+        "Data Movimentações Valor em R$",
+        "06/10 MERCADOLIVRE*LEVEROS Parcela 8 de 21 R$ 174,79",
+        "05/02 MP*2PRODUTOS Parcela 4 de 12 R$ 441,33",
+        "21/02 MERCADOLIVRE*DINAMICA Parcela 3 de 18 R$ 477,77",
+        "02/05 MERCADOLIVRE*MERCADOLIVRE Parcela 1 de 6 R$ 23,61",
+        "Total R$ 1.117,50",
+        "Juros do rotativo 17,90% a.m. (621,39% a.a.)",
+        "IOF internacional 3,50% do valor da compra",
+      ].join("\n"),
+    });
+
+    expect(result.issuer).toBe("mercado_pago");
+    expect(result.metadata.statementDueDate).toBe("2026-05-14");
+    expect(result.metadata.statementReferenceMonth).toBe("2026-05");
+    expect(result.rows).toHaveLength(4);
+    expect(result.rows.map((row) => row.description)).toEqual([
+      "MERCADOLIVRE*LEVEROS Parcela 8 de 21",
+      "MP*2PRODUTOS Parcela 4 de 12",
+      "MERCADOLIVRE*DINAMICA Parcela 3 de 18",
+      "MERCADOLIVRE*MERCADOLIVRE Parcela 1 de 6",
+    ]);
+    expect(result.rows.map((row) => row.occurredOn)).toEqual(["2025-10-06", "2026-02-05", "2026-02-21", "2026-05-02"]);
+    expect(result.rows.every((row) => row.description.includes("Parcela"))).toBe(true);
+    expect(result.rows.some((row) => /pagamento|juros|iof/i.test(row.description))).toBe(false);
   });
 });

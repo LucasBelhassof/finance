@@ -5,6 +5,7 @@ import { env } from "./shared/env.js";
 
 const pingDatabaseMock = vi.hoisted(() => vi.fn());
 const noop = vi.hoisted(() => vi.fn());
+const loggerInfoMock = vi.hoisted(() => vi.fn());
 
 vi.mock("./database.js", () => ({
   applyPlanRecommendation: noop,
@@ -73,6 +74,14 @@ vi.mock("./modules/notifications/routes.js", () => ({
   createNotificationsRouter: () => express.Router(),
 }));
 
+vi.mock("./shared/logger.js", () => ({
+  logger: {
+    info: loggerInfoMock,
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 describe("app health route", () => {
   function expectSecurityHeaders(headers: Record<string, string | string[] | undefined>) {
     expect(headers["x-content-type-options"]).toBe("nosniff");
@@ -102,6 +111,17 @@ describe("app health route", () => {
     expect(response.headers["access-control-allow-origin"]).toBe(env.appOrigin);
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
     expect(pingDatabaseMock).not.toHaveBeenCalled();
+    expect(loggerInfoMock).toHaveBeenCalledWith(
+      "Request completed",
+      expect.objectContaining({
+        requestId: expect.any(String),
+        method: "GET",
+        path: "/api/health",
+        status: 200,
+        durationMs: expect.any(Number),
+        userId: null,
+      }),
+    );
   });
 
   it("returns database readiness status without authentication", async () => {

@@ -158,6 +158,32 @@ function resolveIncomingRequestId(request: Request) {
   return randomUUID();
 }
 
+function attachRequestLogging(request: Request, response: Response) {
+  const startedAt = process.hrtime.bigint();
+  let hasLogged = false;
+
+  const logRequestCompletion = () => {
+    if (hasLogged) {
+      return;
+    }
+
+    hasLogged = true;
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+
+    logger.info("Request completed", {
+      requestId: request.requestId,
+      method: request.method,
+      path: request.originalUrl,
+      status: response.statusCode,
+      durationMs: Number(durationMs.toFixed(1)),
+      userId: request.auth?.userId ?? null,
+    });
+  };
+
+  response.on("finish", logRequestCompletion);
+  response.on("close", logRequestCompletion);
+}
+
 function parseImportPreviewOptions(rawOptions: string | undefined) {
   if (!rawOptions) {
     return undefined;
@@ -199,6 +225,7 @@ export function createApp() {
     const requestId = resolveIncomingRequestId(request);
     request.requestId = requestId;
     response.setHeader("x-request-id", requestId);
+    attachRequestLogging(request, response);
     next();
   });
   app.use(express.json({ limit: "1mb" }));

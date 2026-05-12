@@ -2,6 +2,7 @@ const SENSITIVE_KEY_FRAGMENTS = [
   "password",
   "token",
   "secret",
+  "prompt",
   "authorization",
   "cookie",
   "api_key",

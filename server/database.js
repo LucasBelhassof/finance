@@ -43,7 +43,7 @@ import {
   revisePlanDraft,
   suggestPlanLink,
 } from "./chat-ai-service.js";
-import { buildTransactionCategorySyncPlan } from "./transaction-update.js";
+import { buildInstallmentUpdatePlan, shiftInstallmentDate } from "./transaction-update.js";
 import {
   buildPreviousMonthEndDate,
   buildTransactionRowsWithRecurringProjections,
@@ -987,21 +987,24 @@ export async function getInstallmentsOverview(userId, filters = {}) {
         ip.description_base,
         ip.purchase_occurred_on,
         ip.installment_count,
-        ip.amount_per_installment,
-        b.id AS card_id,
-        b.name AS card_name,
-        b.statement_due_day,
-        COALESCE(ip.category_id, t.category_id) AS category_id,
-        c.label AS category_label,
+        ip.amount_per_installment AS base_installment_amount,
+        t.amount AS transaction_amount,
+        COALESCE(tb.id, pb.id) AS card_id,
+        COALESCE(tb.name, pb.name) AS card_name,
+        COALESCE(tb.statement_due_day, pb.statement_due_day) AS statement_due_day,
+        COALESCE(t.category_id, ip.category_id) AS category_id,
+        COALESCE(tc.label, pc.label, 'Sem categoria') AS category_label,
         t.id AS transaction_id,
         t.occurred_on,
         t.installment_number
       FROM installment_purchases ip
-      INNER JOIN bank_connections b ON b.id = ip.bank_connection_id
+      INNER JOIN bank_connections pb ON pb.id = ip.bank_connection_id
       LEFT JOIN transactions t ON t.installment_purchase_id = ip.id
-      LEFT JOIN categories c ON c.id = COALESCE(ip.category_id, t.category_id)
+      LEFT JOIN bank_connections tb ON tb.id = t.bank_connection_id
+      LEFT JOIN categories tc ON tc.id = t.category_id
+      LEFT JOIN categories pc ON pc.id = ip.category_id
       WHERE ip.user_id = $1
-        AND (b.account_type = 'credit_card' OR ip.housing_id IS NOT NULL)
+        AND (pb.account_type = 'credit_card' OR ip.housing_id IS NOT NULL)
         AND ip.installment_count >= 2
       ORDER BY ip.id ASC, t.installment_number ASC NULLS LAST, t.id ASC
     `,
@@ -1013,7 +1016,8 @@ export async function getInstallmentsOverview(userId, filters = {}) {
     descriptionBase: row.description_base,
     purchaseDate: normalizeDateValue(row.purchase_occurred_on),
     installmentCount: Number(row.installment_count),
-    installmentAmount: parseNumeric(row.amount_per_installment),
+    installmentAmount: parseNumeric(row.base_installment_amount),
+    transactionAmount: row.transaction_amount === null ? null : Math.abs(parseNumeric(row.transaction_amount)),
     cardId: row.card_id,
     cardName: row.card_name,
     statementDueDay: Number.isInteger(Number(row.statement_due_day)) ? Number(row.statement_due_day) : null,
@@ -2647,6 +2651,62 @@ async function getTransactionById(userId, transactionId, client = pool) {
   return result.rows[0] ?? null;
 }
 
+async function getInstallmentPurchaseById(userId, installmentPurchaseId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT
+        id,
+        bank_connection_id,
+        category_id,
+        description_base,
+        normalized_description_base,
+        purchase_occurred_on,
+        installment_count,
+        amount_per_installment
+      FROM installment_purchases
+      WHERE user_id = $1
+        AND id = $2
+      LIMIT 1
+    `,
+    [userId, installmentPurchaseId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+async function listInstallmentTransactionsForPurchase(userId, installmentPurchaseId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT
+        id,
+        description,
+        amount,
+        occurred_on,
+        bank_connection_id,
+        category_id,
+        installment_number,
+        is_recurring
+      FROM transactions
+      WHERE user_id = $1
+        AND installment_purchase_id = $2
+      ORDER BY installment_number ASC NULLS LAST, id ASC
+    `,
+    [userId, installmentPurchaseId],
+  );
+
+  return result.rows;
+}
+
+function hasUniformRowValue(rows, selector) {
+  const values = rows.map(selector).filter((value) => value !== undefined);
+
+  if (!values.length) {
+    return false;
+  }
+
+  return new Set(values.map((value) => String(value))).size === 1;
+}
+
 export async function createTransaction(userId, input) {
   const resolvedUserId = await requireUserId(userId);
   const description = String(input.description ?? "").trim();
@@ -2748,29 +2808,127 @@ export async function updateTransaction(userId, transactionId, input) {
       );
     }
 
-    const syncPlan = buildTransactionCategorySyncPlan(existingTransaction, category.id);
+    const installmentPurchaseId = existingTransaction.installment_purchase_id ?? null;
+    const isScopedInstallmentExpense =
+      Boolean(installmentPurchaseId) && Number(existingTransaction.amount) < 0 && amount < 0;
 
-    if (syncPlan.syncInstallmentPurchase) {
-      await client.query(
-        `
-          UPDATE transactions
-          SET category_id = $3
-          WHERE user_id = $1
-            AND installment_purchase_id = $2
-        `,
-        [resolvedUserId, syncPlan.installmentPurchaseId, category.id],
+    if (isScopedInstallmentExpense) {
+      const installmentPurchase = await getInstallmentPurchaseById(resolvedUserId, installmentPurchaseId, client);
+      const installmentRows = await listInstallmentTransactionsForPurchase(
+        resolvedUserId,
+        installmentPurchaseId,
+        client,
       );
+      const updatePlan = buildInstallmentUpdatePlan({
+        transaction: existingTransaction,
+        bundleRows: installmentRows,
+        nextValues: {
+          description,
+          amount,
+          occurredOn,
+          bankConnectionId,
+          categoryId: category.id,
+        },
+        scope: input.installmentUpdateScope,
+        installmentNumbers: input.installmentNumbers,
+      });
 
-      await client.query(
-        `
-          UPDATE installment_purchases
-          SET category_id = $3,
-              updated_at = NOW()
-          WHERE user_id = $1
-            AND id = $2
-        `,
-        [resolvedUserId, syncPlan.installmentPurchaseId, category.id],
+      for (const targetRow of updatePlan.targetRows) {
+        const nextOccurredOn = updatePlan.changedFields.occurredOn
+          ? (shiftInstallmentDate(occurredOn, existingTransaction.installment_number, targetRow.installment_number) ??
+            occurredOn)
+          : normalizeDateValue(targetRow.occurred_on);
+
+        await client.query(
+          `
+            UPDATE transactions
+            SET bank_connection_id = $3,
+                category_id = $4,
+                description = $5,
+                amount = $6,
+                occurred_on = $7,
+                is_recurring = $8,
+                recurrence_ends_on = NULL
+            WHERE user_id = $1
+              AND id = $2
+          `,
+          [
+            resolvedUserId,
+            targetRow.id,
+            updatePlan.changedFields.bankConnectionId ? bankConnectionId : Number(targetRow.bank_connection_id),
+            updatePlan.changedFields.categoryId ? category.id : Number(targetRow.category_id),
+            updatePlan.changedFields.description ? description : String(targetRow.description ?? "").trim(),
+            updatePlan.changedFields.amount ? amount : parseNumeric(targetRow.amount),
+            nextOccurredOn,
+            Boolean(targetRow.is_recurring),
+          ],
+        );
+      }
+
+      const refreshedInstallmentRows = await listInstallmentTransactionsForPurchase(
+        resolvedUserId,
+        installmentPurchaseId,
+        client,
       );
+      const firstInstallmentRow =
+        refreshedInstallmentRows.find((row) => Number(row.installment_number) === 1) ??
+        refreshedInstallmentRows[0] ??
+        null;
+      const hasUniformCategory = hasUniformRowValue(refreshedInstallmentRows, (row) => row.category_id);
+      const hasUniformDescription = hasUniformRowValue(refreshedInstallmentRows, (row) => row.description);
+      const hasUniformAmount = hasUniformRowValue(refreshedInstallmentRows, (row) =>
+        parseNumeric(row.amount).toFixed(2),
+      );
+      const hasUniformBankConnection = hasUniformRowValue(refreshedInstallmentRows, (row) => row.bank_connection_id);
+
+      if (installmentPurchase) {
+        const nextDescriptionBase = hasUniformDescription
+          ? String(firstInstallmentRow?.description ?? installmentPurchase.description_base ?? "").trim()
+          : String(installmentPurchase.description_base ?? "").trim();
+
+        await client.query(
+          `
+            UPDATE installment_purchases
+            SET bank_connection_id = $3,
+                category_id = $4,
+                description_base = $5,
+                normalized_description_base = $6,
+                purchase_occurred_on = $7,
+                amount_per_installment = $8,
+                updated_at = NOW()
+            WHERE user_id = $1
+              AND id = $2
+          `,
+          [
+            resolvedUserId,
+            installmentPurchaseId,
+            hasUniformBankConnection
+              ? Number(firstInstallmentRow?.bank_connection_id ?? installmentPurchase.bank_connection_id)
+              : Number(installmentPurchase.bank_connection_id),
+            hasUniformCategory ? Number(firstInstallmentRow?.category_id ?? installmentPurchase.category_id) : null,
+            nextDescriptionBase,
+            hasUniformDescription
+              ? normalizeDescription(nextDescriptionBase)
+              : String(installmentPurchase.normalized_description_base ?? ""),
+            normalizeDateValue(firstInstallmentRow?.occurred_on) ??
+              normalizeDateValue(installmentPurchase.purchase_occurred_on),
+            hasUniformAmount
+              ? Math.abs(parseNumeric(firstInstallmentRow?.amount))
+              : parseNumeric(installmentPurchase.amount_per_installment),
+          ],
+        );
+      }
+
+      const updatedRows = await Promise.all(
+        updatePlan.targetRows.map((row) => getTransactionById(resolvedUserId, row.id, client)),
+      );
+      const currentRow = await getTransactionById(resolvedUserId, transactionId, client);
+
+      await client.query("COMMIT");
+      const updatedTransactions = updatedRows.filter(Boolean).map((row) => mapTransactionRow(row, occurredOn));
+      const transaction = mapTransactionRow(currentRow, occurredOn);
+      await reevaluateAffectedPlansForTransactions(resolvedUserId, updatedTransactions, "transaction_updated");
+      return transaction;
     }
 
     if (

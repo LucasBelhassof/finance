@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import TransactionsPage from "@/pages/Transactions";
+import { toast } from "@/components/ui/sonner";
 import type { BankItem, CategoryItem, TransactionItem } from "@/types/api";
 
 const mockUseTransactions = vi.fn();
@@ -365,6 +366,38 @@ const transactions: TransactionItem[] = [
     },
   },
   {
+    id: 17,
+    description: "Notebook parcelado",
+    amount: -250,
+    formattedAmount: "-R$ 250,00",
+    occurredOn: "2026-04-12",
+    relativeDate: "12 Abr",
+    housingId: null,
+    isInstallment: true,
+    installmentPurchaseId: 88,
+    installmentNumber: 2,
+    installmentCount: 5,
+    purchaseOccurredOn: "2026-03-12",
+    category: {
+      id: 2,
+      slug: "transporte",
+      label: "Transporte",
+      iconName: "ArrowDownCircle",
+      icon: ArrowDownCircle,
+      color: "text-info",
+      groupSlug: "transporte",
+      groupLabel: "Transporte",
+      groupColor: "bg-info",
+    },
+    account: {
+      id: 2,
+      slug: "nubank-ultravioleta",
+      name: "Nubank Ultravioleta",
+      accountType: "credit_card",
+      color: "bg-primary",
+    },
+  },
+  {
     id: "recurring:13:2026-04-10",
     sourceTransactionId: 13,
     description: "Salario",
@@ -672,6 +705,61 @@ describe("TransactionsPage", () => {
           amount: 5000,
         }),
       );
+    });
+  });
+
+  it("shows installment scope controls only for installment expense edits", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByText("iFood"));
+    expect(screen.queryByLabelText("Aplicar em outras parcelas")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    fireEvent.click(screen.getByText("Notebook parcelado"));
+
+    expect(screen.getByLabelText("Aplicar em outras parcelas")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Aplicar em outras parcelas"));
+    expect(screen.getByText("Escolher parcelas")).toBeInTheDocument();
+  });
+
+  it("submits the selected installment scope and custom installment numbers", async () => {
+    const updateTransaction = createMutation();
+    mockUseUpdateTransaction.mockReturnValue(updateTransaction);
+
+    renderPage();
+
+    fireEvent.click(screen.getByText("Notebook parcelado"));
+    fireEvent.click(screen.getByLabelText("Aplicar em outras parcelas"));
+    fireEvent.click(screen.getByRole("radio", { name: /Escolher parcelas/i }));
+    fireEvent.click(screen.getByLabelText("Selecionar parcela 4/5"));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(updateTransaction.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "17",
+          installmentUpdateScope: "custom",
+          installmentNumbers: [2, 4],
+        }),
+      );
+    });
+  });
+
+  it("requires at least one custom installment selection before saving", async () => {
+    const updateTransaction = createMutation();
+    mockUseUpdateTransaction.mockReturnValue(updateTransaction);
+
+    renderPage();
+
+    fireEvent.click(screen.getByText("Notebook parcelado"));
+    fireEvent.click(screen.getByLabelText("Aplicar em outras parcelas"));
+    fireEvent.click(screen.getByRole("radio", { name: /Escolher parcelas/i }));
+    fireEvent.click(screen.getByLabelText("Selecionar parcela 2/5"));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(updateTransaction.mutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("Selecione ao menos uma parcela para aplicar a edição.");
     });
   });
 

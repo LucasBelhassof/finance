@@ -315,4 +315,132 @@ describe("installments overview helpers", () => {
       ),
     ).toBeLessThanOrEqual(0.01);
   });
+
+  it("uses real row amounts when a purchase has variable installment values", () => {
+    const overview = buildInstallmentsOverviewResponse(
+      [
+        {
+          installmentPurchaseId: 20,
+          descriptionBase: "Curso",
+          purchaseDate: "2026-01-10",
+          installmentCount: 3,
+          installmentAmount: 100,
+          transactionAmount: 100,
+          cardId: 5,
+          cardName: "Master",
+          statementDueDay: 10,
+          categoryId: 40,
+          categoryLabel: "Educacao",
+          transactionId: 301,
+          occurredOn: "2026-01-10",
+          installmentNumber: 1,
+        },
+        {
+          installmentPurchaseId: 20,
+          descriptionBase: "Curso",
+          purchaseDate: "2026-01-10",
+          installmentCount: 3,
+          installmentAmount: 100,
+          transactionAmount: 150,
+          cardId: 5,
+          cardName: "Master",
+          statementDueDay: 10,
+          categoryId: 40,
+          categoryLabel: "Educacao",
+          transactionId: 302,
+          occurredOn: "2026-02-10",
+          installmentNumber: 2,
+        },
+        {
+          installmentPurchaseId: 20,
+          descriptionBase: "Curso",
+          purchaseDate: "2026-01-10",
+          installmentCount: 3,
+          installmentAmount: 100,
+          transactionAmount: 90,
+          cardId: 5,
+          cardName: "Master",
+          statementDueDay: 10,
+          categoryId: 41,
+          categoryLabel: "Cursos",
+          transactionId: 303,
+          occurredOn: "2026-03-10",
+          installmentNumber: 3,
+        },
+      ],
+      {},
+      "2026-02-15",
+    );
+
+    expect(overview.monthly_commitment).toBe(150);
+    expect(overview.remaining_balance_total).toBe(240);
+    expect(overview.original_amount_total).toBe(340);
+    expect(overview.items[0]).toMatchObject({
+      installment_amount: 150,
+      remaining_balance: 240,
+      category: "Educacao",
+      category_id: 40,
+    });
+
+    const periodOverview = buildInstallmentsOverviewResponse(
+      [
+        {
+          installmentPurchaseId: 20,
+          descriptionBase: "Curso",
+          purchaseDate: "2026-01-10",
+          installmentCount: 3,
+          installmentAmount: 100,
+          transactionAmount: 100,
+          cardId: 5,
+          cardName: "Master",
+          statementDueDay: 10,
+          categoryId: 40,
+          categoryLabel: "Educacao",
+          transactionId: 301,
+          occurredOn: "2026-01-10",
+          installmentNumber: 1,
+        },
+        {
+          installmentPurchaseId: 20,
+          descriptionBase: "Curso",
+          purchaseDate: "2026-01-10",
+          installmentCount: 3,
+          installmentAmount: 100,
+          transactionAmount: 150,
+          cardId: 5,
+          cardName: "Master",
+          statementDueDay: 10,
+          categoryId: 40,
+          categoryLabel: "Educacao",
+          transactionId: 302,
+          occurredOn: "2026-02-10",
+          installmentNumber: 2,
+        },
+        {
+          installmentPurchaseId: 20,
+          descriptionBase: "Curso",
+          purchaseDate: "2026-01-10",
+          installmentCount: 3,
+          installmentAmount: 100,
+          transactionAmount: 90,
+          cardId: 5,
+          cardName: "Master",
+          statementDueDay: 10,
+          categoryId: 41,
+          categoryLabel: "Cursos",
+          transactionId: 303,
+          occurredOn: "2026-03-10",
+          installmentNumber: 3,
+        },
+      ],
+      {
+        purchaseStart: "2026-02-01",
+        purchaseEnd: "2026-03-31",
+      },
+      "2026-02-15",
+    );
+
+    expect(periodOverview.monthly_commitment).toBe(240);
+    expect(periodOverview.items.map((item) => item.installment_amount)).toEqual([150, 90]);
+  });
 });

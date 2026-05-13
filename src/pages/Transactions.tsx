@@ -28,8 +28,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,7 +59,13 @@ import {
 import { ApiError } from "@/lib/api";
 import { DEFAULT_CATEGORY_COLOR, resolveCategoryColorPresentation } from "@/lib/category-colors";
 import { cn } from "@/lib/utils";
-import type { CreateCategoryInput, CreateTransactionInput, TransactionItem, UpdateTransactionInput } from "@/types/api";
+import type {
+  CreateCategoryInput,
+  CreateTransactionInput,
+  InstallmentUpdateScope,
+  TransactionItem,
+  UpdateTransactionInput,
+} from "@/types/api";
 import { toast } from "@/components/ui/sonner";
 
 type TransactionTypeFilter = "all" | "income" | "expense";
@@ -72,6 +80,16 @@ type TransactionFormState = {
   categoryId: string;
   type: "income" | "expense";
   isRecurring: boolean;
+  isInstallment: boolean;
+  installmentPurchaseId: string | null;
+  installmentNumber: number | null;
+  installmentCount: number | null;
+};
+
+type InstallmentEditState = {
+  applyToOtherInstallments: boolean;
+  scope: InstallmentUpdateScope;
+  selectedNumbers: number[];
 };
 
 const transactionTypeOptions: Array<{ label: string; value: "income" | "expense" }> = [
@@ -83,6 +101,14 @@ const typeFilters: Array<{ label: string; value: TransactionTypeFilter }> = [
   { label: "Todas", value: "all" },
   { label: "Receitas", value: "income" },
   { label: "Despesas", value: "expense" },
+];
+
+const installmentScopeOptions: Array<{ value: InstallmentUpdateScope; label: string; description: string }> = [
+  { value: "current", label: "Somente esta", description: "Atualiza apenas a parcela aberta no modal." },
+  { value: "all", label: "Todas", description: "Replica as mudanças para todas as parcelas da compra." },
+  { value: "future", label: "Desta em diante", description: "Atualiza a parcela atual e as próximas." },
+  { value: "past", label: "Até esta", description: "Atualiza as parcelas anteriores e a atual." },
+  { value: "custom", label: "Escolher parcelas", description: "Permite marcar manualmente quais parcelas editar." },
 ];
 
 function formatCurrency(value: number) {
@@ -117,6 +143,10 @@ function emptyTransactionForm(type: "income" | "expense" = "expense"): Transacti
     categoryId: "",
     type,
     isRecurring: false,
+    isInstallment: false,
+    installmentPurchaseId: null,
+    installmentNumber: null,
+    installmentCount: null,
   };
 }
 
@@ -131,6 +161,20 @@ function mapTransactionToForm(transaction: TransactionItem): TransactionFormStat
     type: transaction.amount >= 0 ? "income" : "expense",
     isRecurring: Boolean(transaction.isRecurring),
     sourceTransactionId: String(transaction.sourceTransactionId ?? transaction.id),
+    isInstallment: transaction.isInstallment,
+    installmentPurchaseId: transaction.installmentPurchaseId ? String(transaction.installmentPurchaseId) : null,
+    installmentNumber: transaction.installmentNumber,
+    installmentCount: transaction.installmentCount,
+  };
+}
+
+function createInstallmentEditState(transaction?: TransactionItem | TransactionFormState): InstallmentEditState {
+  const currentInstallmentNumber = transaction?.installmentNumber;
+
+  return {
+    applyToOtherInstallments: false,
+    scope: "current",
+    selectedNumbers: Number.isInteger(currentInstallmentNumber) ? [Number(currentInstallmentNumber)] : [],
   };
 }
 
@@ -222,6 +266,7 @@ export default function TransactionsPage() {
   const [editingCategoryTransactionId, setEditingCategoryTransactionId] = useState<string | null>(null);
   const [updatingCategoryTransactionId, setUpdatingCategoryTransactionId] = useState<string | null>(null);
   const [transactionForm, setTransactionForm] = useState<TransactionFormState>(emptyTransactionForm("expense"));
+  const [installmentEditState, setInstallmentEditState] = useState<InstallmentEditState>(createInstallmentEditState());
   const [categoryForm, setCategoryForm] = useState<CreateCategoryInput>({
     label: "",
     transactionType: "expense",
@@ -446,14 +491,31 @@ export default function TransactionsPage() {
     [categories, transactionForm.type],
   );
   const categoryIsRequired = transactionForm.type === "income";
+  const isEditingInstallmentExpense =
+    isEditing &&
+    transactionForm.type === "expense" &&
+    transactionForm.isInstallment &&
+    Number.isInteger(transactionForm.installmentNumber) &&
+    Number.isInteger(transactionForm.installmentCount);
+  const currentInstallmentNumber = transactionForm.installmentNumber;
+  const currentInstallmentCount = transactionForm.installmentCount;
+  const customInstallmentSelections = installmentEditState.selectedNumbers.slice().sort((left, right) => left - right);
+
+  const closeTransactionDialog = () => {
+    setTransactionDialogOpen(false);
+    setTransactionForm(emptyTransactionForm("expense"));
+    setInstallmentEditState(createInstallmentEditState());
+  };
 
   const openCreateTransaction = (type: "income" | "expense") => {
     setTransactionForm(emptyTransactionForm(type));
+    setInstallmentEditState(createInstallmentEditState());
     setTransactionDialogOpen(true);
   };
 
   const openEditTransaction = (transaction: TransactionItem) => {
     setTransactionForm(mapTransactionToForm(transaction));
+    setInstallmentEditState(createInstallmentEditState(transaction));
     setTransactionDialogOpen(true);
   };
 
@@ -472,6 +534,16 @@ export default function TransactionsPage() {
       return;
     }
 
+    const installmentUpdateScope =
+      isEditingInstallmentExpense && installmentEditState.applyToOtherInstallments
+        ? installmentEditState.scope
+        : "current";
+
+    if (isEditingInstallmentExpense && installmentUpdateScope === "custom" && !customInstallmentSelections.length) {
+      toast.error("Selecione ao menos uma parcela para aplicar a edição.");
+      return;
+    }
+
     const payload = {
       description: transactionForm.description.trim(),
       amount: transactionForm.type === "expense" ? -Math.abs(parsedAmount) : Math.abs(parsedAmount),
@@ -486,6 +558,10 @@ export default function TransactionsPage() {
         await updateTransaction.mutateAsync({
           id: transactionForm.sourceTransactionId ?? transactionForm.id,
           ...payload,
+          ...(isEditingInstallmentExpense ? { installmentUpdateScope } : {}),
+          ...(isEditingInstallmentExpense && installmentUpdateScope === "custom"
+            ? { installmentNumbers: customInstallmentSelections }
+            : {}),
         } satisfies UpdateTransactionInput);
         toast.success("Transação atualizada.");
       } else {
@@ -493,8 +569,7 @@ export default function TransactionsPage() {
         toast.success("Transação criada.");
       }
 
-      setTransactionDialogOpen(false);
-      setTransactionForm(emptyTransactionForm("expense"));
+      closeTransactionDialog();
     } catch (error) {
       toast.error("Não foi possível salvar a transação.", {
         description: getErrorMessage(error, "Tente novamente em instantes."),
@@ -609,6 +684,7 @@ export default function TransactionsPage() {
         bankConnectionId: transaction.account.id,
         categoryId: nextCategoryId,
         isRecurring: transaction.isRecurring,
+        ...(transaction.isInstallment ? { installmentUpdateScope: "all" } : {}),
       } satisfies UpdateTransactionInput);
       setEditingCategoryTransactionId(null);
       toast.success("Categoria atualizada.");
@@ -619,6 +695,28 @@ export default function TransactionsPage() {
     } finally {
       setUpdatingCategoryTransactionId(null);
     }
+  };
+
+  const handleInstallmentScopeChange = (nextScope: InstallmentUpdateScope) => {
+    setInstallmentEditState((current) => ({
+      ...current,
+      scope: nextScope,
+      selectedNumbers:
+        nextScope === "current" && Number.isInteger(currentInstallmentNumber)
+          ? [Number(currentInstallmentNumber)]
+          : nextScope === "custom" && !current.selectedNumbers.length && Number.isInteger(currentInstallmentNumber)
+            ? [Number(currentInstallmentNumber)]
+            : current.selectedNumbers,
+    }));
+  };
+
+  const handleInstallmentNumberToggle = (installmentNumber: number, checked: boolean) => {
+    setInstallmentEditState((current) => ({
+      ...current,
+      selectedNumbers: checked
+        ? Array.from(new Set([...current.selectedNumbers, installmentNumber])).sort((left, right) => left - right)
+        : current.selectedNumbers.filter((value) => value !== installmentNumber),
+    }));
   };
 
   const handleCategoryFilterChange = (nextCategoryId: string) => {
@@ -868,7 +966,17 @@ export default function TransactionsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={transactionDialogOpen} onOpenChange={setTransactionDialogOpen}>
+      <Dialog
+        open={transactionDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeTransactionDialog();
+            return;
+          }
+
+          setTransactionDialogOpen(true);
+        }}
+      >
         <DialogContent className="max-w-[510px] border-border/70 bg-card p-6">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Editar Transação" : "Nova Transação"}</DialogTitle>
@@ -978,6 +1086,75 @@ export default function TransactionsPage() {
                 />
               </div>
             ) : null}
+            {isEditingInstallmentExpense ? (
+              <div className="space-y-4 rounded-xl border border-border/50 bg-secondary/20 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Editar parcelas relacionadas</p>
+                    <p className="text-xs text-muted-foreground">
+                      Escolha se esta alteração afeta só a parcela atual ou outras parcelas da mesma compra.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={installmentEditState.applyToOtherInstallments}
+                    onCheckedChange={(checked) =>
+                      setInstallmentEditState((current) => ({
+                        ...current,
+                        applyToOtherInstallments: checked,
+                        scope: checked ? current.scope : "current",
+                        selectedNumbers:
+                          checked || !Number.isInteger(currentInstallmentNumber)
+                            ? current.selectedNumbers
+                            : [Number(currentInstallmentNumber)],
+                      }))
+                    }
+                    aria-label="Aplicar em outras parcelas"
+                  />
+                </div>
+                {installmentEditState.applyToOtherInstallments ? (
+                  <div className="space-y-3">
+                    <RadioGroup value={installmentEditState.scope} onValueChange={handleInstallmentScopeChange}>
+                      {installmentScopeOptions.map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex items-start gap-3 rounded-xl border border-border/50 bg-background/70 px-3 py-3"
+                        >
+                          <RadioGroupItem value={option.value} id={`installment-scope-${option.value}`} />
+                          <div className="space-y-1">
+                            <span className="text-sm font-medium text-foreground">{option.label}</span>
+                            <p className="text-xs text-muted-foreground">{option.description}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                    {installmentEditState.scope === "custom" && Number.isInteger(currentInstallmentCount) ? (
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {Array.from({ length: Number(currentInstallmentCount) }, (_, index) => {
+                          const installmentNumber = index + 1;
+                          const checked = installmentEditState.selectedNumbers.includes(installmentNumber);
+
+                          return (
+                            <label
+                              key={installmentNumber}
+                              className="flex items-center gap-2 rounded-lg border border-border/50 bg-background/70 px-3 py-2 text-sm"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(value) =>
+                                  handleInstallmentNumberToggle(installmentNumber, value === true)
+                                }
+                                aria-label={`Selecionar parcela ${installmentNumber}/${currentInstallmentCount}`}
+                              />
+                              <span>{`${installmentNumber}/${currentInstallmentCount}`}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <DatePickerInput
               value={transactionForm.occurredOn}
               onChange={(value) => setTransactionForm((current) => ({ ...current, occurredOn: value }))}
@@ -1001,7 +1178,7 @@ export default function TransactionsPage() {
               ) : null}
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setTransactionDialogOpen(false)}>
+              <Button variant="outline" onClick={closeTransactionDialog}>
                 Cancelar
               </Button>
               <Button

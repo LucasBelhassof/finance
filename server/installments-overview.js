@@ -196,10 +196,10 @@ function groupRows(rows) {
       grouped.set(row.installmentPurchaseId, {
         installmentPurchaseId: row.installmentPurchaseId,
         description: row.descriptionBase,
-        category: row.categoryLabel,
-        categoryId: row.categoryId,
-        cardId: row.cardId,
-        cardName: row.cardName,
+        defaultCategory: row.categoryLabel,
+        defaultCategoryId: row.categoryId,
+        defaultCardId: row.cardId,
+        defaultCardName: row.cardName,
         purchaseDate: normalizeDateOnly(row.purchaseDate),
         installmentCount: Number(row.installmentCount),
         installmentAmount: roundCurrency(row.installmentAmount),
@@ -213,6 +213,11 @@ function groupRows(rows) {
         transactionId: row.transactionId,
         occurredOn: normalizeDateOnly(row.occurredOn),
         installmentNumber: Number.isInteger(Number(row.installmentNumber)) ? Number(row.installmentNumber) : null,
+        amount: roundCurrency(row.transactionAmount ?? row.installmentAmount),
+        categoryId: row.categoryId,
+        categoryLabel: row.categoryLabel,
+        cardId: row.cardId,
+        cardName: row.cardName,
       });
     }
   });
@@ -229,6 +234,34 @@ function groupRows(rows) {
         return String(left.occurredOn ?? "").localeCompare(String(right.occurredOn ?? ""));
       }),
     }));
+}
+
+function sumRowAmounts(rows, fallbackAmount) {
+  if (!rows.length) {
+    return 0;
+  }
+
+  return roundCurrency(rows.reduce((sum, row) => sum + roundCurrency(row.amount ?? fallbackAmount), 0));
+}
+
+function getAnchorCategory(purchase, row = purchase.anchorRow) {
+  return row?.categoryLabel ?? purchase.defaultCategory;
+}
+
+function getAnchorCategoryId(purchase, row = purchase.anchorRow) {
+  return row?.categoryId ?? purchase.defaultCategoryId;
+}
+
+function getAnchorCardName(purchase, row = purchase.anchorRow) {
+  return row?.cardName ?? purchase.defaultCardName;
+}
+
+function getAnchorCardId(purchase, row = purchase.anchorRow) {
+  return row?.cardId ?? purchase.defaultCardId;
+}
+
+function getAnchorInstallmentAmount(purchase, row = purchase.anchorRow) {
+  return roundCurrency(row?.amount ?? purchase.installmentAmount);
 }
 
 function enrichPurchase(purchase, referenceDate) {
@@ -250,28 +283,36 @@ function enrichPurchase(purchase, referenceDate) {
 
   return {
     ...purchase,
-    totalAmount: roundCurrency(purchase.installmentAmount * purchase.installmentCount),
+    totalAmount: roundCurrency(
+      sumRowAmounts(purchase.rows, purchase.installmentAmount) +
+        Math.max(purchase.installmentCount - purchase.rows.length, 0) * purchase.installmentAmount,
+    ),
     remainingRows,
     remainingInstallments,
-    remainingBalance: roundCurrency(purchase.installmentAmount * remainingInstallments),
+    remainingBalance: remainingRows.length
+      ? sumRowAmounts(remainingRows, purchase.installmentAmount)
+      : roundCurrency(purchase.installmentAmount * remainingInstallments),
     anchorRow,
+    currentInstallmentAmount: getAnchorInstallmentAmount({ ...purchase, anchorRow }),
     nextDueDate,
     status,
   };
 }
 
 function matchesPurchaseFilters(purchase, filters) {
-  if (filters.cardId !== "all" && String(purchase.cardId) !== filters.cardId) {
-    return false;
-  }
-
-  if (filters.categoryId !== "all" && String(purchase.categoryId) !== filters.categoryId) {
+  if (filters.cardId !== "all" && !purchase.rows.some((row) => String(row.cardId) === filters.cardId)) {
     return false;
   }
 
   if (filters.search) {
     const searchTerm = normalizeText(filters.search);
-    const searchableFields = [purchase.description, purchase.cardName, purchase.category].map(normalizeText);
+    const searchableFields = [
+      purchase.description,
+      purchase.defaultCardName,
+      purchase.defaultCategory,
+      ...purchase.rows.map((row) => row.cardName),
+      ...purchase.rows.map((row) => row.categoryLabel),
+    ].map(normalizeText);
 
     if (!searchableFields.some((field) => field.includes(searchTerm))) {
       return false;
@@ -282,11 +323,15 @@ function matchesPurchaseFilters(purchase, filters) {
     return false;
   }
 
-  if (filters.installmentAmountMin !== null && purchase.installmentAmount < filters.installmentAmountMin) {
+  if (filters.categoryId !== "all" && !purchase.rows.some((row) => String(row.categoryId) === filters.categoryId)) {
     return false;
   }
 
-  if (filters.installmentAmountMax !== null && purchase.installmentAmount > filters.installmentAmountMax) {
+  if (filters.installmentAmountMin !== null && purchase.currentInstallmentAmount < filters.installmentAmountMin) {
+    return false;
+  }
+
+  if (filters.installmentAmountMax !== null && purchase.currentInstallmentAmount > filters.installmentAmountMax) {
     return false;
   }
 
@@ -334,18 +379,20 @@ function buildDisplayItemFromRow(purchase, row, referenceDate) {
     installment_transaction_id: row.transactionId,
     installment_purchase_id: purchase.installmentPurchaseId,
     description: purchase.description,
-    category: purchase.category,
-    category_id: purchase.categoryId,
-    card_id: purchase.cardId,
-    card_name: purchase.cardName,
+    category: getAnchorCategory(purchase, row),
+    category_id: getAnchorCategoryId(purchase, row),
+    card_id: getAnchorCardId(purchase, row),
+    card_name: getAnchorCardName(purchase, row),
     purchase_date: purchase.purchaseDate,
     total_amount: purchase.totalAmount,
-    installment_amount: purchase.installmentAmount,
+    installment_amount: getAnchorInstallmentAmount(purchase, row),
     installment_count: purchase.installmentCount,
     current_installment: row.installmentNumber ?? purchase.installmentCount,
     display_installment_number: row.installmentNumber ?? purchase.installmentCount,
     remaining_installments: Math.max(remainingRowsFromDisplay.length, 0),
-    remaining_balance: roundCurrency(purchase.installmentAmount * Math.max(remainingRowsFromDisplay.length, 0)),
+    remaining_balance: remainingRowsFromDisplay.length
+      ? sumRowAmounts(remainingRowsFromDisplay, purchase.installmentAmount)
+      : 0,
     next_due_date: installmentDueDate,
     installment_due_date: installmentDueDate,
     installment_month: getMonthKey(row.occurredOn),
@@ -360,13 +407,13 @@ function buildDefaultDisplayItem(purchase) {
     installment_transaction_id: purchase.anchorRow?.transactionId ?? null,
     installment_purchase_id: purchase.installmentPurchaseId,
     description: purchase.description,
-    category: purchase.category,
-    category_id: purchase.categoryId,
-    card_id: purchase.cardId,
-    card_name: purchase.cardName,
+    category: getAnchorCategory(purchase),
+    category_id: getAnchorCategoryId(purchase),
+    card_id: getAnchorCardId(purchase),
+    card_name: getAnchorCardName(purchase),
     purchase_date: purchase.purchaseDate,
     total_amount: purchase.totalAmount,
-    installment_amount: purchase.installmentAmount,
+    installment_amount: purchase.currentInstallmentAmount,
     installment_count: purchase.installmentCount,
     current_installment: purchase.anchorRow?.installmentNumber ?? purchase.installmentCount,
     display_installment_number: purchase.anchorRow?.installmentNumber ?? purchase.installmentCount,
@@ -424,11 +471,11 @@ function buildMonthlyRowsSource(selectedPurchases, filters, referenceDate, optio
     return selectedPurchases.flatMap((purchase) =>
       purchase.periodRows.map((row) => ({
         month: getMonthKey(row.occurredOn),
-        amount: purchase.installmentAmount,
-        cardId: purchase.cardId,
-        cardName: purchase.cardName,
-        categoryId: purchase.categoryId,
-        category: purchase.category,
+        amount: roundCurrency(row.amount ?? purchase.installmentAmount),
+        cardId: getAnchorCardId(purchase, row),
+        cardName: getAnchorCardName(purchase, row),
+        categoryId: getAnchorCategoryId(purchase, row),
+        category: getAnchorCategory(purchase, row),
       })),
     );
   }
@@ -438,11 +485,11 @@ function buildMonthlyRowsSource(selectedPurchases, filters, referenceDate, optio
     .flatMap((purchase) =>
       purchase.remainingRows.map((row) => ({
         month: getMonthKey(row.occurredOn),
-        amount: purchase.installmentAmount,
-        cardId: purchase.cardId,
-        cardName: purchase.cardName,
-        categoryId: purchase.categoryId,
-        category: purchase.category,
+        amount: roundCurrency(row.amount ?? purchase.installmentAmount),
+        cardId: getAnchorCardId(purchase, row),
+        cardName: getAnchorCardName(purchase, row),
+        categoryId: getAnchorCategoryId(purchase, row),
+        category: getAnchorCategory(purchase, row),
       })),
     );
 }
@@ -541,15 +588,21 @@ function buildTopCategories(selectedPurchases, filters, referenceDate) {
 function buildFilterOptions(purchases, referenceDate) {
   const cards = Array.from(
     new Map(
-      purchases.map((purchase) => [String(purchase.cardId), { id: purchase.cardId, name: purchase.cardName }]),
+      purchases.flatMap((purchase) =>
+        purchase.rows.map((row) => [String(row.cardId), { id: row.cardId, name: row.cardName }]),
+      ),
     ).values(),
   ).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   const categories = Array.from(
     new Map(
-      purchases.map((purchase) => [String(purchase.categoryId), { id: purchase.categoryId, label: purchase.category }]),
+      purchases.flatMap((purchase) =>
+        purchase.rows.map((row) => [String(row.categoryId), { id: row.categoryId, label: row.categoryLabel }]),
+      ),
     ).values(),
   ).sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
-  const installmentAmounts = purchases.map((purchase) => purchase.installmentAmount);
+  const installmentAmounts = purchases.map(
+    (purchase) => enrichPurchase(purchase, referenceDate).currentInstallmentAmount,
+  );
   const installmentCountValues = Array.from(new Set(purchases.map((purchase) => purchase.installmentCount)))
     .filter((value) => value > 0)
     .sort((left, right) => left - right);
@@ -641,7 +694,7 @@ export function buildInstallmentsOverviewResponse(
       ? items.filter((item) => item.status !== "paid").reduce((sum, item) => sum + item.installment_amount, 0)
       : selectedPurchases
           .filter((purchase) => purchase.status !== "paid")
-          .reduce((sum, purchase) => sum + purchase.installmentAmount, 0),
+          .reduce((sum, purchase) => sum + purchase.currentInstallmentAmount, 0),
   );
   const remainingBalanceTotal = roundCurrency(
     selectedPurchases.reduce((sum, purchase) => {
@@ -657,9 +710,9 @@ export function buildInstallmentsOverviewResponse(
 
       const remainingFromDisplay = purchase.rows.filter(
         (row) => (row.installmentNumber ?? 0) >= (firstPeriodRow.installmentNumber ?? 0),
-      ).length;
+      );
 
-      return sum + roundCurrency(purchase.installmentAmount * remainingFromDisplay);
+      return sum + sumRowAmounts(remainingFromDisplay, purchase.installmentAmount);
     }, 0),
   );
   const originalAmountTotal = roundCurrency(selectedPurchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0));

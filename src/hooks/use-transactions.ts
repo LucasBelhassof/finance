@@ -110,6 +110,7 @@ export function useCreateTransaction(limit?: number) {
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
       queryClient.invalidateQueries({ queryKey: plansQueryKey });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["installments", "overview"] });
     },
   });
 }

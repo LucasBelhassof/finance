@@ -2520,6 +2520,8 @@ export async function patchTransaction(input: UpdateTransactionInput) {
     ...(input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== ""
       ? { categoryId: input.categoryId }
       : {}),
+    ...(input.installmentUpdateScope ? { installmentUpdateScope: input.installmentUpdateScope } : {}),
+    ...(Array.isArray(input.installmentNumbers) ? { installmentNumbers: input.installmentNumbers } : {}),
   };
 
   const response = await request<ApiTransaction>(`/api/transactions/${input.id}`, {

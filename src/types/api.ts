@@ -813,8 +813,12 @@ export interface CreateTransactionInput {
   isRecurring?: boolean;
 }
 
+export type InstallmentUpdateScope = "current" | "all" | "future" | "past" | "custom";
+
 export interface UpdateTransactionInput extends CreateTransactionInput {
   id: number | string;
+  installmentUpdateScope?: InstallmentUpdateScope;
+  installmentNumbers?: number[];
 }
 
 export interface DeleteTransactionInput {

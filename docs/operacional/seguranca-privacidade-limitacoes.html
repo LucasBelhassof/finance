@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Seguranca, privacidade e limitacoes</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Seguranca e privacidade</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a href="api-auth-sessoes-usuarios.html">Auth</a
+        ><a href="api-importacao-extrato.html">Importacao</a
+        ><a href="api-exportacao-exclusao-dados.html">Exportacao e exclusao</a
+        ><a class="active" href="seguranca-privacidade-limitacoes.html">Seguranca</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>Seguranca, privacidade e limitacoes conhecidas</h1>
+        <p>
+          Consolida autenticacao, autorizacao, escopo por usuario, CORS, cookies, headers, rate limits, redacao de logs,
+          dados sensiveis em IA/importacao e limites visiveis no codigo atual.
+        </p>
+        <div class="tags">
+          <span class="tag">Bearer + refresh cookie</span><span class="tag">CORS com credentials</span
+          ><span class="tag">Helmet sem CSP estrita</span><span class="tag">Redacao de logs</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Proteger rotas por auth, role admin e premium, limitar abuso e reduzir
+            vazamento em logs.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>CSP estrita ainda desativada; nao foi identificado sistema de DLP ou vault
+            adicional no repositorio.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong><code>request.auth.userId</code> define escopo comum; admin exige role; premium
+            exige gate dedicado.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/app.ts</code>, <code>server/modules/auth/*</code>,
+            <code>server/shared/*</code>, <code>src/modules/auth/*</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          O desenho de seguranca prioriza sessao web com refresh token em cookie HttpOnly e access token bearer. A
+          autorizacao comum ocorre por usuario autenticado; rotas administrativas e premium acrescentam checks
+          especificos. A camada de logger tenta impedir vazamento de segredos por nome de chave.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Proteger rotas com <code>requireAccessToken</code>.</li>
+          <li>
+            Renovar sessao via refresh token em cookie <code>HttpOnly</code>, <code>SameSite=lax</code> e
+            <code>path=/api/auth</code>.
+          </li>
+          <li>
+            Aplicar <code>helmet()</code> e <code>cors()</code> com <code>origin=env.appOrigin</code> e
+            <code>credentials=true</code>.
+          </li>
+          <li>Aplicar rate limit em auth, importacao, chat e IA.</li>
+          <li>Redigir logs de password, token, secret, prompt, authorization, cookie, api_key, statement e extract.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao usa refresh token em <code>localStorage</code>.</li>
+          <li>Nao confia somente na UI para bloquear admin ou premium.</li>
+          <li>Nao confirmou CSP estrita no codigo analisado; ela esta desativada.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>CSP estrita esta explicitamente desligada em <code>helmet</code>.</li>
+          <li>Readiness nao cobre servicos externos de IA ou terceiros.</li>
+          <li>
+            IA pode usar dados financeiros agregados e historico relevante; detalhes de prompt nao sao expostos e nao
+            foram confirmados aqui.
+          </li>
+          <li>Arquivos importados ainda dependem do parser correto e do limite de 5 MB.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/refresh</code></td>
+              <td>Rotaciona sessao com cookie</td>
+              <td>Cookie refresh</td>
+              <td>Sessao valida</td>
+              <td>Sem body</td>
+              <td>Novo access token</td>
+              <td>Falha se cookie invalido</td>
+            </tr>
+            <tr>
+              <td>*</td>
+              <td><code>/api/*</code></td>
+              <td>Escopo por usuario</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Payload da rota</td>
+              <td>Resposta da capacidade</td>
+              <td>Sem bearer retorna 401</td>
+            </tr>
+            <tr>
+              <td>*</td>
+              <td><code>/api/admin/*</code></td>
+              <td>Autorizacao admin</td>
+              <td>Bearer</td>
+              <td>Role admin</td>
+              <td>Payload da rota</td>
+              <td>Resposta admin</td>
+              <td>403 para usuario comum</td>
+            </tr>
+            <tr>
+              <td>*</td>
+              <td><code>rotas premium</code></td>
+              <td>Premium gating</td>
+              <td>Bearer</td>
+              <td>Premium</td>
+              <td>Payload da rota</td>
+              <td>Resposta premium</td>
+              <td>402 para free</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Authorization</td>
+              <td>header bearer</td>
+              <td>Sim na maior parte da API</td>
+              <td>Token JWT valido</td>
+              <td>Refresh nao substitui este header</td>
+            </tr>
+            <tr>
+              <td>Refresh cookie</td>
+              <td>cookie</td>
+              <td>Sim para refresh/logout</td>
+              <td>HttpOnly, SameSite=lax, secure em producao</td>
+              <td>Path restrito a <code>/api/auth</code></td>
+            </tr>
+            <tr>
+              <td>Origin</td>
+              <td>header</td>
+              <td>Nao</td>
+              <td>CORS libera apenas <code>env.appOrigin</code></td>
+              <td>Credentials true</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Auth bearer</td>
+              <td>Rotas protegidas</td>
+              <td>Bloqueia usuario anonimo</td>
+              <td>401</td>
+            </tr>
+            <tr>
+              <td>Role admin</td>
+              <td>Rotas admin</td>
+              <td>Bloqueia usuario comum</td>
+              <td>403 <code>admin_forbidden</code></td>
+            </tr>
+            <tr>
+              <td>Premium</td>
+              <td>Rotas IA/import</td>
+              <td>Bloqueia usuario free</td>
+              <td>402 <code>premium_required</code></td>
+            </tr>
+            <tr>
+              <td>Rate limit</td>
+              <td>Auth/import/chat/IA</td>
+              <td>Reduz abuso</td>
+              <td>429 <code>rate_limited</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Renovacao de sessao escreve novo refresh cookie.</li>
+          <li>Logout e delete account limpam cookie.</li>
+          <li>Logger redige chaves sensiveis antes de serializar JSON.</li>
+          <li>Admin denied gera auditoria.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>401</td>
+              <td>Token ausente ou invalido</td>
+              <td>Rotas protegidas</td>
+              <td>Autenticar ou refrescar sessao</td>
+            </tr>
+            <tr>
+              <td>402</td>
+              <td>Usuario free</td>
+              <td>Superficies premium</td>
+              <td>Assinatura premium</td>
+            </tr>
+            <tr>
+              <td>403</td>
+              <td>Sem permissao admin ou senha atual incorreta</td>
+              <td>Admin / exclusao</td>
+              <td>Usar credencial/perfil correto</td>
+            </tr>
+            <tr>
+              <td>429</td>
+              <td>Excesso de tentativas</td>
+              <td>Auth, import, chat, IA</td>
+              <td>Aguardar janela</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo seguranca">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">UI / hooks</text>
+          <rect x="190" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="265" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">AuthProvider + API</text>
+          <rect x="370" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="445" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">helmet/cors/cookie</text>
+          <rect x="550" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="620" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">auth/premium/admin</text>
+          <rect x="720" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="800" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">DB / logs /</text>
+          <text x="800" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">auditoria</text>
+          <path d="M160 83h30M340 83h30M520 83h30M690 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/app.ts</code>, <code>server/modules/auth/routes.ts</code>,
+            <code>server/modules/auth/service.ts</code>, <code>server/shared/premium.ts</code>,
+            <code>server/shared/rate-limit.ts</code>, <code>server/shared/logger.js</code>
+          </li>
+          <li>
+            Frontend: <code>src/modules/auth/components/AuthProvider.tsx</code>, <code>ProtectedRoute.tsx</code>,
+            <code>AdminRoute.tsx</code>, <code>src/lib/api.ts</code>
+          </li>
+          <li>
+            Testes: <code>server/app.health.test.ts</code>, <code>server/modules/auth/routes.test.ts</code>,
+            <code>src/modules/auth/components/route-guards.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Qualquer rota nova protegida deve usar o mesmo scoping por usuario.</li>
+          <li>Nao registrar prompt, token, statement, extract ou cookie em logs.</li>
+          <li>Se CSP for habilitada no futuro, atualizar esta pagina com a configuracao final.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/modules/auth/*</code>,
+        <code>server/shared/premium.ts</code>, <code>server/shared/rate-limit.ts</code>,
+        <code>server/shared/logger.js</code>, <code>src/modules/auth/components/*</code>.
+      </footer>
+    </main>
+  </body>
+</html>

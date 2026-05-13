@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Dashboard e metricas</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Dashboard e metricas</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a class="active" href="api-dashboard-metricas.html">Dashboard</a
+        ><a href="api-transacoes.html">Transacoes</a><a href="api-faturas-parcelamentos.html">Faturas e parcelamentos</a
+        ><a href="api-contas-cartoes-categorias.html">Contas e categorias</a
+        ><a href="api-planejamentos-chat-ia.html">Planos e chat</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de dashboard e metricas</h1>
+        <p>
+          Consolida cards de saldo/receitas/despesas, gastos por categoria, contas, transacoes recentes e indicadores
+          usados pelas telas <code>Index.tsx</code> e <code>ExpenseMetrics.tsx</code>.
+        </p>
+        <div class="tags">
+          <span class="tag">Resumo financeiro</span><span class="tag">Filtros por periodo</span
+          ><span class="tag">Cards e graficos</span><span class="tag">Insights premium desabilitados</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Listar resumo do dashboard, contas, gastos por grupo e ultimas transacoes,
+            com ou sem recorte de datas.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Depende de dados financeiros consistentes; <code>/api/insights</code> retorna
+            lista vazia no codigo atual.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong>Todas as rotas exigem bearer; insights e chat no dashboard sofrem sanitizacao
+            para usuario free.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>src/hooks/use-dashboard.ts</code>, <code>src/pages/Index.tsx</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          O dashboard e a camada de leitura agregada do produto. Ele nao substitui o CRUD; consome transacoes, contas e
+          categorias para montar cards, listas e graficos. O frontend ainda recalcula alguns cortes client-side para
+          filtros mais detalhados em <code>Index.tsx</code> e <code>ExpenseMetrics.tsx</code>.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Retornar cards de saldo, receitas e despesas.</li>
+          <li>Listar contas/cartoes do usuario.</li>
+          <li>Listar transacoes recentes.</li>
+          <li>Agregar gastos por grupo de categoria.</li>
+          <li>Aplicar intervalo <code>startDate</code>/<code>endDate</code> em <code>/api/dashboard</code>.</li>
+          <li>Servir base para charts de spending e metricas mais detalhadas.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao corrige automaticamente dados inconsistentes de transacao.</li>
+          <li>
+            Nao retorna insights premium reais no estado atual; backend devolve array vazio e a tela de insights esta
+            desabilitada.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>Sem dados financeiros, cards e listas ficam vazios ou zerados.</li>
+          <li>Filtros invalidos dependem de normalizacao em <code>normalizeDashboardFilters</code>.</li>
+          <li>Usuarios free recebem dashboard sanitizado, sem insights e sem chatMessages.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/dashboard</code></td>
+              <td>Resumo principal</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>startDate, endDate opcionais</td>
+              <td>summaryCards, banks, transactions, spending, user</td>
+              <td>Sanitiza chat e insights para free</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/spending</code></td>
+              <td>Gastos por categoria/grupo</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td><code>{ spending }</code></td>
+              <td>Usa ultimo mes ou filtro derivado no backend</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/insights</code></td>
+              <td>Insights premium</td>
+              <td>Bearer</td>
+              <td>Premium</td>
+              <td>Sem body</td>
+              <td><code>{ insights: [] }</code> no codigo atual</td>
+              <td>Funcionalidade nao implementada</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>startDate</td>
+              <td>data ISO curta</td>
+              <td>Nao</td>
+              <td>Intervalo do dashboard</td>
+              <td>Aplicado em <code>/api/dashboard</code></td>
+            </tr>
+            <tr>
+              <td>endDate</td>
+              <td>data ISO curta</td>
+              <td>Nao</td>
+              <td>Fim do periodo</td>
+              <td>Usado para comparacao com periodo anterior</td>
+            </tr>
+            <tr>
+              <td>Filtros client-side</td>
+              <td>query string UI</td>
+              <td>Nao</td>
+              <td>Nao sao enviados integralmente ao backend</td>
+              <td>Boa parte do corte fino vive no frontend</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Auth obrigatoria</td>
+              <td>Todas as rotas</td>
+              <td>Bloqueia acesso anonimo</td>
+              <td>401</td>
+            </tr>
+            <tr>
+              <td>Premium</td>
+              <td><code>/api/insights</code></td>
+              <td>Bloqueia usuario free</td>
+              <td>402 <code>premium_required</code></td>
+            </tr>
+            <tr>
+              <td>Sanitizacao para free</td>
+              <td><code>/api/dashboard</code></td>
+              <td>Remove insights e chatMessages da resposta</td>
+              <td>Nao e erro; e reducao de payload</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Nao cria registro por si so; e uma camada de leitura.</li>
+          <li>Recebe impacto imediato de mudancas em transacoes, contas, importacao e parcelamentos.</li>
+          <li>Tem cache React Query invalido por mutations de transacoes, contas e imports.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Qualquer rota</td>
+              <td>Autenticar</td>
+            </tr>
+            <tr>
+              <td>402</td>
+              <td>Usuario free em insights</td>
+              <td><code>/api/insights</code></td>
+              <td>Premium</td>
+            </tr>
+            <tr>
+              <td>500</td>
+              <td>Falha em agregacao/banco</td>
+              <td>Leitura operacional</td>
+              <td>Inspecionar requestId e logs</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo dashboard">
+          <rect x="20" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="80" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Index.tsx</text>
+          <rect x="170" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="240" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-dashboard</text>
+          <rect x="340" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="400" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="490" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="560" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/dashboard</text>
+          <rect x="660" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="735" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">database.js</text>
+          <text x="735" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">agregacoes</text>
+          <rect x="840" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="900" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Cards e charts</text>
+          <path d="M140 83h30M310 83h30M460 83h30M630 83h30M810 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>server/dashboard-summary.js</code>, <code>server/dashboard-filters.js</code>
+          </li>
+          <li>
+            Frontend: <code>src/hooks/use-dashboard.ts</code>, <code>src/pages/Index.tsx</code>,
+            <code>src/pages/ExpenseMetrics.tsx</code>, <code>src/components/BalanceCards.tsx</code>,
+            <code>SpendingChart.tsx</code>
+          </li>
+          <li>
+            Testes: <code>server/app.health.test.ts</code>, <code>src/pages/Index.test.tsx</code>,
+            <code>src/pages/ExpenseMetrics.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Ao mudar calculo de transacao, revisar cards e spending.</li>
+          <li>Manter alinhamento entre filtro server-side do dashboard e refinamentos client-side.</li>
+          <li>Se insights forem implementados, atualizar esta pagina para substituir o estado atual vazio.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/database.js</code>,
+        <code>src/hooks/use-dashboard.ts</code>, <code>src/pages/Index.tsx</code>,
+        <code>src/pages/ExpenseMetrics.tsx</code>, <code>src/pages/Insights.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Planejamentos, chat e IA</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Planejamentos, chat e IA</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a class="active" href="api-planejamentos-chat-ia.html">Planos, chat e IA</a
+        ><a href="api-dashboard-metricas.html">Dashboard</a><a href="api-notificacoes.html">Notificacoes</a
+        ><a href="seguranca-privacidade-limitacoes.html">Seguranca</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de planejamentos, chat e IA</h1>
+        <p>
+          Reune CRUD de planos, chats, mensagens, drafts por IA, recomendacoes e resumos. O acesso a IA e partes do
+          historico e premium-gated, com rate limit e telemetria de uso.
+        </p>
+        <div class="tags">
+          <span class="tag">Premium gating</span><span class="tag">Chat e drafts</span
+          ><span class="tag">Recomendacoes persistidas</span><span class="tag">Telemetria de IA</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Criar plano manual ou por draft de IA, manter conversas, gerar titulo/resumo,
+            avaliar planos e criar recomendacoes.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Usuario free tem acesso reduzido, draft exige clarificacoes resolvidas e IA pode
+            cair em provider alternativo ou fallback local.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong>Bearer em todas as rotas; IA premium em chat, drafts, assessments e
+            recomendacoes.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>server/chat-ai-service.js</code>, <code>src/hooks/use-plans.ts</code>,
+            <code>src/hooks/use-chat.ts</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          Este dominio pega contexto financeiro do usuario, chats anteriores e objetivos para montar orientacoes, drafts
+          e recomendacoes. O backend persiste apenas estruturas normalizadas; o frontend usa
+          <code>PremiumGate</code> para esconder acoes bloqueadas, mas a protecao principal continua no backend.
+        </p>
+        <div class="callout">
+          O codigo redige chaves sensiveis como <code>prompt</code>, <code>token</code>, <code>statement</code> e
+          <code>extract</code> nos logs. O prompt bruto nao e documentado aqui.
+        </div>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Criar, listar, editar e remover planos financeiros.</li>
+          <li>Anexar itens, objetivo, chats e referencias de investimento a um plano.</li>
+          <li>Criar ou reutilizar sessao de draft de plano por chat.</li>
+          <li>Gerar respostas, titulos e resumos de chat.</li>
+          <li>Persistir avaliacao de risco e recomendacoes pendentes por IA.</li>
+          <li>Criar notificacoes ligadas ao plano quando ha pontos de atencao.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao garante que a resposta da IA esteja correta financeiramente.</li>
+          <li>Nao expõe prompt bruto nos logs ou nesta documentacao.</li>
+          <li>Nao confirma draft enquanto houver clarificacoes obrigatorias pendentes.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>Rate limit compartilhado para superficie de IA em chat e planos.</li>
+          <li>Se IA estiver desabilitada por ambiente, o chat usa fallback local baseado em regras.</li>
+          <li>Usuarios free recebem planos sanitizados, sem <code>aiAssessment</code> e sem chats ligados.</li>
+          <li>Falhas externas de provider podem alternar entre Gemini e OpenAI ou encerrar com erro.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/plans</code></td>
+              <td>Lista planos</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td><code>{ plans }</code></td>
+              <td>Plano e sanitizado para free</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/plans</code></td>
+              <td>Cria plano</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>title, description, goal, items, linked chats</td>
+              <td>201 + plano</td>
+              <td>Normalizacao forte no backend</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/plans/:id</code></td>
+              <td>Edita plano</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Campos parciais</td>
+              <td>plano atualizado</td>
+              <td>ID inteiro obrigatorio</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/plans/:id</code></td>
+              <td>Remove plano</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td>204</td>
+              <td>Escopo do usuario</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/plans/ai-draft-session</code></td>
+              <td>Cria/recupera draft session</td>
+              <td>Bearer</td>
+              <td>Premium</td>
+              <td>chatId e contexto</td>
+              <td>draftSession</td>
+              <td>Rate limit IA</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/plans/ai-draft-confirm</code></td>
+              <td>Confirma draft</td>
+              <td>Bearer</td>
+              <td>Premium</td>
+              <td>draftSessionId</td>
+              <td>201 + plano criado</td>
+              <td>Clarificacoes pendentes bloqueiam</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/chat/messages</code></td>
+              <td>Lista conversas</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>search opcional</td>
+              <td><code>{ conversations }</code></td>
+              <td>Envio de mensagem premium</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/chat/messages</code></td>
+              <td>Envia mensagem</td>
+              <td>Bearer</td>
+              <td>Premium</td>
+              <td>message, conversationId opcional</td>
+              <td>mensagens atualizadas</td>
+              <td>Rate limit e provider externo</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/chat/messages/:conversationId</code></td>
+              <td>Lista mensagens</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td><code>{ messages }</code></td>
+              <td>Escopo do usuario</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/chat/summary</code></td>
+              <td>Gera resumo</td>
+              <td>Bearer</td>
+              <td>Premium</td>
+              <td>conversationId</td>
+              <td>summary</td>
+              <td>Dependencia de IA</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>title</td>
+              <td>string</td>
+              <td>Sim em plano manual</td>
+              <td>Normalizado e truncado</td>
+              <td>IA tambem pode sugerir titulo</td>
+            </tr>
+            <tr>
+              <td>items</td>
+              <td>array</td>
+              <td>Nao</td>
+              <td>Itens normalizados no backend</td>
+              <td>Podem virar plano manual ou IA</td>
+            </tr>
+            <tr>
+              <td>message</td>
+              <td>string</td>
+              <td>Sim no chat</td>
+              <td>Nao vazia</td>
+              <td>Usada para resposta e titulo</td>
+            </tr>
+            <tr>
+              <td>conversationId</td>
+              <td>number</td>
+              <td>Nao</td>
+              <td>Inteiro valido do usuario</td>
+              <td>Sem ID cria conversa nova</td>
+            </tr>
+            <tr>
+              <td>draftSessionId</td>
+              <td>string</td>
+              <td>Sim para confirmar draft</td>
+              <td>Sessao valida e pendente</td>
+              <td>Bloqueada se faltarem clarificacoes</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Premium obrigatorio</td>
+              <td>Chat IA, draft, summary, recommendations</td>
+              <td>Bloqueia usuario free</td>
+              <td>402 <code>premium_required</code></td>
+            </tr>
+            <tr>
+              <td>Clarificacoes do draft</td>
+              <td>Confirmacao</td>
+              <td>Impede criar plano incompleto</td>
+              <td>400 <code>plan_ai_draft_requires_clarification</code></td>
+            </tr>
+            <tr>
+              <td>Escopo da conversa/plano</td>
+              <td>GET/PATCH/DELETE</td>
+              <td>Impede acesso cruzado</td>
+              <td>404 recurso nao encontrado</td>
+            </tr>
+            <tr>
+              <td>Rate limit de IA</td>
+              <td>Superficies IA</td>
+              <td>Reduz abuso</td>
+              <td>429 <code>rate_limited</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria registros de planos, itens, chats, mensagens, drafts e recomendacoes.</li>
+          <li>Registra eventos em <code>ai_usage_events</code>.</li>
+          <li>Pode criar notificacoes vinculadas a <code>/plans/{public_id}</code>.</li>
+          <li>Invalida dashboard, plans, chats e notifications no frontend.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Draft incompleto, payload invalido ou titulo/mensagem vazios</td>
+              <td>Create/update/confirm</td>
+              <td>Completar campos e clarificacoes</td>
+            </tr>
+            <tr>
+              <td>402</td>
+              <td>Usuario free</td>
+              <td>IA premium</td>
+              <td>Premium</td>
+            </tr>
+            <tr>
+              <td>429</td>
+              <td>Excesso de chamadas IA</td>
+              <td>Chat/draft/summary</td>
+              <td>Aguardar nova janela</td>
+            </tr>
+            <tr>
+              <td>500</td>
+              <td>Falha no provider externo</td>
+              <td>Chat ou draft</td>
+              <td>Repetir depois e inspecionar logs</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo planos e chat">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Plans / Chat UI</text>
+          <rect x="190" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="270" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-plans / use-chat</text>
+          <rect x="380" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="440" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="530" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="600" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/plans & chat</text>
+          <rect x="700" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="780" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">database.js</text>
+          <text x="780" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">+ IA service</text>
+          <path d="M160 83h30M350 83h30M500 83h30M670 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>server/chat-ai-service.js</code>, <code>server/shared/premium.ts</code>,
+            <code>server/shared/rate-limit.ts</code>
+          </li>
+          <li>
+            Frontend: <code>src/hooks/use-plans.ts</code>, <code>src/hooks/use-chat.ts</code>,
+            <code>src/pages/Plans.tsx</code>, <code>src/pages/Chat.tsx</code>
+          </li>
+          <li>
+            Migrations: <code>server/migrations/022_chat_message_ai_usage.sql</code>,
+            <code>server/migrations/023_chat_conversations.sql</code>,
+            <code>server/migrations/024_chat_conversation_actions.sql</code>,
+            <code>server/migrations/025_plans.sql</code>, <code>server/migrations/026_plan_goals.sql</code>,
+            <code>server/migrations/027_plan_ai_automation.sql</code>,
+            <code>server/migrations/029_plan_ai_drafts.sql</code>,
+            <code>server/migrations/030_plan_investment_refs.sql</code>,
+            <code>server/migrations/035_ai_usage_events.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/app.plans-ai.test.ts</code>, <code>server/app.premium.test.ts</code>,
+            <code>server/chat-ai-provider-direct.test.ts</code>, <code>src/hooks/use-chat.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Preservar premium gating no backend mesmo se a UI mudar.</li>
+          <li>Evitar logar prompt bruto ou anexos sensiveis.</li>
+          <li>Ao alterar plano, revisar sanitizacao para usuario free e notificacoes geradas.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/database.js</code>,
+        <code>server/chat-ai-service.js</code>, <code>src/hooks/use-plans.ts</code>, <code>src/hooks/use-chat.ts</code>,
+        <code>src/pages/Plans.tsx</code>, <code>src/pages/Chat.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

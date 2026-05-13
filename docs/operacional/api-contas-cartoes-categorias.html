@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Contas, cartoes e categorias</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Contas, cartoes e categorias</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a
+        ><a class="active" href="api-contas-cartoes-categorias.html">Contas, cartoes e categorias</a
+        ><a href="api-transacoes.html">Transacoes</a><a href="api-faturas-parcelamentos.html">Faturas e parcelamentos</a
+        ><a href="api-dashboard-metricas.html">Dashboard</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de contas, cartoes e categorias</h1>
+        <p>
+          Gerencia contas bancarias, contas em caixa, cartoes de credito e categorias personalizadas do usuario. Essas
+          entidades alimentam transacoes, faturas, dashboard, importacao e habitacao.
+        </p>
+        <div class="tags">
+          <span class="tag">Escopo por usuario</span><span class="tag">Cartao depende de conta pai</span
+          ><span class="tag">Categorias de sistema protegidas</span><span class="tag">Bloqueios de exclusao</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Criar, listar, editar e excluir contas e categorias; ajustar limite e
+            fechamento de cartao.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Cartao exige conta pai bancaria; categorias em uso ou de sistema nao podem ser
+            removidas.
+          </div>
+          <div class="card"><strong>Permissoes</strong>Bearer obrigatorio e filtros por <code>user_id</code>.</div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>src/hooks/use-banks.ts</code>, <code>src/pages/Accounts.tsx</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          Este dominio define onde o dinheiro entra ou sai e como as transacoes sao classificadas. Toda operacao
+          financeira depende dessas estruturas, por isso o backend aplica validacoes de tipagem, exclusao segura e
+          coerencia entre conta pai e cartao.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Criar conta bancaria, caixa ou cartao de credito.</li>
+          <li>Listar conexoes bancarias/cartoes do usuario.</li>
+          <li>Editar nome, saldo, limite, dias de fechamento e vencimento.</li>
+          <li>Criar categoria customizada por tipo.</li>
+          <li>Listar categorias do usuario combinadas com categorias padrao do sistema.</li>
+          <li>Excluir categorias e contas apenas quando nao quebram relacionamentos existentes.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao permite remover a ultima conta de caixa.</li>
+          <li>Nao permite criar cartao sem <code>parentBankConnectionId</code> valido.</li>
+          <li>Nao permite enviar campos exclusivos de cartao para uma conta comum.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>Conta exige <code>name</code>, <code>accountType</code> e <code>currentBalance</code>.</li>
+          <li>
+            Cartao exige tambem <code>creditLimit</code>, <code>statementCloseDay</code>, <code>statementDueDay</code> e
+            conta pai bancaria.
+          </li>
+          <li>Delete de conta bloqueia se houver cartoes filhos ou transacoes ligadas.</li>
+          <li>
+            Delete de categoria bloqueia se houver uso em transacoes, habitacao, parcelamentos, regras de categorizacao,
+            planos, drafts ou recomendacoes.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/banks</code></td>
+              <td>Lista contas e cartoes</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td><code>{ banks }</code></td>
+              <td>Inclui contas e cartoes do proprio usuario</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/banks</code></td>
+              <td>Cria conta/cartao</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Payload da conta</td>
+              <td>201 + conta</td>
+              <td>Cartao exige pai bancario</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/banks/:id</code></td>
+              <td>Edita conta/cartao</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Payload parcial valido</td>
+              <td>conta atualizada</td>
+              <td>ID inteiro obrigatorio</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/banks/:id</code></td>
+              <td>Remove conta/cartao</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td>204</td>
+              <td>Bloqueia recursos vinculados</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/categories</code></td>
+              <td>Lista categorias</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td><code>{ categories }</code></td>
+              <td>Mistura padrao + usuario</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/categories</code></td>
+              <td>Cria categoria</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>name, type</td>
+              <td>201 + categoria</td>
+              <td>Nome obrigatorio e tipo valido</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/categories/:id</code></td>
+              <td>Edita categoria</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>name, type opcional</td>
+              <td>categoria atualizada</td>
+              <td>Categoria sistema nao deve ser quebrada</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/categories/:id</code></td>
+              <td>Exclui categoria</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td>204</td>
+              <td>Bloqueia categoria em uso</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>name</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Nao vazio</td>
+              <td>Conta e categoria usam trim</td>
+            </tr>
+            <tr>
+              <td>accountType</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td><code>cash</code>, <code>bank_account</code> ou <code>credit_card</code></td>
+              <td>Define campos obrigatorios</td>
+            </tr>
+            <tr>
+              <td>currentBalance</td>
+              <td>number</td>
+              <td>Sim</td>
+              <td>Numero finito</td>
+              <td>Saldo exibido no dashboard</td>
+            </tr>
+            <tr>
+              <td>creditLimit</td>
+              <td>number</td>
+              <td>Condicional</td>
+              <td>Obrigatorio para cartao</td>
+              <td>Nao deve ser enviado em conta comum</td>
+            </tr>
+            <tr>
+              <td>statementCloseDay / statementDueDay</td>
+              <td>number</td>
+              <td>Condicional</td>
+              <td>1 a 31</td>
+              <td>Usado por invoices</td>
+            </tr>
+            <tr>
+              <td>type</td>
+              <td>string</td>
+              <td>Sim para categoria</td>
+              <td><code>income</code> ou <code>expense</code></td>
+              <td>Define compatibilidade com transacoes</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Conta pai bancaria</td>
+              <td>Create/update de cartao</td>
+              <td>Impede cartao sem conta pai adequada</td>
+              <td>400 <code>invalid_parent_bank_connection</code></td>
+            </tr>
+            <tr>
+              <td>Ultima conta caixa</td>
+              <td>Delete</td>
+              <td>Impede exclusao do ultimo caixa</td>
+              <td>400 <code>cannot_delete_last_cash_account</code></td>
+            </tr>
+            <tr>
+              <td>Categoria de sistema ou em uso</td>
+              <td>Delete categoria</td>
+              <td>Bloqueia exclusao</td>
+              <td>400 <code>category_in_use</code> / <code>system_category_locked</code></td>
+            </tr>
+            <tr>
+              <td>Campos de cartao em conta comum</td>
+              <td>Create/update</td>
+              <td>Rejeita payload inconsistente</td>
+              <td>400 <code>invalid_bank_payload</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria/altera/remove registros em <code>bank_connections</code> e <code>categories</code>.</li>
+          <li>Afeta escolhas disponiveis em transacoes, importacao, invoices, dashboard e habitacao.</li>
+          <li>Invalida caches de bancos, dashboard, invoices e transacoes no frontend.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Payload inconsistente</td>
+              <td>Create/update</td>
+              <td>Rever tipo da conta e campos obrigatorios</td>
+            </tr>
+            <tr>
+              <td>404</td>
+              <td>Conta ou categoria inexistente</td>
+              <td>Update/delete fora do escopo</td>
+              <td>Usar recurso valido</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Qualquer rota</td>
+              <td>Autenticar</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo contas">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Accounts.tsx</text>
+          <rect x="190" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="255" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-banks</text>
+          <rect x="350" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="415" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="510" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="585" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/banks /categories</text>
+          <rect x="690" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="770" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">database.js</text>
+          <text x="770" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">validacao e bloqueios</text>
+          <path d="M160 83h30M320 83h30M480 83h30M660 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>Backend: <code>server/app.ts</code>, <code>server/database.js</code></li>
+          <li>Frontend: <code>src/hooks/use-banks.ts</code>, <code>src/pages/Accounts.tsx</code></li>
+          <li>Dependencias: <code>src/pages/Transactions.tsx</code>, <code>src/pages/CreditCardInvoices.tsx</code></li>
+          <li>
+            Migrations: <code>server/migrations/001_init_schema.sql</code>,
+            <code>server/migrations/005_bank_connection_account_type.sql</code>,
+            <code>server/migrations/006_bank_connection_cards.sql</code>,
+            <code>server/migrations/012_category_system_flag.sql</code>,
+            <code>server/migrations/038_categories_user_scope.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/app.financial-crud.test.ts</code>, <code>server/app.categories.test.ts</code>,
+            <code>server/database.categories.test.ts</code>, <code>src/pages/Accounts.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Ao alterar conta/cartao, revisar importacao, invoices e dashboard.</li>
+          <li>Preservar travas de exclusao segura de categoria e conta.</li>
+          <li>Manter compatibilidade de tipo entre categoria e transacao.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/database.js</code>,
+        <code>src/hooks/use-banks.ts</code>, <code>src/pages/Accounts.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

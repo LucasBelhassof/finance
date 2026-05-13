@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - API de investimentos</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Investimentos</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a class="active" href="api-investimentos.html">Investimentos</a
+        ><a href="api-planejamentos-chat-ia.html">Planos e IA</a
+        ><a href="api-contas-cartoes-categorias.html">Contas e categorias</a
+        ><a href="api-dashboard-metricas.html">Dashboard</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de investimentos</h1>
+        <p>
+          Gerencia caixas/objetivos de investimento do usuario, com modo de contribuicao fixa ou percentual de renda,
+          valor atual, alvo e vinculacao opcional a conta.
+        </p>
+        <div class="tags">
+          <span class="tag">Objetivos financeiros</span><span class="tag">Modo fixo ou percentual</span
+          ><span class="tag">Vinculo opcional a conta</span><span class="tag">Uso por planos</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Listar, criar, editar e excluir investimentos com meta, valor atual e status.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Nome e modo de contribuicao sao obrigatorios; valores nao podem ser negativos.
+          </div>
+          <div class="card"><strong>Permissoes</strong>Bearer obrigatorio e filtro por <code>user_id</code>.</div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>src/pages/Investments.tsx</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          Investimentos representam metas ou envelopes de acumulacao e podem ser usados como referencia nos planos. O
+          backend persiste apenas a estrutura do objetivo; nao foi identificada uma rotina automatica de aporte gerando
+          transacoes.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Criar investimento com nome, descricao, status, cor e notas.</li>
+          <li>Definir contribuicao fixa ou percentual da renda.</li>
+          <li>Associar investimento a uma conta do usuario.</li>
+          <li>Guardar valor atual e valor alvo.</li>
+          <li>Listar investimentos com paginação opcional.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao gera transacoes automaticamente no codigo analisado.</li>
+          <li>Nao permite valor atual, valor alvo, aporte fixo ou percentual negativos.</li>
+          <li>Nao aceita <code>incomePercentage</code> fora do intervalo 0 a 100.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li><code>contributionMode</code> precisa estar entre os modos suportados.</li>
+          <li>Se a conta associada nao existir, a operacao falha.</li>
+          <li>
+            Nao foi identificado bloqueio de exclusao por referencia em plano; o plano precisa tratar referencia
+            quebrada em camada propria se isso ocorrer.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/investments</code></td>
+              <td>Lista investimentos</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>page, pageSize opcionais</td>
+              <td><code>{ investments }</code> ou lista paginada</td>
+              <td>Sem filtros adicionais identificados</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/investments</code></td>
+              <td>Cria investimento</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>name, contributionMode, currentAmount etc.</td>
+              <td>201 + investimento</td>
+              <td>Banco opcional precisa existir</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/investments/:id</code></td>
+              <td>Edita investimento</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Mesmo payload de create</td>
+              <td>investimento atualizado</td>
+              <td>ID inteiro obrigatorio</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/investments/:id</code></td>
+              <td>Exclui investimento</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td>204</td>
+              <td>Nao encontrado gera 404</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>name</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Nao vazio</td>
+              <td>Normalizado com trim</td>
+            </tr>
+            <tr>
+              <td>contributionMode</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Modo suportado pelo backend</td>
+              <td><code>fixed_amount</code> ou <code>income_percentage</code></td>
+            </tr>
+            <tr>
+              <td>fixedAmount</td>
+              <td>number</td>
+              <td>Condicional</td>
+              <td>Zero ou maior</td>
+              <td>Somente no modo fixo</td>
+            </tr>
+            <tr>
+              <td>incomePercentage</td>
+              <td>number</td>
+              <td>Condicional</td>
+              <td>0 a 100</td>
+              <td>Somente no modo percentual</td>
+            </tr>
+            <tr>
+              <td>currentAmount</td>
+              <td>number</td>
+              <td>Nao</td>
+              <td>Zero ou maior</td>
+              <td>Default 0</td>
+            </tr>
+            <tr>
+              <td>targetAmount</td>
+              <td>number</td>
+              <td>Nao</td>
+              <td>Zero ou maior</td>
+              <td>Pode ser nulo</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Nome obrigatorio</td>
+              <td>Create/update</td>
+              <td>Impede investimento sem nome</td>
+              <td>400 <code>invalid_investment_name</code></td>
+            </tr>
+            <tr>
+              <td>Modo de contribuicao valido</td>
+              <td>Create/update</td>
+              <td>Impede modo desconhecido</td>
+              <td>400 <code>invalid_investment_contribution_mode</code></td>
+            </tr>
+            <tr>
+              <td>Faixa numerica valida</td>
+              <td>Create/update</td>
+              <td>Bloqueia negativos e percentual fora de 0-100</td>
+              <td>400 erros especificos por campo</td>
+            </tr>
+            <tr>
+              <td>Conta associada existente</td>
+              <td>Create/update</td>
+              <td>Impede conta inexistente</td>
+              <td>404 <code>bank_connection_not_found</code></td>
+            </tr>
+            <tr>
+              <td>ID inteiro</td>
+              <td>PATCH/DELETE</td>
+              <td>Bloqueia rota malformada</td>
+              <td>400 <code>invalid_investment_id</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria, altera ou remove registros em <code>investments</code>.</li>
+          <li>Pode ser referenciado por planos e drafts de planejamento.</li>
+          <li>Frontend invalida listas de investimentos e planos relacionados.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Payload invalido</td>
+              <td>Create/update/delete</td>
+              <td>Corrigir modo e valores</td>
+            </tr>
+            <tr>
+              <td>404</td>
+              <td>Investimento ou conta nao encontrados</td>
+              <td>Update/delete</td>
+              <td>Usar recurso valido</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Qualquer rota</td>
+              <td>Autenticar</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo investimentos">
+          <rect x="20" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="95" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Investments.tsx</text>
+          <rect x="200" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="270" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Hook da feature</text>
+          <rect x="370" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="430" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="520" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="595" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/investments</text>
+          <rect x="700" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="780" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">database.js</text>
+          <text x="780" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">validacao + DB</text>
+          <path d="M170 83h30M340 83h30M490 83h30M670 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>Backend: <code>server/app.ts</code>, <code>server/database.js</code></li>
+          <li>Frontend: <code>src/pages/Investments.tsx</code>, <code>src/hooks/use-investments.ts</code></li>
+          <li>Planos: <code>src/pages/Plans.tsx</code>, <code>server/database.js</code> na modelagem de goals</li>
+          <li>
+            Migrations: <code>server/migrations/028_investments.sql</code>,
+            <code>server/migrations/030_plan_investment_refs.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/app.plans-ai.test.ts</code>,
+            <code>src/components/investments/CreateInvestmentDialog.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Se surgir rotina de aporte automatico, documentar separadamente por impactar transacoes.</li>
+          <li>Preservar validacao por modo de contribuicao.</li>
+          <li>Ao vincular investimento a plano, revisar comportamento ao excluir investimento.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/database.js</code>,
+        <code>src/pages/Investments.tsx</code>, <code>src/pages/Plans.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

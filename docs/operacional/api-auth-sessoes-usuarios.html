@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Auth, sessoes e usuarios</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent: #7c9cff;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+        --danger: #ff7b88;
+        --ok: #59d7a2;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 400;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        line-height: 1.15;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 960px;
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Auth, sessoes e usuarios</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a>
+        <a class="active" href="api-auth-sessoes-usuarios.html">Auth, sessoes e usuarios</a>
+        <a href="api-transacoes.html">Transacoes</a>
+        <a href="api-importacao-extrato.html">Importacao</a>
+        <a href="api-dashboard-metricas.html">Dashboard</a>
+        <a href="api-contas-cartoes-categorias.html">Contas e categorias</a>
+        <a href="api-faturas-parcelamentos.html">Faturas e parcelamentos</a>
+        <a href="api-planejamentos-chat-ia.html">Planos, chat e IA</a>
+        <a href="api-admin.html">Admin</a>
+        <a href="api-notificacoes.html">Notificacoes</a>
+        <a href="api-exportacao-exclusao-dados.html">Exportacao e exclusao</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de auth, sessoes e usuarios</h1>
+        <p>
+          Controla login, criacao de conta, refresh, logout, recuperacao de senha, perfil autenticado, onboarding e
+          ajustes de conta/contato/senha. O backend usa bearer token para acesso e cookie HttpOnly para refresh.
+        </p>
+        <div class="tags">
+          <span class="tag">JWT access token</span>
+          <span class="tag">Refresh token em cookie</span>
+          <span class="tag">Rate limit em auth sensivel</span>
+          <span class="tag">Auditoria de auth</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Login, signup, refresh, logout, forgot/reset password, leitura de
+            <code>/me</code>, onboarding, atualizacao de conta, contato e senha.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Rotas internas exigem bearer valido; token expirado depende de refresh; conta
+            inativa ou suspensa perde acesso.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong><code>/me</code>, onboarding e alteracoes de conta exigem usuario autenticado;
+            admin tem guard separado.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/modules/auth/*</code>, <code>src/modules/auth/*</code>,
+            <code>src/App.tsx</code>.
+          </div>
+        </div>
+        <div class="toc">
+          <a href="#visao">Visao operacional</a><a href="#endpoints">Endpoints</a><a href="#validacoes">Validacoes</a
+          ><a href="#fluxo">Fluxo</a>
+        </div>
+      </header>
+
+      <section class="section" id="visao">
+        <h2>Visao operacional</h2>
+        <p>
+          Esta capacidade protege toda a aplicacao web. O frontend inicializa sessao com
+          <code>refreshSession()</code> no <code>AuthProvider</code>, injeta bearer nas requisicoes e limpa a sessao
+          quando refresh falha. O backend valida o bearer em <code>requireAccessToken()</code> antes das rotas
+          protegidas.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Autenticar por e-mail e senha.</li>
+          <li>Criar conta e abrir sessao imediatamente apos signup.</li>
+          <li>Rotacionar refresh token e emitir novo access token.</li>
+          <li>Encerrar sessao e limpar cookie de refresh.</li>
+          <li>Iniciar e concluir fluxo de recuperacao de senha.</li>
+          <li>Expor usuario autenticado em <code>/api/auth/me</code>.</li>
+          <li>Persistir progresso de onboarding e checklist de acoes.</li>
+          <li>Atualizar nome, e-mail, telefone e endereco.</li>
+          <li>Trocar senha do usuario autenticado.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao usa <code>localStorage</code> para refresh token.</li>
+          <li>
+            Nao autoriza rotas administrativas por esconder UI; admin depende de <code>role</code> no backend e
+            <code>AdminRoute</code> no frontend.
+          </li>
+          <li>Nao permite acessar rota protegida apenas com cookie; o access token bearer continua obrigatorio.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>Senha precisa ter entre 8 e 72 caracteres.</li>
+          <li>Rate limit: login 20, signup 5, forgot 3, reset 3, refresh 30 por janela de 15 minutos.</li>
+          <li>Se refresh falhar, <code>AuthProvider</code> limpa sessao e redireciona para login.</li>
+          <li>Contas <code>inactive</code> e <code>suspended</code> sao barradas no service.</li>
+          <li>Cookie de refresh fica preso ao path <code>/api/auth</code>.</li>
+        </ul>
+      </section>
+      <section class="section" id="endpoints">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Autenticacao</th>
+              <th>Permissao</th>
+              <th>Entrada esperada</th>
+              <th>Resposta esperada</th>
+              <th>Limitacao principal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/login</code></td>
+              <td>Cria sessao autenticada</td>
+              <td>Nao</td>
+              <td>Publica</td>
+              <td>email, password, rememberMe</td>
+              <td>user, accessToken, expiresAt + cookie</td>
+              <td>Rate limit e credenciais invalidas</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/signup</code></td>
+              <td>Cria usuario com credenciais</td>
+              <td>Nao</td>
+              <td>Publica</td>
+              <td>name, email, password, confirmPassword</td>
+              <td>201 + user, accessToken, expiresAt + cookie</td>
+              <td>E-mail valido e confirmacao obrigatoria</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/refresh</code></td>
+              <td>Rotaciona sessao</td>
+              <td>Cookie de refresh</td>
+              <td>Sessao existente</td>
+              <td>Sem body</td>
+              <td>user, accessToken, expiresAt + novo cookie</td>
+              <td>Falha se cookie ausente/invalido</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/logout</code></td>
+              <td>Revoga sessao atual</td>
+              <td>Cookie de refresh</td>
+              <td>Sessao existente</td>
+              <td>Sem body</td>
+              <td>204 e cookie expirado</td>
+              <td>Nao devolve payload de sucesso</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/forgot-password</code></td>
+              <td>Gera fluxo de reset</td>
+              <td>Nao</td>
+              <td>Publica</td>
+              <td>email</td>
+              <td>Resultado do reset</td>
+              <td>Rate limit 3</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/reset-password</code></td>
+              <td>Aplica nova senha</td>
+              <td>Nao</td>
+              <td>Publica</td>
+              <td>token, newPassword, confirmPassword</td>
+              <td>message</td>
+              <td>Token valido e senhas iguais</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/auth/me</code></td>
+              <td>Le usuario autenticado</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td>user</td>
+              <td>Bearer obrigatorio</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/auth/onboarding</code></td>
+              <td>Atualiza onboarding</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>currentStep, completedSteps, skippedSteps, dismissed</td>
+              <td>user</td>
+              <td>Passos limitados ao enum permitido</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/auth/account</code></td>
+              <td>Atualiza nome e e-mail</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>name, email, confirmEmail</td>
+              <td>user</td>
+              <td>Confirmacao de email obrigatoria</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/auth/contact</code></td>
+              <td>Atualiza telefone e endereco</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>phone e campos de endereco</td>
+              <td>user</td>
+              <td>Normalizacao e truncamento de campos</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/auth/change-password</code></td>
+              <td>Troca senha</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>currentPassword, newPassword, confirmPassword</td>
+              <td>message</td>
+              <td>Logout forzado no frontend apos sucesso</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>email</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Formato de e-mail valido</td>
+              <td>Usado em login, signup, forgot e updateAccount</td>
+            </tr>
+            <tr>
+              <td>password / newPassword</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Min 8, max 72</td>
+              <td>Confirmacao obrigatoria em signup/reset/change</td>
+            </tr>
+            <tr>
+              <td>rememberMe</td>
+              <td>boolean</td>
+              <td>Nao</td>
+              <td>Default false</td>
+              <td>Altera TTL do refresh token</td>
+            </tr>
+            <tr>
+              <td>completedSteps</td>
+              <td>array</td>
+              <td>Nao</td>
+              <td>Itens do enum de onboarding</td>
+              <td>Passos desconhecidos sao rejeitados pelo schema</td>
+            </tr>
+            <tr>
+              <td>addressState</td>
+              <td>string</td>
+              <td>Nao</td>
+              <td>Max 2, uppercase</td>
+              <td>Normalizado no schema</td>
+            </tr>
+            <tr>
+              <td>addressPostalCode</td>
+              <td>string</td>
+              <td>Nao</td>
+              <td>Max 9, extrai ate 8 digitos</td>
+              <td>CEP e normalizado</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section" id="validacoes">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Bearer obrigatorio</td>
+              <td>Rotas protegidas e <code>/me</code></td>
+              <td>Bloqueia acesso sem token</td>
+              <td>401 <code>authorization_header_missing</code></td>
+            </tr>
+            <tr>
+              <td>Senha e confirmacao iguais</td>
+              <td>Signup, reset, change password</td>
+              <td>Impede persistencia</td>
+              <td>400 <code>validation_error</code></td>
+            </tr>
+            <tr>
+              <td>E-mails iguais</td>
+              <td><code>/account</code></td>
+              <td>Impede troca de e-mail inconsistente</td>
+              <td>400 <code>validation_error</code></td>
+            </tr>
+            <tr>
+              <td>Conta ativa</td>
+              <td>Login/refresh</td>
+              <td>Nega sessao para status invalido</td>
+              <td>403 <code>user_inactive</code> ou <code>user_suspended</code></td>
+            </tr>
+            <tr>
+              <td>Rate limit</td>
+              <td>Rotas sensiveis</td>
+              <td>Registra auditoria e bloqueia tentativa</td>
+              <td>429 <code>rate_limited</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria e rotaciona registros de sessao em <code>auth_sessions</code>.</li>
+          <li>Cria tokens de reset e invalida tokens antigos.</li>
+          <li>Atualiza cookie de refresh e limpa cookie no logout.</li>
+          <li>Escreve eventos de auditoria via <code>insertAuditEvent()</code>.</li>
+          <li>Atualiza estado de usuario e limpa caches do frontend em falha de auth.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa provavel</th>
+              <th>Quando acontece</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Payload invalido</td>
+              <td>Zod rejeita campos ou confirmacoes</td>
+              <td>Corrigir formato e campos obrigatorios</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente, token invalido ou refresh expirado</td>
+              <td>Rotas protegidas</td>
+              <td>Refazer login</td>
+            </tr>
+            <tr>
+              <td>403</td>
+              <td>Conta inativa, suspensa ou senha invalida na exclusao</td>
+              <td>Service aplica regra de acesso</td>
+              <td>Reativar conta ou credencial correta</td>
+            </tr>
+            <tr>
+              <td>429</td>
+              <td>Excesso de tentativas</td>
+              <td>Login/signup/reset/refresh</td>
+              <td>Aguardar janela do rate limit</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section" id="fluxo">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo auth">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Tela auth / guard</text>
+          <rect x="190" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="260" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">auth-service.ts</text>
+          <rect x="360" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="430" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/auth/*</text>
+          <rect x="530" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="600" y="81" fill="#eef2ff" font-size="14" text-anchor="middle">schemas +</text>
+          <text x="600" y="99" fill="#eef2ff" font-size="14" text-anchor="middle">service</text>
+          <rect x="700" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="770" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">users / sessions</text>
+          <rect x="850" y="55" width="110" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="905" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Resposta</text>
+          <path d="M160 83h30M330 83h30M500 83h30M670 83h30M840 83h10" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/modules/auth/routes.ts</code>, <code>server/modules/auth/service.ts</code>,
+            <code>server/modules/auth/repository.ts</code>, <code>server/modules/auth/schemas.ts</code>
+          </li>
+          <li>
+            Frontend: <code>src/modules/auth/components/AuthProvider.tsx</code>, <code>ProtectedRoute.tsx</code>,
+            <code>PublicOnlyRoute.tsx</code>, <code>AdminRoute.tsx</code>
+          </li>
+          <li>
+            Paginas: <code>src/modules/auth/pages/*.tsx</code>, <code>src/pages/Settings.tsx</code>,
+            <code>src/pages/Profile.tsx</code>
+          </li>
+          <li>
+            Migrations: <code>server/migrations/013_auth_tables.sql</code>,
+            <code>server/migrations/014_signup_support.sql</code>,
+            <code>server/migrations/016_user_onboarding.sql</code>,
+            <code>server/migrations/017_user_onboarding_progress.sql</code>,
+            <code>server/migrations/019_user_profile_settings.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/modules/auth/routes.test.ts</code>, <code>server/modules/auth/service.test.ts</code>,
+            <code>src/modules/auth/components/route-guards.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Manter coerencia entre cookie de refresh, bearer token e redirecionamento do frontend.</li>
+          <li>Revisar rate limit ao abrir novas rotas sensiveis.</li>
+          <li>Registrar auditoria em eventos criticos de auth.</li>
+          <li>Se ampliar <code>AuthUser</code>, refletir em <code>/api/auth/me</code>, provider e guards.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Pagina gerada a partir do repositorio. Fontes principais: <code>server/modules/auth/routes.ts</code>,
+        <code>server/modules/auth/service.ts</code>, <code>server/modules/auth/schemas.ts</code>,
+        <code>src/modules/auth/components/AuthProvider.tsx</code>, <code>src/App.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

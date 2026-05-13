@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Exportacao e exclusao de dados</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Exportacao e exclusao</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a href="api-auth-sessoes-usuarios.html">Auth</a
+        ><a class="active" href="api-exportacao-exclusao-dados.html">Exportacao e exclusao</a
+        ><a href="seguranca-privacidade-limitacoes.html">Seguranca</a
+        ><a href="observabilidade-health-logs-erros.html">Observabilidade</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de exportacao e exclusao de dados</h1>
+        <p>
+          Permite baixar CSV de transacoes, export completo em JSON e excluir a conta do usuario autenticado mediante
+          senha atual. A exclusao limpa o cookie de refresh no fim da operacao.
+        </p>
+        <div class="tags">
+          <span class="tag">Export CSV e JSON</span><span class="tag">Exclusao destrutiva</span
+          ><span class="tag">Senha atual obrigatoria</span><span class="tag">Cookie limpo apos delete</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Gerar anexos baixaveis e excluir a conta inteira do usuario.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Export CSV cobre transacoes; export JSON cobre um conjunto maior de tabelas do
+            usuario.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong>Bearer obrigatorio em todas as rotas e senha atual na exclusao.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/modules/user-data/*</code>,
+            <code>src/hooks/use-user-data.ts</code>, <code>src/pages/Settings.tsx</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          O modulo atende operacoes de portabilidade e encerramento da conta. A exportacao prioriza seguranca do dado
+          entregue e a exclusao passa por verificacao de senha antes de apagar o usuario e limpar a sessao web.
+        </p>
+        <div class="callout">
+          O CSV faz escaping de valores que poderiam ser interpretados como formula por planilhas, prefixando campos
+          iniciados por <code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>, tab ou carriage return.
+        </div>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Baixar CSV de transacoes do usuario autenticado.</li>
+          <li>Baixar JSON completo com perfil e tabelas relacionadas.</li>
+          <li>Excluir a conta apos validar a senha atual.</li>
+          <li>Limpar refresh cookie ao concluir a exclusao.</li>
+          <li>Registrar auditoria de exclusao de conta.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao permite exclusao sem senha atual.</li>
+          <li>Nao exporta dados de outros usuarios.</li>
+          <li>Nao mantem sessao ativa apos exclusao da conta.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>CSV e focado em transacoes; dados de outras tabelas exigem JSON.</li>
+          <li>O conjunto exato do JSON depende do repositorio <code>server/modules/user-data/repository.ts</code>.</li>
+          <li>
+            Retencao posterior ou backups fora da base transacional nao foram identificados no repositorio analisado.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/user-data/export/csv</code></td>
+              <td>Baixa CSV</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td>Anexo CSV</td>
+              <td>Conteudo focado em transacoes</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/user-data/export/json</code></td>
+              <td>Baixa export completo</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td>Anexo JSON</td>
+              <td>Sem selecao parcial por rota</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/user-data/account</code></td>
+              <td>Exclui conta</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td><code>{ currentPassword }</code></td>
+              <td><code>{ message }</code> + cookie limpo</td>
+              <td>Operacao destrutiva e irreversivel na base ativa</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>currentPassword</td>
+              <td>string</td>
+              <td>Sim para delete</td>
+              <td>Passa pelo schema de exclusao</td>
+              <td>Verificada com Argon2 no service</td>
+            </tr>
+            <tr>
+              <td>Headers de auth</td>
+              <td>Bearer</td>
+              <td>Sim</td>
+              <td>Sem bearer as rotas nao executam</td>
+              <td>Refresh cookie nao substitui o bearer</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Bearer obrigatorio</td>
+              <td>Todas as rotas</td>
+              <td>Bloqueia export/delete anonimo</td>
+              <td>401</td>
+            </tr>
+            <tr>
+              <td>Senha atual correta</td>
+              <td>DELETE account</td>
+              <td>Impede exclusao sem credencial correta</td>
+              <td>403 <code>invalid_credentials</code></td>
+            </tr>
+            <tr>
+              <td>Escaping de CSV</td>
+              <td>GET export/csv</td>
+              <td>Neutraliza risco de formula injection</td>
+              <td>Nao e erro; e sanitizacao de saida</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>CSV e JSON fazem leitura, sem mutacao.</li>
+          <li>Delete account remove dados do usuario e gera auditoria <code>account_deleted</code>.</li>
+          <li>Delete limpa o cookie de refresh com opcoes expiradas.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Export e delete</td>
+              <td>Autenticar</td>
+            </tr>
+            <tr>
+              <td>403</td>
+              <td>Senha atual incorreta</td>
+              <td>Delete account</td>
+              <td>Informar senha correta</td>
+            </tr>
+            <tr>
+              <td>500</td>
+              <td>Falha ao montar export ou excluir dados</td>
+              <td>Leitura/escrita da base</td>
+              <td>Inspecionar requestId e logs</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo export e delete">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Settings.tsx</text>
+          <rect x="190" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="265" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-user-data</text>
+          <rect x="370" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="435" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="530" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="610" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/user-data/*</text>
+          <rect x="720" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="800" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">service/repository</text>
+          <text x="800" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">+ auth cookie</text>
+          <path d="M160 83h30M340 83h30M500 83h30M690 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/modules/user-data/routes.ts</code>, <code>server/modules/user-data/service.ts</code>,
+            <code>server/modules/user-data/repository.ts</code>, <code>server/modules/user-data/schemas.ts</code>
+          </li>
+          <li>Frontend: <code>src/hooks/use-user-data.ts</code>, <code>src/pages/Settings.tsx</code></li>
+          <li>Auth: <code>server/modules/auth/service.ts</code> para limpar cookie</li>
+          <li>
+            Testes: <code>server/modules/user-data/routes.test.ts</code>,
+            <code>server/modules/user-data/repository.test.ts</code>, <code>server/modules/auth/routes.test.ts</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Se adicionar nova tabela sensivel, decidir se entra no JSON export.</li>
+          <li>Manter escaping do CSV contra formula injection.</li>
+          <li>Nunca remover verificacao de senha da exclusao de conta.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/modules/user-data/routes.ts</code>,
+        <code>server/modules/user-data/service.ts</code>, <code>server/modules/user-data/repository.ts</code>,
+        <code>src/hooks/use-user-data.ts</code>, <code>src/pages/Settings.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

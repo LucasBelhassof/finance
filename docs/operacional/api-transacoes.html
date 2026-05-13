@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - API de transacoes</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent: #7c9cff;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+        --danger: #ff7b88;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Transacoes</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a href="api-auth-sessoes-usuarios.html">Auth</a
+        ><a class="active" href="api-transacoes.html">Transacoes</a><a href="api-importacao-extrato.html">Importacao</a
+        ><a href="api-contas-cartoes-categorias.html">Contas e categorias</a
+        ><a href="api-dashboard-metricas.html">Dashboard</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de transacoes</h1>
+        <p>
+          Controla listagem, criacao, edicao e remocao de transacoes financeiras do usuario autenticado. Tambem
+          participa da atualizacao de planos, dashboard, faturas e parcelamentos refletidos no frontend via React Query.
+        </p>
+        <div class="tags">
+          <span class="tag">Escopo por usuario</span><span class="tag">CRUD principal do financeiro</span
+          ><span class="tag">Afeta dashboard e planos</span><span class="tag">Integra parcelamentos</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Criar receita ou despesa, listar com paginação/limit, editar transacao
+            simples ou parcela, remover transacao simples ou truncar recorrencia.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Receita nao pode usar cartao de credito; categoria deve combinar com o tipo;
+            payload minimo e obrigatorio.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong>Todas as rotas exigem bearer valido e sempre filtram por <code>user_id</code>.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>src/hooks/use-transactions.ts</code>, <code>src/pages/Transactions.tsx</code>.
+          </div>
+        </div>
+      </header>
+
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          Esta API resolve o registro diario do financeiro. Toda transacao precisa apontar para conta/cartao e categoria
+          coerentes. Alteracoes podem disparar reavaliacao de planos e invalidacao de cache no frontend, e transacoes
+          parceladas usam tratamento diferenciado para atualizar grupos inteiros.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Criar transacao com descricao, valor, data, conta/cartao e categoria.</li>
+          <li>
+            Listar transacoes recentes com <code>limit</code> ou paginação por <code>page</code>/<code>pageSize</code>.
+          </li>
+          <li>Projetar receitas recorrentes positivas em certas visoes derivadas.</li>
+          <li>Editar parcela atual, todas, futuras, passadas ou conjunto customizado de uma compra parcelada.</li>
+          <li>Truncar serie recorrente ao excluir ou editar data futura de uma recorrencia.</li>
+          <li>Reavaliar planos afetados em create, update, delete e import.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao permite receita associada a cartao de credito.</li>
+          <li>Nao aceita categoria de tipo diferente do sinal do valor.</li>
+          <li>Nao expoe rotas sem autenticacao.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>
+            <code>description</code>, <code>amount</code>, <code>occurredOn</code> e <code>bankConnectionId</code> sao
+            obrigatorios.
+          </li>
+          <li>
+            Se <code>categoryId</code> faltar em despesa, usa categoria padrao <code>compras</code>; em receita, a
+            categoria passa a ser obrigatoria.
+          </li>
+          <li>
+            Edicao de parcelamento depende de <code>installmentUpdateScope</code> e dos numeros selecionados no
+            frontend.
+          </li>
+          <li>Delete de recorrencia pode encerrar a serie em vez de apagar o historico inteiro.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/transactions</code></td>
+              <td>Lista transacoes</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>limit ou page/pageSize</td>
+              <td><code>{ transactions }</code> ou lista paginada</td>
+              <td>Sem filtros server-side adicionais na rota</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/transactions</code></td>
+              <td>Cria transacao</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>descricao, valor, data, conta, categoria</td>
+              <td>201 + transacao</td>
+              <td>Receita nao usa cartao</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/transactions/:id</code></td>
+              <td>Edita transacao ou parcela</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Mesmo payload base + escopo de parcela</td>
+              <td>transacao atualizada</td>
+              <td>ID precisa ser inteiro valido</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/transactions/:id</code></td>
+              <td>Remove transacao ou trunca recorrencia</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID na rota, body opcional com <code>occurredOn</code></td>
+              <td>204</td>
+              <td>Recorrencia pode ser truncada</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>description</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Nao vazia</td>
+              <td>Trim no backend</td>
+            </tr>
+            <tr>
+              <td>amount</td>
+              <td>number</td>
+              <td>Sim</td>
+              <td>Finito; sinal define income/expense</td>
+              <td>Frontend edita valor absoluto e tipo separado</td>
+            </tr>
+            <tr>
+              <td>occurredOn</td>
+              <td>data ISO curta</td>
+              <td>Sim</td>
+              <td>Normalizada para YYYY-MM-DD</td>
+              <td>Tambem usada em recorrencia</td>
+            </tr>
+            <tr>
+              <td>bankConnectionId</td>
+              <td>number</td>
+              <td>Sim</td>
+              <td>Inteiro existente do proprio usuario</td>
+              <td>Escopo por <code>user_id</code></td>
+            </tr>
+            <tr>
+              <td>categoryId</td>
+              <td>number</td>
+              <td>Condicional</td>
+              <td>Obrigatoria para receita</td>
+              <td>Despesa pode cair em categoria padrao</td>
+            </tr>
+            <tr>
+              <td>isRecurring</td>
+              <td>boolean</td>
+              <td>Nao</td>
+              <td>So permanece true para valores positivos</td>
+              <td>Recorrencia de despesa nao e mantida nesta regra</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Campos obrigatorios</td>
+              <td>Create e update</td>
+              <td>Rejeita payload incompleto</td>
+              <td>400 <code>invalid_transaction_payload</code></td>
+            </tr>
+            <tr>
+              <td>Conta/cartao existente</td>
+              <td>Create, update e import</td>
+              <td>Rejeita recurso de outro usuario ou inexistente</td>
+              <td>404 <code>bank_connection_not_found</code></td>
+            </tr>
+            <tr>
+              <td>Conta valida para receita</td>
+              <td>Create e update</td>
+              <td>Impede receita em cartao</td>
+              <td>400 <code>invalid_transaction_bank_connection</code></td>
+            </tr>
+            <tr>
+              <td>Categoria coerente com sinal</td>
+              <td>Create, update e import</td>
+              <td>Rejeita categoria de tipo incorreto</td>
+              <td>400 <code>invalid_category</code></td>
+            </tr>
+            <tr>
+              <td>ID de rota inteiro</td>
+              <td>PATCH e DELETE</td>
+              <td>Bloqueia rota com ID invalido</td>
+              <td>400 <code>invalid_transaction_id</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria, altera ou remove registros em <code>transactions</code>.</li>
+          <li>Pode atualizar <code>installment_purchases</code> ao editar bundles parcelados.</li>
+          <li>Dispara <code>reevaluateAffectedPlansForTransactions()</code>.</li>
+          <li>
+            Invalida caches de transacoes, dashboard, planos, invoices, insights e overview de parcelamentos no
+            frontend.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa provavel</th>
+              <th>Quando acontece</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Payload invalido ou categoria incoerente</td>
+              <td>Create/update</td>
+              <td>Corrigir descricao, valor, data, conta e categoria</td>
+            </tr>
+            <tr>
+              <td>404</td>
+              <td>Transacao ou conta nao encontrada</td>
+              <td>ID inexistente ou fora do escopo do usuario</td>
+              <td>Usar recurso valido do proprio usuario</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Qualquer rota</td>
+              <td>Autenticar novamente</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo transacoes">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Transactions.tsx</text>
+          <rect x="190" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="265" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-transactions</text>
+          <rect x="370" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="445" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="550" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="615" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/transactions</text>
+          <rect x="710" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="785" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">database.js</text>
+          <text x="785" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">validacao + DB</text>
+          <path d="M160 83h30M340 83h30M520 83h30M680 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>Backend: <code>server/app.ts</code>, <code>server/database.js</code></li>
+          <li>
+            Frontend: <code>src/hooks/use-transactions.ts</code>, <code>src/pages/Transactions.tsx</code>,
+            <code>src/lib/api.ts</code>
+          </li>
+          <li>
+            Paginas impactadas: <code>src/pages/Index.tsx</code>, <code>ExpenseMetrics.tsx</code>,
+            <code>CreditCardInvoices.tsx</code>, <code>Plans.tsx</code>
+          </li>
+          <li>
+            Migrations: <code>001_init_schema.sql</code>, <code>008_installment_purchases.sql</code>,
+            <code>020_recurring_income_transactions.sql</code>, <code>038_categories_user_scope.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/app.financial-crud.test.ts</code>, <code>src/hooks/use-transactions.test.tsx</code>,
+            <code>src/pages/Transactions.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Confirmar compatibilidade entre sinal do valor, categoria e tipo de conta.</li>
+          <li>Revisar impacto em planos, invoices e dashboard a cada mudanca.</li>
+          <li>Se tocar em parcelamentos, validar escopos <code>current/all/future/past/custom</code>.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/database.js</code>,
+        <code>src/hooks/use-transactions.ts</code>, <code>src/pages/Transactions.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

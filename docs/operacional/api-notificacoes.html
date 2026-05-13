@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - API de notificacoes</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Notificacoes</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a href="api-admin.html">Admin</a
+        ><a class="active" href="api-notificacoes.html">Notificacoes</a
+        ><a href="api-faturas-parcelamentos.html">Faturas</a><a href="api-planejamentos-chat-ia.html">Planos e IA</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de notificacoes</h1>
+        <p>
+          Mantem a caixa de notificacoes do usuario, incluindo criacao manual pelo proprio usuario, marcacao de leitura
+          e eventos gerados por modulos como faturas, habitacao e planejamento.
+        </p>
+        <div class="tags">
+          <span class="tag">Escopo por usuario</span><span class="tag">Inbox propria</span
+          ><span class="tag">Admin e sistema como origem</span><span class="tag">Sem fila externa identificada</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Listar, criar manualmente, marcar como lida/nao lida, marcar todas como lidas
+            e excluir.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Nao foi identificada entrega push/e-mail; o dominio e inbox persistida no banco.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong>Bearer obrigatorio; acao sempre restrita ao proprio usuario, exceto origem admin
+            em rota separada.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/modules/notifications/*</code>,
+            <code>src/hooks/use-notifications.ts</code>, <code>src/pages/Notifications.tsx</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          O modulo serve como caixa interna do produto. Algumas notificacoes sao criadas por rotinas de negocio, e o
+          usuario tambem pode criar notas proprias. Filtros por status, origem e periodo reduzem a lista retornada.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Listar notificacoes do usuario com filtros.</li>
+          <li>Criar notificacao propria com titulo, mensagem, categoria e data opcional.</li>
+          <li>Marcar uma notificacao como lida ou nao lida.</li>
+          <li>Marcar todas como lidas.</li>
+          <li>Excluir notificacao individual.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao foi identificada paginacao offset/page; a rota usa principalmente <code>limit</code>.</li>
+          <li>Nao foi identificada entrega por e-mail, SMS ou push no repositorio analisado.</li>
+          <li>Nao permite a um usuario comum ler notificacoes de outro usuario.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>Titulo e mensagem passam por validacao de tamanho.</li>
+          <li>Data de disparo opcional precisa ser parseavel.</li>
+          <li>
+            Notificacoes administrativas existem, mas sao criadas pela rota admin, nao por esta superficie do usuario.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/notifications</code></td>
+              <td>Lista notificacoes</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>limit, status/unreadOnly, source, startDate, endDate</td>
+              <td><code>{ notifications }</code></td>
+              <td>Sem paginacao rica identificada</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/notifications</code></td>
+              <td>Cria notificacao propria</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>title, message, category, triggerAt opcional</td>
+              <td>201 + notificacao</td>
+              <td>Somente <code>source=user_self</code></td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/notifications/:id/read</code></td>
+              <td>Marca como lida</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td>notificacao atualizada</td>
+              <td>ID deve ser do proprio usuario</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/notifications/:id/unread</code></td>
+              <td>Marca como nao lida</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td>notificacao atualizada</td>
+              <td>Escopo do usuario</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/notifications/read-all</code></td>
+              <td>Marca todas como lidas</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td>contagem atualizada</td>
+              <td>Opera apenas no usuario atual</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/notifications/:id</code></td>
+              <td>Remove notificacao</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID</td>
+              <td>204</td>
+              <td>Sem soft delete identificado</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>title</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Tamanho maximo validado no service</td>
+              <td>Trim e texto curto</td>
+            </tr>
+            <tr>
+              <td>message</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Tamanho maximo validado</td>
+              <td>Conteudo principal</td>
+            </tr>
+            <tr>
+              <td>category</td>
+              <td>string</td>
+              <td>Nao</td>
+              <td>
+                <code>general</code>, <code>invoice_due</code>, <code>financing_due</code>,
+                <code>installment_due</code>, <code>housing_due</code>, <code>custom</code>
+              </td>
+              <td>Padrao do service</td>
+            </tr>
+            <tr>
+              <td>triggerAt</td>
+              <td>data/hora</td>
+              <td>Nao</td>
+              <td>Precisa ser parseavel</td>
+              <td>Pode agendar exibicao</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Titulo e mensagem validos</td>
+              <td>POST</td>
+              <td>Rejeita texto vazio ou longo demais</td>
+              <td>400</td>
+            </tr>
+            <tr>
+              <td>Filtro de datas parseavel</td>
+              <td>GET</td>
+              <td>Bloqueia intervalo invalido</td>
+              <td>400</td>
+            </tr>
+            <tr>
+              <td>Escopo do usuario</td>
+              <td>PATCH/DELETE</td>
+              <td>Impede manipular notificacao alheia</td>
+              <td>404 recurso nao encontrado</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria, altera estado de leitura ou remove registros em <code>notifications</code>.</li>
+          <li>
+            Rotas de negocio podem inserir notificacoes com <code>source=system</code> ou <code>source=admin_*</code>.
+          </li>
+          <li>Frontend atualiza cache otimista e invalida counters relacionados.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Payload ou filtro invalido</td>
+              <td>Listagem e criacao</td>
+              <td>Corrigir datas e textos</td>
+            </tr>
+            <tr>
+              <td>404</td>
+              <td>Notificacao inexistente</td>
+              <td>PATCH/DELETE</td>
+              <td>Usar ID valido do proprio usuario</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Qualquer rota</td>
+              <td>Autenticar</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo notificacoes">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Notifications.tsx</text>
+          <rect x="190" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="265" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-notifications</text>
+          <rect x="370" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="435" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="530" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="605" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/notifications</text>
+          <rect x="710" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="785" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">service + DB</text>
+          <text x="785" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">escopo do usuario</text>
+          <path d="M160 83h30M340 83h30M500 83h30M680 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/modules/notifications/routes.ts</code>,
+            <code>server/modules/notifications/service.ts</code>,
+            <code>server/modules/notifications/repository.ts</code>
+          </li>
+          <li>Frontend: <code>src/hooks/use-notifications.ts</code>, <code>src/pages/Notifications.tsx</code></li>
+          <li>
+            Produtores: <code>server/modules/invoices/service.ts</code>,
+            <code>server/database.js</code> (planos/habitacao)
+          </li>
+          <li>
+            Migrations: <code>server/migrations/018_notifications.sql</code>,
+            <code>server/migrations/036_credit_card_invoice_preferences.sql</code>,
+            <code>server/migrations/037_invoice_payments.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/modules/notifications/routes.test.ts</code>,
+            <code>server/modules/admin/routes.test.ts</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Preservar scoping por usuario em leitura e escrita.</li>
+          <li>Ao adicionar nova categoria/origem, refletir no service e na UI de filtros.</li>
+          <li>Se surgir canal externo de entrega, documentar separadamente; nao foi identificado neste repositorio.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/modules/notifications/routes.ts</code>,
+        <code>server/modules/notifications/service.ts</code>, <code>src/hooks/use-notifications.ts</code>,
+        <code>src/pages/Notifications.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

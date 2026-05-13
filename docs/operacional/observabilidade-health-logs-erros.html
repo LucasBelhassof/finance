@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Observabilidade, health, logs e erros</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Observabilidade</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a
+        ><a class="active" href="observabilidade-health-logs-erros.html">Observabilidade</a
+        ><a href="seguranca-privacidade-limitacoes.html">Seguranca</a
+        ><a href="api-exportacao-exclusao-dados.html">Exportacao e exclusao</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>Observabilidade, health, logs e tratamento de erros</h1>
+        <p>
+          Documenta <code>/api/health</code>, <code>/api/ready</code>, requestId, log estruturado, redacao de dados
+          sensiveis e o error handler global do backend.
+        </p>
+        <div class="tags">
+          <span class="tag">requestId por request</span><span class="tag">Health e readiness separados</span
+          ><span class="tag">Logs estruturados</span><span class="tag">Redacao de segredos</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Responder health/readiness, anexar requestId, registrar conclusao de request
+            e normalizar erros.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Nao foi identificado tracing distribuido, APM externo ou dashboard de logs no
+            repositorio.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong><code>/api/health</code> e <code>/api/ready</code> sao publicos; demais
+            logs/erros sao transversais.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/app.ts</code>, <code>server/shared/logger.js</code>,
+            <code>server/shared/errors.ts</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          Observabilidade no repositório e enxuta e centrada no processo HTTP. Cada request recebe um identificador,
+          logs de conclusao e, em falhas 500, log de erro com contexto sanitizado. Health e readiness foram separados
+          para indicar se a aplicacao esta viva e se o banco esta conectado.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Responder <code>/api/health</code> com status <code>ok</code> e horario do servidor.</li>
+          <li>Responder <code>/api/ready</code> com status <code>ready</code> e ping do banco.</li>
+          <li>Propagar ou gerar <code>x-request-id</code>.</li>
+          <li>Logar finalizacao da request com status, duracao e usuario autenticado.</li>
+          <li>Normalizar excecoes e enviar payload padrao de erro.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao foi identificado tracing distribuido ou correlacao externa alem do requestId.</li>
+          <li>Nao expõe endpoint separado de metrics Prometheus no codigo analisado.</li>
+          <li>Nao registra payload bruto sensivel em logger quando a chave e redigida.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li><code>/api/ready</code> depende apenas do ping de banco, nao de todos os servicos externos.</li>
+          <li>Em producao, erros 500 devolvem mensagem generica para o cliente.</li>
+          <li>
+            CSP estrita ainda esta desativada em <code>helmet</code> enquanto frontend/ativos nao forem auditados.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/health</code></td>
+              <td>Liveness</td>
+              <td>Nao</td>
+              <td>Publica</td>
+              <td>Sem body</td>
+              <td><code>{ status: "ok", serverTime }</code></td>
+              <td>Nao testa banco</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/ready</code></td>
+              <td>Readiness</td>
+              <td>Nao</td>
+              <td>Publica</td>
+              <td>Sem body</td>
+              <td><code>{ status: "ready", database: "connected", serverTime }</code></td>
+              <td>Testa somente banco</td>
+            </tr>
+            <tr>
+              <td>*</td>
+              <td><code>qualquer rota</code></td>
+              <td>Erro padrao</td>
+              <td>Conforme rota</td>
+              <td>Conforme rota</td>
+              <td>Payload da rota</td>
+              <td><code>{ error, requestId, message, details? }</code></td>
+              <td>Mensagem 500 pode ser genericizada</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>x-request-id</code></td>
+              <td>header</td>
+              <td>Nao</td>
+              <td>Se enviado, e truncado para 120 chars</td>
+              <td>Se ausente, backend gera UUID</td>
+            </tr>
+            <tr>
+              <td>Contexto de erro</td>
+              <td>objeto</td>
+              <td>Nao</td>
+              <td>Passa por sanitizacao</td>
+              <td>Logger remove campos sensiveis por fragmento de chave</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ZodError e erros conhecidos</td>
+              <td>No error handler</td>
+              <td>Normaliza para HTTP coerente</td>
+              <td>400 <code>validation_error</code> e similares</td>
+            </tr>
+            <tr>
+              <td>Chaves sensiveis no log</td>
+              <td>Qualquer escrita de log</td>
+              <td>Substitui por <code>[redacted]</code></td>
+              <td>Nao e erro; e redacao</td>
+            </tr>
+            <tr>
+              <td>Erro 500 em producao</td>
+              <td>Error handler</td>
+              <td>Mensagem publica generica</td>
+              <td><code>The backend failed while processing the request.</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Anexa <code>x-request-id</code> em toda resposta.</li>
+          <li>Gera log JSON de conclusao da request.</li>
+          <li>Gera log de erro apenas para falhas 500.</li>
+          <li>Readiness consulta o banco via <code>pingDatabase()</code>.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Payload invalido</td>
+              <td>Rotas que usam Zod ou validacoes internas</td>
+              <td>Corrigir entrada</td>
+            </tr>
+            <tr>
+              <td>500</td>
+              <td>Falha interna</td>
+              <td>Excecao nao tratada</td>
+              <td>Usar requestId para rastrear no log</td>
+            </tr>
+            <tr>
+              <td>503</td>
+              <td>Nao identificado no repositorio analisado</td>
+              <td>Nao confirmado no codigo analisado para <code>/api/ready</code></td>
+              <td>Se implementado no futuro, documentar aqui</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo observabilidade">
+          <rect x="20" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="90" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Request HTTP</text>
+          <rect x="190" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="265" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">requestId + logging</text>
+          <rect x="370" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="430" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Rota / service</text>
+          <rect x="520" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="595" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">errors.ts</text>
+          <rect x="700" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="780" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">logger.js</text>
+          <text x="780" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">sanitizado</text>
+          <path d="M160 83h30M340 83h30M490 83h30M670 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/app.ts</code>, <code>server/shared/logger.js</code>,
+            <code>server/shared/errors.ts</code>, <code>server/server.ts</code>
+          </li>
+          <li>Frontend consumidor: <code>src/hooks/use-health.ts</code>, <code>src/pages/Settings.tsx</code></li>
+          <li>Testes: <code>server/app.health.test.ts</code>, <code>server/shared/errors.test.ts</code></li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Preservar requestId em respostas e logs.</li>
+          <li>Nao ampliar logger com campos sensiveis sem atualizar redacao.</li>
+          <li>Se readiness passar a depender de servicos externos, documentar granularidade nova.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/shared/logger.js</code>,
+        <code>server/shared/errors.ts</code>, <code>server/app.health.test.ts</code>.
+      </footer>
+    </main>
+  </body>
+</html>

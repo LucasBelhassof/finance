@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - API de importacao de extrato</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Importacao de extrato</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a href="api-transacoes.html">Transacoes</a
+        ><a class="active" href="api-importacao-extrato.html">Importacao</a
+        ><a href="api-contas-cartoes-categorias.html">Contas e categorias</a
+        ><a href="api-planejamentos-chat-ia.html">Planos, chat e IA</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de importacao de extrato</h1>
+        <p>
+          Recebe arquivo, detecta parser, gera preview temporario, permite salvar template de mapeamento, usar sugestoes
+          por IA em linhas selecionadas e confirmar apenas linhas validadas.
+        </p>
+        <div class="tags">
+          <span class="tag">Upload multipart raw</span><span class="tag">Preview temporario</span
+          ><span class="tag">IA premium</span><span class="tag">Deduplicacao</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Receber arquivo, validar formato, gerar preview, extrair linhas, normalizar
+            data/descricao/valor/tipo, criar transacoes e parcelas validas.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Limite de 5 MB, ate 5000 linhas, preview com TTL de 15 min, parser depende do
+            formato real.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong>Todas as rotas exigem bearer; sugestao por IA tambem exige premium.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/transaction-import.js</code>,
+            <code>server/import/*</code>, <code>src/components/transactions/ImportTransactionsModal.tsx</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          A importacao trabalha em duas fases. A primeira le o arquivo e cria um preview com diagnostico e metadados; a
+          segunda confirma apenas itens selecionados, com deduplicacao por fingerprint e validacao de conta/cartao por
+          linha.
+        </p>
+        <div class="callout">
+          Formatos confirmados no parser registry: CSV, TSV, XLSX, XLS, OFX, QIF, TXT estruturado, JSON e PDF textual.
+        </div>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Receber arquivo e detectar parser universal.</li>
+          <li>Validar conta/cartao contra o tipo de fonte detectado.</li>
+          <li>Gerar preview com issues, warnings, confidence e metadados seguros.</li>
+          <li>Aplicar ou salvar template de mapeamento por assinatura de cabecalho.</li>
+          <li>Sugerir categorias por IA para linhas selecionadas quando habilitado por ambiente e premium.</li>
+          <li>Impedir commit sem conta/cartao por linha.</li>
+          <li>Deduplicar por seed key, external id ou hash de fallback seguro.</li>
+          <li>Importar parcelas automaticamente quando o preview identifica compra parcelada.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao persiste o arquivo bruto nem expõe seu conteudo integral em log.</li>
+          <li>Nao garante categorizacao perfeita por IA.</li>
+          <li>Nao permite IA quando <code>IMPORT_AI_ENABLED</code> esta desligado.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>Se dados nao vierem no padrao esperado, o preview pode falhar ou produzir linhas invalidas.</li>
+          <li>Layouts desconhecidos podem cair em parser generico ou erro de formato nao suportado.</li>
+          <li>Datas invalidas, valores invalidos ou conta ausente rejeitam a linha no commit.</li>
+          <li>PDF protegido exige senha; senha incorreta gera erro especifico.</li>
+          <li>IA usa limite por requisicao e pode retornar status <code>disabled</code>.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/transactions/import/preview</code></td>
+              <td>Preview legado com fonte explicita</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>multipart + importSource + bankConnectionId opcional</td>
+              <td>201 + preview</td>
+              <td>20 requests por janela</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/transactions/import/universal-preview</code></td>
+              <td>Preview universal multi-parser</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>multipart + previewOptions</td>
+              <td>201 + preview enriquecido</td>
+              <td>Arquivo limitado a 5 MB</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/transactions/import/commit</code></td>
+              <td>Confirma linhas validas</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>previewToken, items, bankConnectionId opcional</td>
+              <td>201 + contadores e resultados</td>
+              <td>Rejeita linha sem conta ou inconsistente</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/transactions/import/ai-suggestions</code></td>
+              <td>Sugere categoria por IA</td>
+              <td>Bearer</td>
+              <td>Premium</td>
+              <td>previewToken, rowIndexes</td>
+              <td>201 + summary e items</td>
+              <td>30 requests IA por janela</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/transactions/import/templates</code></td>
+              <td>Lista templates</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>fileType opcional</td>
+              <td><code>{ templates }</code></td>
+              <td>Filtra por tipo de arquivo</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/transactions/import/templates</code></td>
+              <td>Salva template</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>previewToken, columnMapping, nome opcional</td>
+              <td>201 + template</td>
+              <td>Preview precisa conter metadados suficientes</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/transactions/import/templates/:templateId</code></td>
+              <td>Exclui template</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>ID na rota</td>
+              <td>204</td>
+              <td>ID invalido ou inexistente gera erro</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>file</td>
+              <td>arquivo</td>
+              <td>Sim</td>
+              <td>Tipos confirmados em parser registry</td>
+              <td>CSV, TSV, XLSX, XLS, OFX, QIF, TXT, JSON, PDF</td>
+            </tr>
+            <tr>
+              <td>importSource</td>
+              <td>string</td>
+              <td>Nao</td>
+              <td><code>bank_statement</code> ou <code>credit_card_statement</code></td>
+              <td>Universal preview tambem detecta sozinho</td>
+            </tr>
+            <tr>
+              <td>bankConnectionId</td>
+              <td>number</td>
+              <td>Condicional</td>
+              <td>Inteiro do usuario</td>
+              <td>Pode ser global ou por item no commit</td>
+            </tr>
+            <tr>
+              <td>previewToken</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Sessao de preview valida</td>
+              <td>Necessario para commit, IA e templates</td>
+            </tr>
+            <tr>
+              <td>rowIndexes</td>
+              <td>array</td>
+              <td>Nao</td>
+              <td>Linhas alvo da IA</td>
+              <td>Quantidade limitada por config</td>
+            </tr>
+            <tr>
+              <td>columnMapping</td>
+              <td>objeto</td>
+              <td>Condicional</td>
+              <td>Passa por <code>validateImportTemplateColumnMapping</code></td>
+              <td>Usado em planilhas/CSV com mapeamento manual</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Tamanho maximo</td>
+              <td>Preview</td>
+              <td>Bloqueia arquivo maior que 5 MB</td>
+              <td>400/413 conforme parser interno</td>
+            </tr>
+            <tr>
+              <td>Conta x tipo de fonte</td>
+              <td>Preview e commit</td>
+              <td>Impede extrato em cartao ou fatura em conta comum</td>
+              <td>400 <code>invalid_bank_connection_for_import_source</code></td>
+            </tr>
+            <tr>
+              <td>Conta por linha obrigatoria</td>
+              <td>Commit</td>
+              <td>Rejeita linha sem conta/cartao definido</td>
+              <td>400 <code>import_row_bank_connection_required</code></td>
+            </tr>
+            <tr>
+              <td>Senha de PDF</td>
+              <td>Preview PDF protegido</td>
+              <td>Exige senha valida</td>
+              <td>400 <code>import_pdf_password_required</code> ou <code>import_pdf_password_invalid</code></td>
+            </tr>
+            <tr>
+              <td>Template valido</td>
+              <td>Salvar template</td>
+              <td>Exige preview e metadados validos</td>
+              <td>400 <code>invalid_import_template_preview</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Gera sessao temporaria de preview e apaga a sessao apos commit.</li>
+          <li>Cria transacoes importadas e compras parceladas quando necessario.</li>
+          <li>Atualiza regras de categorizacao historica em imports bem-sucedidos.</li>
+          <li>Registra eventos de uso de IA em <code>ai_usage_events</code>.</li>
+          <li>Reavalia planos afetados apos importacao.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa provavel</th>
+              <th>Quando acontece</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Formato, linha, template ou conta invalidos</td>
+              <td>Preview e commit</td>
+              <td>Corrigir arquivo, mapeamento ou conta selecionada</td>
+            </tr>
+            <tr>
+              <td>402</td>
+              <td>Usuario free em IA</td>
+              <td><code>/ai-suggestions</code></td>
+              <td>Assinatura premium</td>
+            </tr>
+            <tr>
+              <td>404</td>
+              <td>Conta ou template inexistente</td>
+              <td>Preview, commit ou delete template</td>
+              <td>Usar recurso valido</td>
+            </tr>
+            <tr>
+              <td>429</td>
+              <td>Rate limit de importacao ou IA</td>
+              <td>Sequencia intensa de previews ou IA</td>
+              <td>Aguardar nova janela</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo importacao">
+          <rect x="20" y="55" width="155" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="97" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">ImportTransactionsModal</text>
+          <rect x="205" y="55" width="145" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="278" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-transactions</text>
+          <rect x="380" y="55" width="145" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="452" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="555" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="620" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">preview/commit</text>
+          <rect x="715" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="775" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">parser +</text>
+          <text x="775" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">preview store</text>
+          <rect x="865" y="55" width="95" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="912" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">DB / IA</text>
+          <path d="M175 83h30M350 83h30M525 83h30M685 83h30M835 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/app.ts</code>, <code>server/database.js</code>,
+            <code>server/transaction-import.js</code>
+          </li>
+          <li>
+            Import: <code>server/import/parser-registry.js</code>, <code>universal-import-service.js</code>,
+            <code>preview-session-store.js</code>, <code>template-utils.js</code>
+          </li>
+          <li>
+            IA: <code>server/import-ai-service.js</code>, <code>import-ai-provider-direct.js</code>,
+            <code>import-ai-provider-webhook.js</code>
+          </li>
+          <li>
+            Frontend: <code>src/components/transactions/ImportTransactionsModal.tsx</code>,
+            <code>src/hooks/use-transactions.ts</code>, <code>src/lib/api.ts</code>
+          </li>
+          <li>
+            Testes: <code>server/transaction-import.test.ts</code>, <code>server/import/parser-contract.test.ts</code>,
+            <code>server/import/parsers/parsers.test.ts</code>,
+            <code>src/components/transactions/ImportTransactionsModal.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Se criar parser novo, registrar no <code>parser-registry.js</code>.</li>
+          <li>Manter preview e commit usando as mesmas regras de conta/cartao e deduplicacao.</li>
+          <li>Evitar logs com arquivo bruto, prompt bruto ou dados sensiveis do extrato.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/app.ts</code>, <code>server/database.js</code>,
+        <code>server/transaction-import.js</code>, <code>server/import/*</code>,
+        <code>src/hooks/use-transactions.ts</code>.
+      </footer>
+    </main>
+  </body>
+</html>

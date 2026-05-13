@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - API admin</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Admin</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a class="active" href="api-admin.html">Admin</a
+        ><a href="api-notificacoes.html">Notificacoes</a><a href="api-planejamentos-chat-ia.html">IA</a
+        ><a href="seguranca-privacidade-limitacoes.html">Seguranca</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API administrativa</h1>
+        <p>
+          Expõe visoes gerenciais de usuarios, assinaturas, atividade, uso de IA e notificacoes administrativas. O
+          backend valida explicitamente <code>request.auth.user.role === "admin"</code> antes de servir qualquer rota.
+        </p>
+        <div class="tags">
+          <span class="tag">Role admin obrigatoria</span><span class="tag">Auditoria de acesso negado</span
+          ><span class="tag">Metricas operacionais</span><span class="tag">Notificacao administrativa</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Expor overview, metricas financeiras agregadas, subscriptions, activity, uso
+            de IA e criar notificacoes admin.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Usuario comum nao acessa; superficie depende de consultas agregadas, nao de CRUD
+            completo de usuarios.
+          </div>
+          <div class="card">
+            <strong>Permissoes</strong>Bearer + role admin no backend; <code>AdminRoute</code> bloqueia no frontend.
+          </div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/modules/admin/*</code>,
+            <code>src/hooks/use-admin.ts</code>, <code>src/pages/admin/*</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          O modulo admin nao troca o escopo comum do produto; ele abre uma camada gerencial isolada para operadores
+          autorizados. O backend ainda audita tentativa negada com evento especifico de auth.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Exibir overview de usuarios, premium, churn e receita agregada.</li>
+          <li>Listar assinaturas/planos quando os dados existem nas tabelas agregadas.</li>
+          <li>Exibir atividade recente e uso de IA.</li>
+          <li>Criar notificacao global ou para usuarios selecionados.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao promove usuario a admin por API publica identificada nesta analise.</li>
+          <li>Nao expõe CRUD amplo de usuario final alem das metricas e notificacoes administrativas.</li>
+          <li>Nao permite acesso de usuario comum apenas por conhecer a rota.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>
+            Dominios administrativos alem de overview, subscriptions, activity, AI usage e notificacoes nao foram
+            identificados no repositorio analisado.
+          </li>
+          <li>Rotas dependem de dados agregados existentes; sem dados retornam contadores zerados.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/admin/overview</code></td>
+              <td>Resumo admin</td>
+              <td>Bearer</td>
+              <td>Admin</td>
+              <td>Sem body</td>
+              <td>KPIs de usuarios e receita</td>
+              <td>Somente role admin</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/admin/financial-metrics</code></td>
+              <td>Metrica financeira agregada</td>
+              <td>Bearer</td>
+              <td>Admin</td>
+              <td>Sem body</td>
+              <td>cards financeiros</td>
+              <td>Depende de agregacao do service</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/admin/subscriptions</code></td>
+              <td>Lista dados de plano</td>
+              <td>Bearer</td>
+              <td>Admin</td>
+              <td>Sem body</td>
+              <td>subscriptions e resumo</td>
+              <td>Campos dependem das tabelas disponiveis</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/admin/activity</code></td>
+              <td>Atividade recente</td>
+              <td>Bearer</td>
+              <td>Admin</td>
+              <td>Sem body</td>
+              <td>feed agregada</td>
+              <td>Leitura apenas</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/admin/ai-usage</code></td>
+              <td>Uso de IA</td>
+              <td>Bearer</td>
+              <td>Admin</td>
+              <td>Sem body</td>
+              <td>metricas e eventos</td>
+              <td>Depende de telemetria registrada</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/admin/notifications</code></td>
+              <td>Cria notificacao admin</td>
+              <td>Bearer</td>
+              <td>Admin</td>
+              <td>target, userIds, title, message, category</td>
+              <td>201 + resultado</td>
+              <td>Usuario comum bloqueado</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>role admin</td>
+              <td>claim auth</td>
+              <td>Sim</td>
+              <td>Validada no middleware local</td>
+              <td>Sem isso a rota responde 403</td>
+            </tr>
+            <tr>
+              <td>target</td>
+              <td>string</td>
+              <td>Sim em notificacao</td>
+              <td><code>all</code> ou <code>selected</code></td>
+              <td>Selecionados exigem <code>userIds</code></td>
+            </tr>
+            <tr>
+              <td>title / message</td>
+              <td>string</td>
+              <td>Sim</td>
+              <td>Tamanho e trim</td>
+              <td>Validacao delegada a notificacoes</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Role admin</td>
+              <td>Todas as rotas</td>
+              <td>Bloqueia usuario comum</td>
+              <td>403 <code>admin_forbidden</code></td>
+            </tr>
+            <tr>
+              <td>Auditoria de acesso negado</td>
+              <td>Tentativa de usuario comum</td>
+              <td>Registra evento</td>
+              <td>Sem payload adicional alem do 403</td>
+            </tr>
+            <tr>
+              <td>Payload de notificacao</td>
+              <td>POST notifications</td>
+              <td>Rejeita titulo/mensagem/categoria invalidos</td>
+              <td>400</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria notificacoes com <code>source</code> administrativo.</li>
+          <li>Ler metricas nao altera estado.</li>
+          <li>Tentativa negada registra auditoria de auth.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>403</td>
+              <td>Usuario sem role admin</td>
+              <td>Qualquer rota</td>
+              <td>Usar sessao administrativa</td>
+            </tr>
+            <tr>
+              <td>400</td>
+              <td>Payload invalido</td>
+              <td>Notificacao admin</td>
+              <td>Corrigir target, categoria e texto</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Qualquer rota</td>
+              <td>Autenticar</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo admin">
+          <rect x="20" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="95" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">Paginas admin</text>
+          <rect x="200" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="265" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-admin</text>
+          <rect x="360" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="420" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="510" y="55" width="130" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="575" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/admin/*</text>
+          <rect x="670" y="55" width="180" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="760" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">admin routes/service</text>
+          <text x="760" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">+ auditoria</text>
+          <path d="M170 83h30M330 83h30M480 83h30M640 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/modules/admin/routes.ts</code>, <code>server/modules/admin/service.ts</code>,
+            <code>server/modules/admin/repository.ts</code>
+          </li>
+          <li>Auth: <code>server/modules/auth/repository.ts</code> para auditoria</li>
+          <li>
+            Frontend: <code>src/hooks/use-admin.ts</code>, <code>src/modules/auth/components/AdminRoute.tsx</code>,
+            <code>src/pages/admin/AdminOverviewPage.tsx</code>
+          </li>
+          <li>
+            Migrations: <code>server/migrations/015_admin_support.sql</code>,
+            <code>server/migrations/018_notifications.sql</code>, <code>server/migrations/035_ai_usage_events.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/modules/admin/routes.test.ts</code>,
+            <code>server/modules/admin/routes.user-access.test.ts</code>,
+            <code>src/modules/auth/components/route-guards.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Preservar cheque de role no backend e no guard do frontend.</li>
+          <li>Auditar tentativas negadas em superficies administrativas.</li>
+          <li>Se surgir CRUD admin de usuarios, documentar em pagina propria ou ampliar esta pagina.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/modules/admin/routes.ts</code>, <code>server/modules/admin/service.ts</code>,
+        <code>src/hooks/use-admin.ts</code>, <code>src/pages/admin/AdminOverviewPage.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

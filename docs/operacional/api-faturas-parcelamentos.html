@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finly - Faturas e parcelamentos</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: #121932;
+        --panel-soft: #17203d;
+        --line: #2a365f;
+        --text: #eef2ff;
+        --muted: #aab6d3;
+        --accent-soft: rgba(124, 156, 255, 0.14);
+        --warn: #f5b942;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.6 Arial,
+          sans-serif;
+        background: linear-gradient(180deg, #0b1020 0%, #10162b 100%);
+        color: var(--text);
+      }
+      a {
+        color: #9bb3ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 290px;
+        overflow-y: auto;
+        padding: 24px 18px 32px;
+        background: rgba(10, 15, 30, 0.94);
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .brand small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav-group {
+        margin-top: 24px;
+      }
+      .nav-group h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-group a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+      }
+      .nav-group a.active,
+      .nav-group a:hover {
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      main {
+        margin-left: 290px;
+        padding: 28px;
+      }
+      .hero,
+      .section,
+      .footer {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .hero {
+        padding: 28px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .tags,
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .tag,
+      .toc a {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .cards,
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        margin-top: 22px;
+      }
+      .cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .card {
+        padding: 18px;
+        border-radius: 16px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section {
+        padding: 24px;
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      .section p,
+      .section li {
+        color: var(--muted);
+      }
+      .callout {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid var(--warn);
+        background: rgba(245, 185, 66, 0.08);
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #0a0f1f;
+        color: #b9cbff;
+      }
+      ul.checklist {
+        padding-left: 18px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d1428;
+        margin-top: 12px;
+      }
+      .footer {
+        margin-top: 18px;
+        padding: 18px 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 960px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        main {
+          margin-left: 0;
+          padding: 18px;
+        }
+        .cards,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1 class="brand">Finly operacional <small>Faturas e parcelamentos</small></h1>
+      <nav class="nav-group">
+        <h2>Paginas</h2>
+        <a href="index.html">Inicio</a><a href="api-contas-cartoes-categorias.html">Contas e categorias</a
+        ><a href="api-transacoes.html">Transacoes</a
+        ><a class="active" href="api-faturas-parcelamentos.html">Faturas e parcelamentos</a
+        ><a href="api-notificacoes.html">Notificacoes</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="hero">
+        <h1>API de faturas e parcelamentos</h1>
+        <p>
+          Consolida faturas de cartao, permite marcar pagamento, remover pagamento, ajustar configuracoes do cartao e
+          expor visao consolidada de parcelamentos vinculados a transacoes.
+        </p>
+        <div class="tags">
+          <span class="tag">Rotas dedicadas em invoices</span><span class="tag">Somente cartao de credito</span
+          ><span class="tag">Parcelamentos refletem em transacoes</span
+          ><span class="tag">Notificacoes de vencimento</span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <strong>Capaz de fazer</strong>Listar faturas por periodo/status, marcar e desmarcar pagamento, editar
+            fechamento/vencimento e ler parcelamentos em overview.
+          </div>
+          <div class="card">
+            <strong>Limitacoes</strong>Faturas so consideram transacoes negativas de cartao com configuracao valida de
+            extrato.
+          </div>
+          <div class="card"><strong>Permissoes</strong>Bearer obrigatorio; cartao deve pertencer ao usuario.</div>
+          <div class="card">
+            <strong>Arquivos relacionados</strong><code>server/modules/invoices/*</code>,
+            <code>src/hooks/use-invoices.ts</code>, <code>src/pages/CreditCardInvoices.tsx</code>.
+          </div>
+        </div>
+      </header>
+      <section class="section">
+        <h2>Visao operacional</h2>
+        <p>
+          A capacidade de invoices deriva dados de transacoes e configuracoes do cartao. Nao cria compras diretamente; a
+          origem continua sendo o CRUD de transacoes e a importacao. O modulo apenas consolida, marca pagamento e gera
+          lembretes.
+        </p>
+      </section>
+      <section class="section">
+        <h2>Capaz de fazer</h2>
+        <ul>
+          <li>Listar faturas com filtros de cartao, faixa de referencia, status, categoria e busca.</li>
+          <li>Calcular vencimento, fechamento e status da fatura.</li>
+          <li>Registrar pagamento de fatura.</li>
+          <li>Remover marcacao de pagamento.</li>
+          <li>Ajustar configuracoes de lembrete, fechamento e vencimento do cartao.</li>
+          <li>Expor overview de parcelamentos em <code>/api/installments/overview</code>.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Nao faz</h2>
+        <ul>
+          <li>Nao considera receita nem despesa de conta comum como parte de fatura.</li>
+          <li>Nao paga automaticamente o cartao ao criar transacao.</li>
+          <li>Nao recalcula parcelamento fora das regras de transacao/importacao.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Limitacoes</h2>
+        <ul>
+          <li>Faixa de data invalida gera <code>invalid_invoice_filter</code>.</li>
+          <li>Cartao sem <code>statementCloseDay</code> e <code>statementDueDay</code> nao gera fatura completa.</li>
+          <li>Parcelamentos dependem de metadata coerente na transacao ou em <code>installment_purchases</code>.</li>
+          <li>
+            Arredondamento e rateio seguem os valores ja persistidos nas parcelas; nao ha recomputo financeiro livre na
+            rota de invoices.
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Endpoints relacionados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metodo</th>
+              <th>Rota</th>
+              <th>Capacidade</th>
+              <th>Auth</th>
+              <th>Permissao</th>
+              <th>Entrada</th>
+              <th>Resposta</th>
+              <th>Limitacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/invoices</code></td>
+              <td>Lista faturas</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>cardId, referenceStart, referenceEnd, status, categoryId, search</td>
+              <td><code>{ invoices }</code></td>
+              <td>Datas precisam estar em ordem</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>/api/invoices/payments</code></td>
+              <td>Marca fatura como paga</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>cardId, periodEnd, paidOn, bankConnectionId opcional</td>
+              <td>invoice atualizada</td>
+              <td>Cartao e periodo precisam existir</td>
+            </tr>
+            <tr>
+              <td>DELETE</td>
+              <td><code>/api/invoices/payments/:cardId/:periodEnd</code></td>
+              <td>Remove pagamento</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>cardId, periodEnd</td>
+              <td>204</td>
+              <td>Parametros precisam ser validos</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td><code>/api/invoices/cards/:id/settings</code></td>
+              <td>Ajusta settings do cartao</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>statementCloseDay, statementDueDay, notification flags</td>
+              <td>settings atualizados</td>
+              <td>Somente cartao de credito</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>/api/installments/overview</code></td>
+              <td>Visao consolidada de parcelamentos</td>
+              <td>Bearer</td>
+              <td>Usuario autenticado</td>
+              <td>Sem body</td>
+              <td><code>{ installmentPurchases }</code></td>
+              <td>Depende de compras parceladas persistidas</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Entradas esperadas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Obrigatorio</th>
+              <th>Regra</th>
+              <th>Observacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>cardId</td>
+              <td>number</td>
+              <td>Condicional</td>
+              <td>Cartao de credito do usuario</td>
+              <td>Filtro ou acao de pagamento</td>
+            </tr>
+            <tr>
+              <td>referenceStart / referenceEnd</td>
+              <td>data</td>
+              <td>Nao</td>
+              <td>Intervalo coerente</td>
+              <td>Order crescente obrigatoria</td>
+            </tr>
+            <tr>
+              <td>paidOn</td>
+              <td>data</td>
+              <td>Sim para pagamento</td>
+              <td>YYYY-MM-DD</td>
+              <td>Registra data de pagamento</td>
+            </tr>
+            <tr>
+              <td>statementCloseDay / statementDueDay</td>
+              <td>number</td>
+              <td>Nao</td>
+              <td>1 a 31</td>
+              <td>Atualiza calculo de fatura futura</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Validacoes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Validacao</th>
+              <th>Quando ocorre</th>
+              <th>Resultado</th>
+              <th>Erro esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Filtro de datas valido</td>
+              <td>GET invoices</td>
+              <td>Bloqueia faixa invertida</td>
+              <td>400 <code>invalid_invoice_filter</code></td>
+            </tr>
+            <tr>
+              <td>Cartao de credito existente</td>
+              <td>Pagamento/settings</td>
+              <td>Impede acao em conta comum ou cartao alheio</td>
+              <td>404 ou 400</td>
+            </tr>
+            <tr>
+              <td>Somente transacao negativa de cartao entra na fatura</td>
+              <td>Consolidacao</td>
+              <td>Filtra itens indevidos</td>
+              <td>Sem erro, apenas exclusao da base</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Efeitos colaterais</h2>
+        <ul>
+          <li>Cria ou remove registro de pagamento de fatura.</li>
+          <li>Atualiza configuracoes do cartao e pode gerar notificacoes futuras.</li>
+          <li>Frontend invalida invoices, bancos, dashboard e notifications.</li>
+          <li>Falhas na criacao de notificacao sao logadas pelo service.</li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Erros esperados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP</th>
+              <th>Causa</th>
+              <th>Quando</th>
+              <th>Como corrigir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>400</td>
+              <td>Filtro ou payload invalido</td>
+              <td>Listagem/pagamento/settings</td>
+              <td>Corrigir datas e campos do cartao</td>
+            </tr>
+            <tr>
+              <td>404</td>
+              <td>Cartao/fatura nao encontrados</td>
+              <td>Pagamento ou settings fora do escopo</td>
+              <td>Usar cartao valido</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>Bearer ausente</td>
+              <td>Qualquer rota</td>
+              <td>Autenticar</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h2>Fluxo operacional</h2>
+        <svg viewBox="0 0 980 180" xmlns="http://www.w3.org/2000/svg" aria-label="Fluxo invoices">
+          <rect x="20" y="55" width="150" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="95" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">CreditCardInvoices.tsx</text>
+          <rect x="200" y="55" width="140" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="270" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">use-invoices</text>
+          <rect x="370" y="55" width="120" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="430" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">src/lib/api.ts</text>
+          <rect x="520" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="600" y="88" fill="#eef2ff" font-size="14" text-anchor="middle">/api/invoices*</text>
+          <rect x="710" y="55" width="160" height="56" rx="12" fill="#17203d" stroke="#2a365f" />
+          <text x="790" y="80" fill="#eef2ff" font-size="14" text-anchor="middle">invoice service</text>
+          <text x="790" y="98" fill="#eef2ff" font-size="14" text-anchor="middle">+ transactions</text>
+          <path d="M170 83h30M340 83h30M490 83h30M680 83h30" stroke="#7c9cff" stroke-width="3" fill="none" />
+        </svg>
+      </section>
+      <section class="section">
+        <h2>Arquivos relacionados</h2>
+        <ul>
+          <li>
+            Backend: <code>server/modules/invoices/routes.ts</code>, <code>server/modules/invoices/service.ts</code>,
+            <code>server/modules/invoices/repository.ts</code>
+          </li>
+          <li>Transacoes: <code>server/database.js</code>, <code>server/app.ts</code></li>
+          <li>Frontend: <code>src/hooks/use-invoices.ts</code>, <code>src/pages/CreditCardInvoices.tsx</code></li>
+          <li>
+            Migrations: <code>server/migrations/006_bank_connection_cards.sql</code>,
+            <code>server/migrations/008_installment_purchases.sql</code>,
+            <code>server/migrations/036_credit_card_invoice_preferences.sql</code>,
+            <code>server/migrations/037_invoice_payments.sql</code>
+          </li>
+          <li>
+            Testes: <code>server/modules/invoices/routes.test.ts</code>,
+            <code>server/modules/invoices/service.test.ts</code>, <code>server/modules/invoices/dates.test.ts</code>,
+            <code>src/pages/CreditCardInvoices.test.tsx</code>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h2>Checklist da capacidade</h2>
+        <ul class="checklist">
+          <li>Validar fechamento/vencimento do cartao antes de mudar a consolidacao.</li>
+          <li>Se alterar parcelamento, revisar overview e importacao parcelada.</li>
+          <li>Manter notificacoes de invoice como side effect tolerante a falhas, sem quebrar a resposta principal.</li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Fontes principais: <code>server/modules/invoices/routes.ts</code>,
+        <code>server/modules/invoices/service.ts</code>, <code>src/hooks/use-invoices.ts</code>,
+        <code>src/pages/CreditCardInvoices.tsx</code>.
+      </footer>
+    </main>
+  </body>
+</html>

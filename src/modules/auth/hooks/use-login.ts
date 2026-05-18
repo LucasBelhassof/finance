@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import { appRoutes } from "@/lib/routes";
 import { useAuthContext } from "@/modules/auth/components/AuthProvider";
+import { resolvePostAuthDestination } from "@/modules/auth/lib/auth-navigation";
 import { login } from "@/modules/auth/services/auth-service";
 import type { LoginInput } from "@/modules/auth/types/auth-types";
 
@@ -15,6 +15,7 @@ function wait(durationMs: number) {
 }
 
 export function useLogin() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { applySession } = useAuthContext();
 
@@ -33,7 +34,11 @@ export function useLogin() {
     },
     onSuccess: (payload) => {
       applySession(payload);
-      navigate(appRoutes.dashboard, { replace: true });
+      const destination = resolvePostAuthDestination(payload.user, location.state);
+      navigate(destination.pathname, {
+        replace: true,
+        state: destination.state,
+      });
     },
   });
 }

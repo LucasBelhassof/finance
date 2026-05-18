@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 
 import { FinlyLoader } from "@/components/FinlyLoader";
@@ -17,6 +17,7 @@ import { useLogin } from "@/modules/auth/hooks/use-login";
 import { loginFormSchema, type LoginFormValues } from "@/modules/auth/schemas/auth-schemas";
 
 export default function LoginPage() {
+  const location = useLocation();
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
@@ -133,7 +134,11 @@ export default function LoginPage() {
 
                 <p className="text-center text-sm text-slate-500">
                   Não tem uma conta?{" "}
-                  <Link className="font-semibold text-emerald-400 hover:text-emerald-300" to={appRoutes.signup}>
+                  <Link
+                    className="font-semibold text-emerald-400 hover:text-emerald-300"
+                    to={appRoutes.signup}
+                    state={location.state}
+                  >
                     Criar conta
                   </Link>
                 </p>

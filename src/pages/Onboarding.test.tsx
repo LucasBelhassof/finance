@@ -4,6 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OnboardingPage from "@/pages/Onboarding";
+import { createPremiumAuthState } from "@/modules/auth/lib/auth-navigation";
+import { appRoutes } from "@/lib/routes";
 
 const mockNavigate = vi.fn();
 const mockRestartTour = vi.fn();
@@ -12,6 +14,7 @@ const mockUseTransactions = vi.fn();
 const mockUseCategories = vi.fn();
 const mockUseDashboard = vi.fn();
 const mockUseAuthSession = vi.fn();
+const mockUseLocation = vi.fn();
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
@@ -19,6 +22,7 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
+    useLocation: () => mockUseLocation(),
   };
 });
 
@@ -67,6 +71,7 @@ describe("OnboardingPage", () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     mockRestartTour.mockReset();
+    mockUseLocation.mockReturnValue({ state: null });
 
     mockUseAuthSession.mockReturnValue({
       user: {
@@ -192,5 +197,60 @@ describe("OnboardingPage", () => {
 
     expect(mockNavigate).toHaveBeenCalled();
     expect(mockRestartTour).toHaveBeenCalled();
+  });
+
+  it("surfaces the premium-intent helper and returns to pricing after setup is complete", () => {
+    mockUseLocation.mockReturnValue({ state: createPremiumAuthState() });
+    mockUseAuthSession.mockReturnValue({
+      user: {
+        isPremium: false,
+        hasCompletedOnboarding: true,
+        onboardingProgress: {
+          actionChecklist: {
+            completedSteps: ["dashboard", "premium"],
+          },
+        },
+      },
+    });
+    mockUseBanks.mockReturnValue({
+      data: [
+        {
+          id: 1,
+          slug: "conta-principal",
+          name: "Conta Principal",
+          accountType: "bank_account",
+        },
+      ],
+      isLoading: false,
+    });
+    mockUseTransactions.mockReturnValue({
+      data: [{ id: 1, description: "Mercado" }],
+      isLoading: false,
+    });
+    mockUseDashboard.mockReturnValue({
+      data: {
+        banks: [
+          {
+            id: 1,
+            slug: "conta-principal",
+            name: "Conta Principal",
+            accountType: "bank_account",
+          },
+        ],
+        recentTransactions: [{ id: 1, description: "Mercado" }],
+        spendingByCategory: [{ id: 1, label: "Compras" }],
+      },
+      isLoading: false,
+    });
+
+    renderPage();
+
+    expect(screen.getByText(/você veio pela jornada de premium/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ver planos novamente/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith(appRoutes.pricing, {
+      state: createPremiumAuthState(),
+    });
   });
 });

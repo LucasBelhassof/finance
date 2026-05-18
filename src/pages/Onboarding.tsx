@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, Crown, CreditCard, FileUp, LayoutDashboard, Rocket, Tags } from "lucide-react";
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { useBanks } from "@/hooks/use-banks";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { useCategories, useTransactions } from "@/hooks/use-transactions";
 import { appRoutes } from "@/lib/routes";
+import { normalizeAuthNavigationState } from "@/modules/auth/lib/auth-navigation";
 import { hasCompletedActionOnboardingStep } from "@/modules/auth/lib/onboarding-progress";
 import { hasUsefulOnboardingAccount, isUsefulOnboardingAccountType } from "@/modules/auth/lib/setup-completion";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
@@ -29,6 +30,7 @@ type OnboardingChecklistItem = {
 };
 
 export default function OnboardingPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const { restartTour } = useProductTour();
@@ -56,6 +58,8 @@ export default function OnboardingPage() {
     hasTransactions,
   ]);
   const hasSeenPremiumValue = Boolean(user?.isPremium || hasVisitedPremium);
+  const navigationState = normalizeAuthNavigationState(location.state);
+  const cameFromPremiumIntent = navigationState.intent === "premium" && !user?.isPremium;
   const isLoading = isBanksLoading || isTransactionsLoading || isCategoriesLoading || isDashboardLoading;
 
   const checklistItems = useMemo<OnboardingChecklistItem[]>(
@@ -174,6 +178,21 @@ export default function OnboardingPage() {
                   ? "Checklist concluída. Agora faz sentido explorar o restante do produto."
                   : `Próxima ação recomendada: ${nextPendingItem.title}.`}
             </p>
+            {cameFromPremiumIntent ? (
+              <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm font-medium text-foreground">Você veio pela jornada de Premium.</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Primeiro feche a base da conta com estrutura e lançamentos reais. Depois disso, o valor dos recursos
+                  premium fica mais claro e a volta para os planos faz mais sentido.
+                </p>
+                {!isLoading && completedItems === checklistItems.length ? (
+                  <Button className="mt-4" onClick={() => navigate(appRoutes.pricing, { state: navigationState })}>
+                    Ver planos novamente
+                    <ArrowRight size={16} />
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-4">

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,6 +15,7 @@ import { useSignup } from "@/modules/auth/hooks/use-signup";
 import { signupFormSchema, type SignupFormValues } from "@/modules/auth/schemas/auth-schemas";
 
 export default function SignupPage() {
+  const location = useLocation();
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
@@ -139,7 +140,11 @@ export default function SignupPage() {
 
               <p className="text-center text-sm text-muted-foreground">
                 Ja tem uma conta?{" "}
-                <Link className="font-medium text-primary hover:text-primary/80" to={appRoutes.login}>
+                <Link
+                  className="font-medium text-primary hover:text-primary/80"
+                  to={appRoutes.login}
+                  state={location.state}
+                >
                   Entrar
                 </Link>
               </p>

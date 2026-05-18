@@ -1,12 +1,12 @@
 import { Check, Crown, Sparkles, X } from "lucide-react";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { toast } from "@/components/ui/sonner";
 import { appRoutes } from "@/lib/routes";
+import { createPremiumAuthState, normalizeAuthNavigationState } from "@/modules/auth/lib/auth-navigation";
 import { useActionOnboardingProgress } from "@/modules/auth/hooks/use-action-onboarding-progress";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 
@@ -27,12 +27,16 @@ const FEATURES: Feature[] = [
 ];
 
 export default function PricingPage() {
+  const location = useLocation();
   const { user } = useAuthSession();
   const { completeActionStep } = useActionOnboardingProgress();
   const navigate = useNavigate();
 
   const isAuthenticated = Boolean(user);
   const isPremium = Boolean(user?.isPremium);
+  const hasCompletedOnboarding = Boolean(user?.hasCompletedOnboarding);
+  const navigationState = normalizeAuthNavigationState(location.state);
+  const cameFromPremiumIntent = navigationState.intent === "premium";
 
   useEffect(() => {
     if (!user) {
@@ -44,13 +48,24 @@ export default function PricingPage() {
 
   function handlePremiumCta() {
     if (!isAuthenticated) {
-      navigate(appRoutes.signup);
+      navigate(appRoutes.signup, {
+        state: createPremiumAuthState(),
+      });
       return;
     }
+
     if (isPremium) {
       return;
     }
-    toast("Assinatura online em breve.");
+
+    if (!hasCompletedOnboarding) {
+      navigate(appRoutes.onboarding, {
+        state: createPremiumAuthState(),
+      });
+      return;
+    }
+
+    navigate(appRoutes.profile);
   }
 
   return (
@@ -61,6 +76,13 @@ export default function PricingPage() {
           <p className="mt-3 text-base text-muted-foreground">
             Comece gratuitamente e faça upgrade quando quiser desbloquear recursos de IA.
           </p>
+          {cameFromPremiumIntent && !isPremium ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {hasCompletedOnboarding
+                ? "Sua conta já está pronta. Como a assinatura online ainda não está conectada, acompanhe o status do plano na sua área de perfil."
+                : "Você começou pelo Premium. Antes da ativação, conclua os primeiros passos para configurar conta, transações e dashboard útil."}
+            </p>
+          ) : null}
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
@@ -133,8 +155,21 @@ export default function PricingPage() {
             <CardFooter>
               <Button className="w-full rounded-xl" disabled={isPremium} onClick={handlePremiumCta}>
                 <Sparkles size={16} />
-                {isPremium ? "Premium ativo" : isAuthenticated ? "Assinar Premium" : "Começar grátis"}
+                {isPremium
+                  ? "Premium ativo"
+                  : !isAuthenticated
+                    ? "Criar conta para continuar"
+                    : !hasCompletedOnboarding
+                      ? "Concluir primeiros passos"
+                      : "Ver status do Premium"}
               </Button>
+              {!isPremium ? (
+                <p className="mt-3 text-center text-xs text-muted-foreground">
+                  {isAuthenticated
+                    ? "Assinatura online em breve. Até lá, o plano pode ser acompanhado na sua área de conta."
+                    : "Cadastre-se para salvar sua sessão e seguir para a ativação inicial do produto."}
+                </p>
+              ) : null}
             </CardFooter>
           </Card>
         </div>

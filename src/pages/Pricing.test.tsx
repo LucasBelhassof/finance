@@ -5,11 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import PricingPage from "@/pages/Pricing";
 import { appRoutes } from "@/lib/routes";
+import { createPremiumAuthState } from "@/modules/auth/lib/auth-navigation";
 
 const mockNavigate = vi.fn();
-const mockToast = vi.fn();
 const mockCompleteActionStep = vi.fn();
 const mockUseAuthSession = vi.fn();
+const mockUseLocation = vi.fn();
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
@@ -17,12 +18,9 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
+    useLocation: () => mockUseLocation(),
   };
 });
-
-vi.mock("@/components/ui/sonner", () => ({
-  toast: (...args: unknown[]) => mockToast(...args),
-}));
 
 vi.mock("@/modules/auth/hooks/use-auth-session", () => ({
   useAuthSession: () => mockUseAuthSession(),
@@ -86,12 +84,13 @@ function renderPage() {
 describe("PricingPage", () => {
   beforeEach(() => {
     mockNavigate.mockReset();
-    mockToast.mockReset();
     mockCompleteActionStep.mockReset();
+    mockUseLocation.mockReturnValue({ state: null });
     mockUseAuthSession.mockReturnValue({
       user: {
         id: 1,
         isPremium: false,
+        hasCompletedOnboarding: false,
       },
     });
   });
@@ -102,13 +101,14 @@ describe("PricingPage", () => {
     expect(mockCompleteActionStep).toHaveBeenCalledWith("premium");
   });
 
-  it("keeps the billing placeholder behavior for free authenticated users", () => {
+  it("sends incomplete authenticated users to onboarding from the premium CTA", () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /Assinar Premium/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Concluir primeiros passos/i }));
 
-    expect(mockToast).toHaveBeenCalledWith("Assinatura online em breve.");
-    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith(appRoutes.onboarding, {
+      state: createPremiumAuthState(),
+    });
   });
 
   it("sends unauthenticated users to signup from the free CTA", () => {
@@ -121,5 +121,35 @@ describe("PricingPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Começar grátis/i })[0]!);
 
     expect(mockNavigate).toHaveBeenCalledWith(appRoutes.signup);
+  });
+
+  it("preserves premium intent for unauthenticated users coming from pricing", () => {
+    mockUseAuthSession.mockReturnValue({
+      user: null,
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /Criar conta para continuar/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith(appRoutes.signup, {
+      state: createPremiumAuthState(),
+    });
+  });
+
+  it("sends configured free users to profile from the premium CTA", () => {
+    mockUseAuthSession.mockReturnValue({
+      user: {
+        id: 1,
+        isPremium: false,
+        hasCompletedOnboarding: true,
+      },
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /Ver status do Premium/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith(appRoutes.profile);
   });
 });

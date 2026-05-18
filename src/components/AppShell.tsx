@@ -3,11 +3,14 @@ import type { ReactNode } from "react";
 import { Crown, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import MobileBottomNav from "@/components/MobileBottomNav";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { appRoutes } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 
 interface AppShellProps {
@@ -21,6 +24,7 @@ interface AppShellProps {
 export default function AppShell({ title, description, children, headerContent, showGreeting = false }: AppShellProps) {
   const { user } = useAuthSession();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const shouldShowPremiumBar = Boolean(user) && !user?.isPremium;
 
   return (
@@ -75,8 +79,10 @@ export default function AppShell({ title, description, children, headerContent, 
             </div>
           ) : null}
 
-          <div className="space-y-6 p-4 sm:p-6">{children}</div>
+          <div className={cn("space-y-6 p-4 sm:p-6", isMobile && "pb-28")}>{children}</div>
         </main>
+
+        {isMobile ? <MobileBottomNav /> : null}
       </div>
     </SidebarProvider>
   );

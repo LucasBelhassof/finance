@@ -1,24 +1,30 @@
 import {
   Bell,
-  Building2,
   ChevronDown,
   ChevronLeft,
-  FolderKanban,
-  PiggyBank,
   Layers3,
-  LayoutDashboard,
   Lightbulb,
   LogOut,
-  MessageSquare,
   Settings,
   Shield,
   UserCircle2,
+  X,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { matchPath, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { KiplyLogo } from "@/components/brand/KiplyLogo";
 import { NavLink } from "@/components/NavLink";
+import {
+  adminItems,
+  expenseManagementItems,
+  isAdminActive,
+  isExpenseManagementActive,
+  isNavItemActive,
+  isSubItemActive,
+  navItems,
+  secondaryNavItems,
+} from "@/components/navigation/app-navigation";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -48,34 +54,6 @@ import { useAuthSession } from "@/modules/auth/hooks/use-auth-session";
 import { useLogout } from "@/modules/auth/hooks/use-logout";
 import { useProductTour } from "@/modules/product-tour/use-product-tour";
 
-const navItems = [{ icon: LayoutDashboard, label: "Dashboard", to: appRoutes.dashboard, end: true }];
-
-const secondaryNavItems = [
-  { icon: MessageSquare, label: "Chat IA", to: appRoutes.chat },
-  { icon: FolderKanban, label: "Planejamentos", to: appRoutes.plans },
-  { icon: PiggyBank, label: "Caixinhas", to: appRoutes.savingsGoal },
-  { icon: Building2, label: "Contas", to: appRoutes.accounts },
-];
-
-const expenseManagementItems = [
-  { label: "Transações", to: appRoutes.transactions },
-  { label: "Receitas recorrentes", to: appRoutes.expenseManagementRecurringIncome },
-  { label: "Faturas", to: appRoutes.expenseManagementInvoices },
-  { label: "Habitação", to: appRoutes.expenseManagementHousing },
-  { label: "Parcelamentos", to: appRoutes.expenseManagementInstallments },
-  { label: "Métricas", to: appRoutes.expenseManagementMetrics },
-];
-
-const adminItems = [
-  { label: "Visão geral", to: appRoutes.adminOverview },
-  { label: "Usuários", to: appRoutes.adminUsers },
-  { label: "Financeiro", to: appRoutes.adminFinancialMetrics },
-  { label: "IA", to: appRoutes.adminAiUsage },
-  { label: "Assinaturas", to: appRoutes.adminSubscriptions },
-  { label: "Atividade", to: appRoutes.adminActivity },
-  { label: "Notificações", to: appRoutes.adminNotifications },
-];
-
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,13 +72,8 @@ export default function Sidebar() {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
   const isCollapsed = state === "collapsed";
-  const isExpenseManagementActive = Boolean(
-    location.pathname === appRoutes.transactions ||
-    matchPath({ path: `${appRoutes.expenseManagement}/*`, end: false }, location.pathname),
-  );
-  const isAdminActive = Boolean(
-    location.pathname === appRoutes.admin || matchPath({ path: `${appRoutes.admin}/*`, end: false }, location.pathname),
-  );
+  const expenseManagementActive = isExpenseManagementActive(location.pathname);
+  const adminActive = isAdminActive(location.pathname);
 
   useEffect(() => {
     if (isMobile && openMobile && previousPathnameRef.current !== location.pathname) {
@@ -136,12 +109,12 @@ export default function Sidebar() {
           {!isCollapsed ? (
             <button
               type="button"
-              onClick={toggleSidebar}
-              className="ml-auto hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring md:inline-flex"
-              aria-label="Recolher sidebar"
-              title="Recolher sidebar"
+              onClick={isMobile ? () => setOpenMobile(false) : toggleSidebar}
+              className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring md:inline-flex"
+              aria-label={isMobile ? "Fechar menu" : "Recolher sidebar"}
+              title={isMobile ? "Fechar menu" : "Recolher sidebar"}
             >
-              <ChevronLeft size={16} />
+              {isMobile ? <X size={16} /> : <ChevronLeft size={16} />}
             </button>
           ) : null}
         </div>
@@ -150,11 +123,7 @@ export default function Sidebar() {
       <SidebarContent className="px-2">
         <SidebarMenu>
           {navItems.map((item) => {
-            const isActive = item.end
-              ? location.pathname === item.to
-              : Boolean(
-                  matchPath({ path: `${item.to}/*`, end: false }, location.pathname) || location.pathname === item.to,
-                );
+            const isActive = isNavItemActive(location.pathname, item);
 
             return (
               <SidebarMenuItem key={item.label}>
@@ -174,49 +143,49 @@ export default function Sidebar() {
             );
           })}
 
-          <Collapsible asChild defaultOpen={isExpenseManagementActive}>
+          {isAdmin ? (
+            <Collapsible asChild defaultOpen={adminActive}>
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton
+                    isActive={adminActive}
+                    tooltip="Administracao"
+                    className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                  >
+                    <Shield size={18} className="shrink-0" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Admin</span>
+                    <ChevronDown
+                      size={16}
+                      className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
+                    />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {adminItems.map((item) => {
+                      const isActive = isSubItemActive(location.pathname, item);
+
+                      return (
+                        <SidebarMenuSubItem key={item.label}>
+                          <SidebarMenuSubButton asChild isActive={isActive}>
+                            <NavLink to={item.to}>
+                              <span>{item.label}</span>
+                            </NavLink>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      );
+                    })}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          ) : null}
+
+          <Collapsible asChild defaultOpen={expenseManagementActive}>
             <SidebarMenuItem>
-              {isAdmin ? (
-                <Collapsible asChild defaultOpen={isAdminActive}>
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        isActive={isAdminActive}
-                        tooltip="Administracao"
-                        className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-                      >
-                        <Shield size={18} className="shrink-0" />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">Admin</span>
-                        <ChevronDown
-                          size={16}
-                          className="ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-item:rotate-180"
-                        />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {adminItems.map((item) => {
-                          const isActive = location.pathname === item.to;
-
-                          return (
-                            <SidebarMenuSubItem key={item.label}>
-                              <SidebarMenuSubButton asChild isActive={isActive}>
-                                <NavLink to={item.to}>
-                                  <span>{item.label}</span>
-                                </NavLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          );
-                        })}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              ) : null}
-
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
-                  isActive={isExpenseManagementActive}
+                  isActive={expenseManagementActive}
                   tooltip="Gestão Financeira"
                   data-tour-id="nav-expense-management"
                   className="h-11 rounded-lg px-3 text-muted-foreground hover:bg-secondary hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
@@ -232,7 +201,7 @@ export default function Sidebar() {
               <CollapsibleContent>
                 <SidebarMenuSub>
                   {expenseManagementItems.map((item) => {
-                    const isActive = location.pathname === item.to;
+                    const isActive = isSubItemActive(location.pathname, item);
 
                     return (
                       <SidebarMenuSubItem key={item.label}>
@@ -250,9 +219,7 @@ export default function Sidebar() {
           </Collapsible>
 
           {secondaryNavItems.map((item) => {
-            const isActive = Boolean(
-              matchPath({ path: `${item.to}/*`, end: false }, location.pathname) || location.pathname === item.to,
-            );
+            const isActive = isNavItemActive(location.pathname, item);
 
             return (
               <SidebarMenuItem key={item.label}>

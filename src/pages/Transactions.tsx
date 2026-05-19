@@ -1,6 +1,19 @@
-import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CheckCircle2,
+  Copy,
+  Eye,
+  FolderKanban,
+  Pencil,
+  Plus,
+  Search,
+  Star,
+  Target,
+  Trash2,
+} from "lucide-react";
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import CategoryPieChart from "@/components/CategoryPieChart";
@@ -20,6 +33,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ColorField } from "@/components/ui/color-field";
+import {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuItemIcon,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  TouchContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   Dialog,
   DialogContent,
@@ -223,6 +250,7 @@ function TransactionsSkeleton() {
 }
 
 export default function TransactionsPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: transactions = [], isLoading, isError } = useTransactions();
   const { data: categories = [] } = useCategories();
@@ -265,6 +293,8 @@ export default function TransactionsPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [editingCategoryTransactionId, setEditingCategoryTransactionId] = useState<string | null>(null);
   const [updatingCategoryTransactionId, setUpdatingCategoryTransactionId] = useState<string | null>(null);
+  const [favoriteTransactionIds, setFavoriteTransactionIds] = useState<string[]>([]);
+  const [reviewedTransactionIds, setReviewedTransactionIds] = useState<string[]>([]);
   const [transactionForm, setTransactionForm] = useState<TransactionFormState>(emptyTransactionForm("expense"));
   const [installmentEditState, setInstallmentEditState] = useState<InstallmentEditState>(createInstallmentEditState());
   const [categoryForm, setCategoryForm] = useState<CreateCategoryInput>({
@@ -500,6 +530,8 @@ export default function TransactionsPage() {
   const currentInstallmentNumber = transactionForm.installmentNumber;
   const currentInstallmentCount = transactionForm.installmentCount;
   const customInstallmentSelections = installmentEditState.selectedNumbers.slice().sort((left, right) => left - right);
+  const favoriteTransactionIdSet = useMemo(() => new Set(favoriteTransactionIds), [favoriteTransactionIds]);
+  const reviewedTransactionIdSet = useMemo(() => new Set(reviewedTransactionIds), [reviewedTransactionIds]);
 
   const closeTransactionDialog = () => {
     setTransactionDialogOpen(false);
@@ -517,6 +549,66 @@ export default function TransactionsPage() {
     setTransactionForm(mapTransactionToForm(transaction));
     setInstallmentEditState(createInstallmentEditState(transaction));
     setTransactionDialogOpen(true);
+  };
+
+  const toggleTransactionFlag = (
+    transaction: TransactionItem,
+    setter: Dispatch<SetStateAction<string[]>>,
+    nextActiveLabel: string,
+    nextInactiveLabel: string,
+  ) => {
+    const transactionId = String(transaction.id);
+
+    setter((current) => {
+      const nextSet = new Set(current);
+      const willEnable = !nextSet.has(transactionId);
+
+      if (willEnable) {
+        nextSet.add(transactionId);
+      } else {
+        nextSet.delete(transactionId);
+      }
+
+      toast.success(willEnable ? nextActiveLabel : nextInactiveLabel, {
+        description: `Alteração aplicada apenas nesta sessão para "${transaction.description}".`,
+      });
+
+      return Array.from(nextSet);
+    });
+  };
+
+  const duplicateTransaction = (transaction: TransactionItem) => {
+    const duplicatedForm = mapTransactionToForm(transaction);
+
+    setTransactionForm({
+      ...duplicatedForm,
+      id: undefined,
+      sourceTransactionId: undefined,
+      isInstallment: false,
+      installmentPurchaseId: null,
+      installmentNumber: null,
+      installmentCount: null,
+    });
+    setInstallmentEditState(createInstallmentEditState());
+    setTransactionDialogOpen(true);
+
+    toast.success("Transação duplicada para edição.", {
+      description: "Revise os dados e confirme para criar a nova transação.",
+    });
+  };
+
+  const openRelatedPlanner = (transaction: TransactionItem) => {
+    navigate(appRoutes.plans);
+    toast.info("Abrindo planejamentos.", {
+      description: `Use "${transaction.description}" como referência para criar o próximo plano.`,
+    });
+  };
+
+  const openRelatedSavingsGoal = (transaction: TransactionItem) => {
+    navigate(appRoutes.savingsGoal);
+    toast.info("Abrindo caixinhas.", {
+      description: `Use "${transaction.description}" como referência para criar uma nova reserva.`,
+    });
   };
 
   const handleTransactionSave = async () => {
@@ -780,113 +872,218 @@ export default function TransactionsPage() {
             );
             const isEditingCategory = editingCategoryTransactionId === String(transaction.id);
             const isUpdatingCategory = updatingCategoryTransactionId === String(transaction.id);
+            const isFavorite = favoriteTransactionIdSet.has(String(transaction.id));
+            const isReviewed = reviewedTransactionIdSet.has(String(transaction.id));
 
             return (
-              <TableRow key={transaction.id}>
-                <TableCell>
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => openEditTransaction(transaction)}
-                      className="text-left font-medium text-foreground transition-colors hover:text-primary"
-                    >
-                      {transaction.description}
-                    </button>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      {transaction.isRecurring ? (
-                        <span className="rounded-full bg-income/10 px-2 py-0.5 font-medium text-income">
-                          Recorrente
-                        </span>
-                      ) : null}
-                      {transaction.isRecurringProjection ? <span>Ocorrencia gerada automaticamente</span> : null}
-                      {transaction.isInstallment && transaction.installmentNumber && transaction.installmentCount ? (
-                        <span className="rounded-full bg-info/10 px-2 py-0.5 font-medium text-info">
-                          {transaction.installmentNumber}/{transaction.installmentCount}
-                        </span>
-                      ) : null}
-                      {transaction.isInstallment && transaction.purchaseOccurredOn ? (
-                        <span>Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}</span>
-                      ) : null}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                      <span className="font-medium" style={{ color: categoryColor.text }}>
-                        {transaction.category.label}
-                      </span>
-                      <span>&middot;</span>
-                      <span>{transaction.account.name}</span>
-                      <span>&middot;</span>
-                      <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
-                    </div>
-                    <div className="mt-0.5 hidden text-xs text-muted-foreground sm:block md:hidden">
-                      <span>{transaction.account.name}</span>
-                      <span className="mx-1">&middot;</span>
-                      <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="hidden sm:table-cell">
-                  {isEditingCategory ? (
-                    <div className="min-w-[168px]">
-                      <Select
-                        open={isEditingCategory}
-                        onOpenChange={(open) => {
-                          if (!open) {
-                            setEditingCategoryTransactionId(null);
-                          }
-                        }}
-                        value={String(transaction.category.id)}
-                        onValueChange={(value) => {
-                          void handleInlineCategoryChange(transaction, value);
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-full rounded-lg border-border/60 bg-secondary/35 text-xs">
-                          <SelectValue placeholder="Categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {transactionCategories.map((category) => (
-                            <SelectItem key={category.id} value={String(category.id)}>
-                              {category.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="max-w-full rounded-md px-1.5 py-0.5 text-left font-medium transition-colors hover:bg-secondary/50"
-                      style={{ color: categoryColor.text }}
-                      onClick={() => {
-                        if (isUpdatingCategory) {
-                          return;
-                        }
-                        setEditingCategoryTransactionId(String(transaction.id));
-                      }}
-                      disabled={isUpdatingCategory}
-                    >
-                      {isUpdatingCategory ? "Atualizando..." : transaction.category.label}
-                    </button>
-                  )}
-                </TableCell>
-                <TableCell className="hidden md:table-cell">{transaction.account.name}</TableCell>
-                <TableCell className="hidden md:table-cell">
-                  {transaction.occurredOn.split("-").reverse().join("/")}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell text-center text-sm text-muted-foreground">
-                  {transaction.amount >= 0 ? "Receita" : "Despesa"}
-                </TableCell>
-                <TableCell className={cn("text-right font-semibold", accentColor)}>
-                  {transaction.amount >= 0 ? "+ " : "- "}
-                  {formatCurrency(Math.abs(transaction.amount))}
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openEditTransaction(transaction)}>
-                      <Pencil size={14} />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <ContextMenu key={transaction.id}>
+                <TouchContextMenuTrigger asChild longPressDelay={500}>
+                  <TableRow className="transition-colors hover:bg-secondary/20 data-[state=open]:bg-secondary/20">
+                    <TableCell>
+                      <div className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditTransaction(transaction)}
+                          className="text-left font-medium text-foreground transition-colors hover:text-primary"
+                        >
+                          {transaction.description}
+                        </button>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          {transaction.isRecurring ? (
+                            <span className="rounded-full bg-income/10 px-2 py-0.5 font-medium text-income">
+                              Recorrente
+                            </span>
+                          ) : null}
+                          {transaction.isRecurringProjection ? <span>Ocorrencia gerada automaticamente</span> : null}
+                          {transaction.isInstallment &&
+                          transaction.installmentNumber &&
+                          transaction.installmentCount ? (
+                            <span className="rounded-full bg-info/10 px-2 py-0.5 font-medium text-info">
+                              {transaction.installmentNumber}/{transaction.installmentCount}
+                            </span>
+                          ) : null}
+                          {transaction.isInstallment && transaction.purchaseOccurredOn ? (
+                            <span>Compra em {transaction.purchaseOccurredOn.split("-").reverse().join("/")}</span>
+                          ) : null}
+                          {isFavorite ? (
+                            <span className="rounded-full bg-primary/12 px-2 py-0.5 font-medium text-primary">
+                              Favorita
+                            </span>
+                          ) : null}
+                          {isReviewed ? (
+                            <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 font-medium text-emerald-400">
+                              Revisada
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
+                          <span className="font-medium" style={{ color: categoryColor.text }}>
+                            {transaction.category.label}
+                          </span>
+                          <span>&middot;</span>
+                          <span>{transaction.account.name}</span>
+                          <span>&middot;</span>
+                          <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
+                        </div>
+                        <div className="mt-0.5 hidden text-xs text-muted-foreground sm:block md:hidden">
+                          <span>{transaction.account.name}</span>
+                          <span className="mx-1">&middot;</span>
+                          <span>{transaction.occurredOn.split("-").reverse().join("/")}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {isEditingCategory ? (
+                        <div className="min-w-[168px]">
+                          <Select
+                            open={isEditingCategory}
+                            onOpenChange={(open) => {
+                              if (!open) {
+                                setEditingCategoryTransactionId(null);
+                              }
+                            }}
+                            value={String(transaction.category.id)}
+                            onValueChange={(value) => {
+                              void handleInlineCategoryChange(transaction, value);
+                            }}
+                          >
+                            <SelectTrigger className="h-8 w-full rounded-lg border-border/60 bg-secondary/35 text-xs">
+                              <SelectValue placeholder="Categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {transactionCategories.map((category) => (
+                                <SelectItem key={category.id} value={String(category.id)}>
+                                  {category.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="max-w-full rounded-md px-1.5 py-0.5 text-left font-medium transition-colors hover:bg-secondary/50"
+                          style={{ color: categoryColor.text }}
+                          onClick={() => {
+                            if (isUpdatingCategory) {
+                              return;
+                            }
+                            setEditingCategoryTransactionId(String(transaction.id));
+                          }}
+                          disabled={isUpdatingCategory}
+                        >
+                          {isUpdatingCategory ? "Atualizando..." : transaction.category.label}
+                        </button>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">{transaction.account.name}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {transaction.occurredOn.split("-").reverse().join("/")}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-center text-sm text-muted-foreground">
+                      {transaction.amount >= 0 ? "Receita" : "Despesa"}
+                    </TableCell>
+                    <TableCell className={cn("text-right font-semibold", accentColor)}>
+                      {transaction.amount >= 0 ? "+ " : "- "}
+                      {formatCurrency(Math.abs(transaction.amount))}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEditTransaction(transaction)}>
+                          <Pencil size={14} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TouchContextMenuTrigger>
+
+                <ContextMenuContent className="w-[18.5rem]">
+                  <ContextMenuLabel>Transação</ContextMenuLabel>
+                  <ContextMenuItem onClick={() => openEditTransaction(transaction)}>
+                    <ContextMenuItemIcon>
+                      <Eye size={16} />
+                    </ContextMenuItemIcon>
+                    Ver detalhes
+                    <ContextMenuShortcut className="hidden md:inline">Enter</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => openEditTransaction(transaction)}>
+                    <ContextMenuItemIcon>
+                      <Pencil size={16} />
+                    </ContextMenuItemIcon>
+                    Editar
+                    <ContextMenuShortcut className="hidden md:inline">⌘E</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => duplicateTransaction(transaction)}>
+                    <ContextMenuItemIcon>
+                      <Copy size={16} />
+                    </ContextMenuItemIcon>
+                    Duplicar
+                    <ContextMenuShortcut className="hidden md:inline">⌘D</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuCheckboxItem
+                    checked={isFavorite}
+                    onCheckedChange={() =>
+                      toggleTransactionFlag(
+                        transaction,
+                        setFavoriteTransactionIds,
+                        "Transação marcada como favorita.",
+                        "Transação removida dos favoritos.",
+                      )
+                    }
+                  >
+                    <ContextMenuItemIcon>
+                      <Star size={16} />
+                    </ContextMenuItemIcon>
+                    Marcar como favorita
+                  </ContextMenuCheckboxItem>
+                  <ContextMenuCheckboxItem
+                    checked={isReviewed}
+                    onCheckedChange={() =>
+                      toggleTransactionFlag(
+                        transaction,
+                        setReviewedTransactionIds,
+                        "Transação marcada como revisada.",
+                        "Marca de revisão removida.",
+                      )
+                    }
+                  >
+                    <ContextMenuItemIcon>
+                      <CheckCircle2 size={16} />
+                    </ContextMenuItemIcon>
+                    Marcar como revisada
+                  </ContextMenuCheckboxItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <ContextMenuItemIcon>
+                        <FolderKanban size={16} />
+                      </ContextMenuItemIcon>
+                      Criar relacionado
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-[16rem]">
+                      <ContextMenuItem onClick={() => openRelatedPlanner(transaction)}>
+                        <ContextMenuItemIcon>
+                          <FolderKanban size={16} />
+                        </ContextMenuItemIcon>
+                        Criar planejamento relacionado
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => openRelatedSavingsGoal(transaction)}>
+                        <ContextMenuItemIcon>
+                          <Target size={16} />
+                        </ContextMenuItemIcon>
+                        Criar caixinha relacionada
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem variant="destructive" onClick={() => setDeleteTargetId(String(transaction.id))}>
+                    <ContextMenuItemIcon className="text-destructive">
+                      <Trash2 size={16} />
+                    </ContextMenuItemIcon>
+                    Excluir
+                    <ContextMenuShortcut className="hidden md:inline text-destructive/80">Del</ContextMenuShortcut>
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             );
           })}
         </TableBody>

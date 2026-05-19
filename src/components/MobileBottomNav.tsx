@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 
 function mobileNavItemClassName(isActive: boolean) {
   return cn(
-    "flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium transition-colors",
+    "flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium transition-all duration-300 ease-out will-change-transform active:scale-[0.97]",
     isActive
-      ? "bg-primary text-primary-foreground shadow-sm"
-      : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+      ? "bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
+      : "text-muted-foreground hover:-translate-y-0.5 hover:bg-secondary/80 hover:text-foreground active:bg-secondary",
   );
 }
 
@@ -38,8 +38,14 @@ export default function MobileBottomNav() {
               data-active={isActive}
               className={mobileNavItemClassName(isActive)}
             >
-              <item.icon size={18} className="shrink-0" />
-              <span className="leading-none">{item.label}</span>
+              <item.icon
+                size={18}
+                className={cn(
+                  "shrink-0 transition-transform duration-300 ease-out",
+                  isActive && "-translate-y-0.5 scale-105",
+                )}
+              />
+              <span className="leading-none transition-transform duration-300 ease-out">{item.label}</span>
             </NavLink>
           );
         })}
@@ -52,8 +58,14 @@ export default function MobileBottomNav() {
           className={mobileNavItemClassName(isMoreActive)}
           onClick={toggleSidebar}
         >
-          <MoreHorizontal size={18} className="shrink-0" />
-          <span className="leading-none">Mais</span>
+          <MoreHorizontal
+            size={18}
+            className={cn(
+              "shrink-0 transition-transform duration-300 ease-out",
+              isMoreActive && "-translate-y-0.5 scale-105",
+            )}
+          />
+          <span className="leading-none transition-transform duration-300 ease-out">Mais</span>
         </button>
       </div>
     </nav>

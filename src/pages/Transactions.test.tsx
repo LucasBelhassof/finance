@@ -833,4 +833,41 @@ describe("TransactionsPage", () => {
       });
     });
   });
+
+  it("opens the transaction context menu and toggles local review markers", async () => {
+    renderPage();
+
+    fireEvent.contextMenu(screen.getByText("iFood"));
+
+    expect(await screen.findByText("Criar relacionado")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Marcar como favorita"));
+    fireEvent.click(screen.getByText("iFood"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Favorita")).toBeInTheDocument();
+      expect(toast.success).toHaveBeenCalledWith("Transação marcada como favorita.", expect.any(Object));
+    });
+  });
+
+  it("duplicates and deletes a transaction from the context menu", async () => {
+    renderPage();
+
+    fireEvent.contextMenu(screen.getByText("Uber"));
+    fireEvent.click(await screen.findByText("Duplicar"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Nova Transação" })).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Uber")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    fireEvent.contextMenu(screen.getByText("Uber"));
+    fireEvent.click(await screen.findByText("Excluir"));
+
+    await waitFor(() => {
+      expect(screen.getByText('A transação "Uber" será excluída permanentemente.')).toBeInTheDocument();
+    });
+  });
 });

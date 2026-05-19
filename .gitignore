@@ -33,5 +33,5 @@ index.html
 .user.ini
 .well-known/
 /.cursor
-/.codex-logs
+.codex-*.log
 /.codex
